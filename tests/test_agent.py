@@ -1052,6 +1052,110 @@ class TestAgentCoreLoop:
         config.llm.api_key = "sk-test"
         return AgentCore(config=config)
 
+    def test_llm_client_uses_max_completion_tokens_for_gpt5_models(self):
+        from vulnclaw.agent.llm_client import build_chat_completion_kwargs
+
+        class DummyAgent:
+            class _DummyConfig:
+                class _DummyLLM:
+                    model = "gpt-5.5"
+                    max_tokens = 256
+                    temperature = 0.1
+                    provider = "openai"
+                    reasoning_effort = "high"
+
+                llm = _DummyLLM()
+
+            config = _DummyConfig()
+
+        kwargs = build_chat_completion_kwargs(DummyAgent(), [{"role": "user", "content": "hi"}])
+
+        assert kwargs["max_completion_tokens"] == 256
+        assert "max_tokens" not in kwargs
+        assert "temperature" not in kwargs
+        assert kwargs["reasoning_effort"] == "high"
+
+    def test_llm_client_keeps_max_tokens_for_compatible_providers(self):
+        from vulnclaw.agent.llm_client import build_chat_completion_kwargs
+
+        class DummyAgent:
+            class _DummyConfig:
+                class _DummyLLM:
+                    model = "deepseek-chat"
+                    max_tokens = 512
+                    temperature = 0.2
+                    provider = "deepseek"
+                    reasoning_effort = "high"
+
+                llm = _DummyLLM()
+
+            config = _DummyConfig()
+
+        kwargs = build_chat_completion_kwargs(DummyAgent(), [{"role": "user", "content": "hi"}])
+
+        assert kwargs["max_tokens"] == 512
+        assert kwargs["temperature"] == 0.2
+        assert "max_completion_tokens" not in kwargs
+        assert "reasoning_effort" not in kwargs
+
+    @pytest.mark.asyncio
+    async def test_generate_attack_summary_uses_gpt5_token_parameter(self):
+        from vulnclaw.agent.context import SessionState
+        from vulnclaw.agent.prompt_context import generate_attack_summary
+
+        captured_kwargs = {}
+
+        class DummyClient:
+            class chat:
+                class completions:
+                    @staticmethod
+                    def create(**kwargs):
+                        captured_kwargs.update(kwargs)
+
+                        class Msg:
+                            content = "summary"
+
+                        class Choice:
+                            message = Msg()
+
+                        class Resp:
+                            choices = [Choice()]
+
+                        return Resp()
+
+        class DummyAgent:
+            state = SessionState(target="example.com")
+            session_state = state
+            context = type("Context", (), {"state": state})()
+            config = type(
+                "Config",
+                (),
+                {
+                    "llm": type(
+                        "LLM",
+                        (),
+                        {
+                            "model": "gpt-5.5",
+                            "max_tokens": 4096,
+                            "temperature": 0.1,
+                            "provider": "openai",
+                            "reasoning_effort": "high",
+                        },
+                    )()
+                },
+            )()
+
+            @staticmethod
+            def _get_client():
+                return DummyClient()
+
+        result = await generate_attack_summary(DummyAgent())
+
+        assert result == "summary"
+        assert captured_kwargs["max_completion_tokens"] == 800
+        assert "max_tokens" not in captured_kwargs
+        assert "temperature" not in captured_kwargs
+
     @pytest.mark.asyncio
     async def test_llm_client_call_llm_auto_uses_shared_helper(self, monkeypatch):
         from vulnclaw.agent import llm_client

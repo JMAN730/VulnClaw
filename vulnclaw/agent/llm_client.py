@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
 from typing import Any
 
@@ -47,6 +48,56 @@ def _is_non_retriable_llm_error(error_text: str) -> bool:
         "unsupported parameter",
     ]
     return any(marker in error_text for marker in hard_fail_markers)
+
+
+def _is_openai_reasoning_model(provider: str, model: str) -> bool:
+    """Return True for OpenAI models that use the newer reasoning parameter set."""
+    if provider.lower() != "openai":
+        return False
+    normalized = model.lower()
+    return normalized.startswith(("o1", "o3", "o4", "gpt-5"))
+
+
+def build_chat_completion_kwargs(
+    agent: Any,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None = None,
+    *,
+    max_tokens: int | None = None,
+    temperature: float | None = None,
+) -> dict[str, Any]:
+    """Build provider-compatible Chat Completions kwargs.
+
+    OpenAI reasoning/GPT-5 models reject the legacy max_tokens field and expect
+    max_completion_tokens instead. Other OpenAI-compatible providers may still
+    require the older field, so keep the switch scoped to OpenAI's newer model
+    families.
+    """
+    llm = agent.config.llm
+    provider = str(getattr(llm, "provider", "") or "").lower()
+    model = str(getattr(llm, "model", "") or "")
+    token_limit = max_tokens if max_tokens is not None else getattr(llm, "max_tokens", None)
+    temp = temperature if temperature is not None else getattr(llm, "temperature", None)
+    uses_reasoning_params = _is_openai_reasoning_model(provider, model)
+
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+    }
+    if token_limit is not None:
+        if uses_reasoning_params:
+            kwargs["max_completion_tokens"] = token_limit
+        else:
+            kwargs["max_tokens"] = token_limit
+    if temp is not None and not uses_reasoning_params:
+        kwargs["temperature"] = temp
+    if tools:
+        kwargs["tools"] = tools
+    if uses_reasoning_params:
+        reasoning_effort = getattr(llm, "reasoning_effort", None)
+        if reasoning_effort:
+            kwargs["reasoning_effort"] = reasoning_effort
+    return kwargs
 
 
 async def _call_with_persistent_retries(agent: Any, request_fn, stage_label: str) -> tuple[Any, int]:
@@ -117,19 +168,7 @@ async def call_llm(agent: Any, system_prompt: str) -> str:
     messages.extend(agent.context.get_messages())
     tools = agent._build_openai_tools()
 
-    kwargs = {
-        "model": agent.config.llm.model,
-        "messages": messages,
-        "max_tokens": agent.config.llm.max_tokens,
-        "temperature": agent.config.llm.temperature,
-    }
-    if tools:
-        kwargs["tools"] = tools
-
-    provider = agent.config.llm.provider.lower()
-    if provider == "openai" and "o1" in agent.config.llm.model.lower():
-        kwargs["reasoning_effort"] = agent.config.llm.reasoning_effort
-        kwargs.pop("temperature", None)
+    kwargs = build_chat_completion_kwargs(agent, messages, tools)
 
     response, retry_attempts = await _call_with_persistent_retries(
         agent,
@@ -152,19 +191,7 @@ async def call_llm_auto(agent: Any, system_prompt: str, round_context: str) -> s
     messages.append({"role": "user", "content": round_context})
     tools = agent._build_openai_tools()
 
-    kwargs = {
-        "model": agent.config.llm.model,
-        "messages": messages,
-        "max_tokens": agent.config.llm.max_tokens,
-        "temperature": agent.config.llm.temperature,
-    }
-    if tools:
-        kwargs["tools"] = tools
-
-    provider = agent.config.llm.provider.lower()
-    if provider == "openai" and "o1" in agent.config.llm.model.lower():
-        kwargs["reasoning_effort"] = agent.config.llm.reasoning_effort
-        kwargs.pop("temperature", None)
+    kwargs = build_chat_completion_kwargs(agent, messages, tools)
 
     response, retry_attempts = await _call_with_persistent_retries(
         agent,

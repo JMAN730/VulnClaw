@@ -191,6 +191,24 @@ class TestReportGenerator:
         content = Path(output).read_text(encoding="utf-8")
         assert "这是通过 VulnClaw 对接的 LLM 生成的攻击路径摘要。" in content
 
+    def test_report_summary_uses_gpt5_token_parameter(self):
+        from vulnclaw.config.schema import VulnClawConfig
+        from vulnclaw.report.generator import _build_report_summary_llm_kwargs
+
+        config = VulnClawConfig()
+        config.llm.provider = "openai"
+        config.llm.model = "gpt-5.5"
+        config.llm.max_tokens = 4096
+
+        kwargs = _build_report_summary_llm_kwargs(
+            config,
+            [{"role": "user", "content": "summarize"}],
+        )
+
+        assert kwargs["max_completion_tokens"] == 1200
+        assert "max_tokens" not in kwargs
+        assert "temperature" not in kwargs
+
     def test_report_with_recon_data(self, tmp_path):
         from vulnclaw.report.generator import generate_report
         from vulnclaw.agent.context import SessionState, PentestPhase

@@ -305,11 +305,15 @@ async def generate_attack_summary(agent: Any) -> str:
     try:
         client = agent._get_client()
         messages = [{"role": "user", "content": prompt}]
+        from vulnclaw.agent.llm_client import build_chat_completion_kwargs
+
         response = client.chat.completions.create(
-            model=agent.config.llm.model,
-            messages=messages,
-            max_tokens=800,
-            temperature=0.3,
+            **build_chat_completion_kwargs(
+                agent,
+                messages,
+                max_tokens=800,
+                temperature=0.3,
+            )
         )
         if response and response.choices:
             raw = response.choices[0].message.content or ""

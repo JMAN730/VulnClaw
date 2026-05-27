@@ -529,10 +529,10 @@ def _generate_attack_summary_from_session(session: SessionState) -> str:
         )
 
         response = client.chat.completions.create(
-            model=config.llm.model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=min(config.llm.max_tokens, 1200),
-            temperature=0.2,
+            **_build_report_summary_llm_kwargs(
+                config,
+                [{"role": "user", "content": prompt}],
+            )
         )
         if response and response.choices:
             raw = response.choices[0].message.content or ""
@@ -541,6 +541,22 @@ def _generate_attack_summary_from_session(session: SessionState) -> str:
         print(f"[!] LLM attack summary generation failed: {exc}")
         return ""
     return ""
+
+
+def _build_report_summary_llm_kwargs(config: Any, messages: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build Chat Completions kwargs for report summary generation."""
+    from vulnclaw.agent.llm_client import build_chat_completion_kwargs
+
+    class _AgentShim:
+        def __init__(self, config: Any) -> None:
+            self.config = config
+
+    return build_chat_completion_kwargs(
+        _AgentShim(config),
+        messages,
+        max_tokens=min(config.llm.max_tokens, 1200),
+        temperature=0.2,
+    )
 
 
 def generate_persistent_cycle_report(
