@@ -36,11 +36,11 @@ class I18nLoader:
 
     def t(self, key: str, **kwargs: Any) -> str:
         """Translate a key to current language.
-        
+
         Args:
             key: Translation key
             **kwargs: Placeholder values for template strings
-        
+
         Returns:
             Translated string with placeholders replaced
         """
@@ -55,7 +55,7 @@ class I18nLoader:
     @staticmethod
     def detect_language() -> str:
         """Detect language from environment or config.
-        
+
         Priority:
         1. VULNCLAW_LANG environment variable
         2. LANG environment variable
@@ -83,7 +83,7 @@ _translator: Optional[I18nLoader] = None
 
 def init_i18n(lang: Optional[str] = None, config: Any = None) -> I18nLoader:
     """Initialize the global translator.
-    
+
     Args:
         lang: Explicit language override (zh/en)
         config: VulnClaw config object with session.language setting
