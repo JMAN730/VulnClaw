@@ -91,6 +91,12 @@
   "persistent.summary_steps": "  Steps executed: [bold]{steps}[/]",
   "persistent.summary_findings": "  Findings: [bold]{findings}[/]",
   "persistent.cycle_reports": "[bold]Cycle Reports[/]",
+  "persistent.interrupted_message": "[!] User interrupted persistent pentest",
+  "persistent.final_report": "[+] Final report: {path}",
+  "persistent.failed_final_report": "[!] Failed to generate final report: {exc}",
+  "persistent.finished_summary": "\n[+] Persistent pentest finished: {cycles} cycles, {findings} findings",
+  "cli.partial_report": "[+] Partial report: {path}",
+  "cli.pentest_finished": "\n[+] Pentest finished with {findings} findings",
   
   "tui.title": "VulnClaw TUI Workbench",
   "tui.desc": "Terminal graphical entry for authorized security testing: Confirm target and boundaries before starting.",

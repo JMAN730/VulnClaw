@@ -341,9 +341,9 @@ def _run_repl() -> None:
                             current_session=agent.session_state,
                             report_format=config.session.report_format,
                         )
-                        console.print(f"[+] Partial report: {partial_report}")
+                        console.print(_("cli.partial_report", path=partial_report))
                 except KeyboardInterrupt:
-                    console.print("\n[!] User interrupted persistent pentest")
+                    console.print(f"\n{_('persistent.interrupted_message')}")
                     if agent.session_state.findings:
                         try:
                             final_report = _generate_report_for_target(
@@ -351,14 +351,14 @@ def _run_repl() -> None:
                                 current_session=agent.session_state,
                                 report_format=config.session.report_format,
                             )
-                            console.print(f"[+] Final report: {final_report}")
+                            console.print(_("persistent.final_report", path=final_report))
                         except Exception as exc:
-                            console.print(f"[!] Failed to generate final report: {exc}")
+                            console.print(_("persistent.failed_final_report", exc=exc))
 
                 # Summary
                 tf = len(agent.session_state.findings)
                 console.print(
-                    f"\n[+] Persistent pentest finished: {len(all_cycle_results)} cycles, {tf} findings"
+                    _("persistent.finished_summary", cycles=len(all_cycle_results), findings=tf)
                 )
                 continue
 
@@ -745,7 +745,7 @@ def run(
 
     orchestrated = asyncio.run(_run())
     total_findings = orchestrated.summary["findings_count"]
-    console.print(f"\n[+] Pentest finished with {total_findings} findings")
+    console.print(_("cli.pentest_finished", findings=total_findings))
 
 
 @app.command()

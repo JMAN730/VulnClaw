@@ -91,6 +91,12 @@
   "persistent.summary_steps": "  执行步骤: [bold]{steps}[/]",
   "persistent.summary_findings": "  发现: [bold]{findings}[/]",
   "persistent.cycle_reports": "[bold]周期报告[/]",
+  "persistent.interrupted_message": "[!] 用户中断持续渗透测试",
+  "persistent.final_report": "[+] 最终报告: {path}",
+  "persistent.failed_final_report": "[!] 生成最终报告失败: {exc}",
+  "persistent.finished_summary": "\n[+] 持续渗透测试完成: {cycles} 个周期, {findings} 个发现",
+  "cli.partial_report": "[+] 部分报告: {path}",
+  "cli.pentest_finished": "\n[+] 渗透测试完成，共发现 {findings} 个问题",
   
   "tui.title": "VulnClaw TUI 工作台",
   "tui.desc": "面向授权安全测试的终端图形化入口：先确认目标和边界，再启动检查。",
