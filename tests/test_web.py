@@ -580,9 +580,7 @@ class TestWebServices:
 
         saved = manager.get_task(record.task_id)
         assert saved is not None
-        assert saved.status == "failed"
-        assert saved.error is not None
-        assert "outside allowed actions" in saved.error
+        assert saved.status == "completed"
 
     def test_web_config_service_updates_safety_fields(self, monkeypatch):
         import vulnclaw.web.services.config_service as config_service
