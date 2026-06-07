@@ -20,6 +20,7 @@
   "cli.enter_auto_mode": "[dim][*] 进入自主渗透模式，按 Ctrl+C 中断。[/]",
   "cli.auto_mode_hint": "[dim][*] 自动模式已保持活跃，输入 [bold]chat[/] 切换到单轮对话。[/]",
   "cli.auto_mode_exited": "[dim][*] 已退出自动模式。[/]",
+  "cli.auto_resume_hint": "[dim]按 [bold]Enter[/] 恢复自动渗透，或输入新命令。[/]",
   "cli.thinking_shown": "[*] 推理可见性: [green]显示[/]",
   "cli.thinking_hidden": "[*] 推理可见性: [yellow]隐藏[/]",
   "cli.thinking_toggle_hint": "[dim]使用 think on/off 进行显式控制。[/]",

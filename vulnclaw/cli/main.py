@@ -176,6 +176,7 @@ def _run_repl() -> None:
     current_phase: str = "Ready"
     exit_requested = False
     auto_mode_active = False
+    last_auto_input: str = ""
 
     while True:
         try:
@@ -192,7 +193,11 @@ def _run_repl() -> None:
             user_input = console.input(f"vulnclaw {prompt_str}> ").strip()
 
             if not user_input:
-                continue
+                if last_auto_input:
+                    user_input = last_auto_input
+                    console.print(f"[dim]↻ Resuming auto pentest: {last_auto_input[:60]}...[/]")
+                else:
+                    continue
 
             # Handle built-in commands
             cmd_lower = user_input.lower()
@@ -224,6 +229,8 @@ def _run_repl() -> None:
             elif cmd_lower == "clear":
                 current_target = None
                 current_phase = "Ready"
+                auto_mode_active = False
+                last_auto_input = ""
                 agent.reset_context()
                 console.print(_("cli.conversation_cleared"))
                 continue
@@ -390,6 +397,7 @@ def _run_repl() -> None:
                 "chat", "manual", "exit auto", "单轮", "手动",
             ):
                 auto_mode_active = False
+                last_auto_input = ""
                 console.print(_("cli.auto_mode_exited"))
                 is_auto_mode = False
             elif auto_mode_active:
@@ -407,6 +415,11 @@ def _run_repl() -> None:
                 agent.reset_context()
                 # Reset auto mode on target switch
                 auto_mode_active = False
+                last_auto_input = ""
+
+            # Save last auto input for resume on empty Enter
+            if is_auto_mode:
+                last_auto_input = user_input
 
             try:
                 if is_auto_mode:
@@ -495,6 +508,7 @@ def _run_repl() -> None:
                     auto_mode_active = False
                     console.print()
                     console.print(_("cli.interrupted"))
+                    console.print(_("cli.auto_resume_hint"))
                 else:
                     console.print(f"\n{_('cli.interrupted')}")
             except Exception as e:
@@ -1618,8 +1632,6 @@ def _should_auto_pentest(user_input: str, current_target: Optional[str]) -> bool
     has_target = bool(current_target) or bool(_extract_target_from_input(user_input))
     if has_target:
         multi_step_indicators = [
-            "，",
-            "。",
             "并",
             "然后",
             "输出",

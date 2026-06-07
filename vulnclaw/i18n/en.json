@@ -20,6 +20,7 @@
   "cli.enter_auto_mode": "[dim][*] Entering autonomous pentest mode. Press Ctrl+C to interrupt.[/]",
   "cli.auto_mode_hint": "[dim][*] Auto mode stays active. Type [bold]chat[/] to switch to single-turn mode.[/]",
   "cli.auto_mode_exited": "[dim][*] Exited auto mode.[/]",
+  "cli.auto_resume_hint": "[dim]Press [bold]Enter[/] to resume auto pentest, or type a new command.[/]",
   "cli.thinking_shown": "[*] Thinking visibility: [green]shown[/]",
   "cli.thinking_hidden": "[*] Thinking visibility: [yellow]hidden[/]",
   "cli.thinking_toggle_hint": "[dim]Use think on/off for explicit control.[/]",
