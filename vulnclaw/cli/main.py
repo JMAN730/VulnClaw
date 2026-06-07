@@ -512,7 +512,10 @@ def _run_repl() -> None:
         except EOFError:
             break
 
-    # Cleanup
+    # Cleanup — suppress SIGINT to prevent re-trigger during threading shutdown
+    import signal
+
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     mcp_manager.stop_all()
     console.print("[dim]MCP services stopped.[/]")
 
@@ -687,6 +690,9 @@ async def _run_cli_orchestrated_task(
             runner=lambda shared_agent: runner(shared_agent, config),
         )
     finally:
+        import signal
+
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         mcp_manager.stop_all()
 
 
