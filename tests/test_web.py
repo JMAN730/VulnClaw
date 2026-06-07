@@ -683,7 +683,7 @@ class TestWebServices:
         from vulnclaw.agent.context import TaskConstraints
 
         constraints = TaskConstraints(allowed_actions=["recon"], strict_mode=True)
-        assert validate_action_constraints("run", constraints) is not None
+        assert validate_action_constraints("run", constraints) is None  # composite command skips allowed check
         assert validate_action_constraints("recon", constraints) is None
 
     def test_web_stream_encode(self):
