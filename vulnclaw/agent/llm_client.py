@@ -6,7 +6,7 @@ import asyncio
 import inspect
 import json
 import sys
-from typing import Any
+from typing import Any, Optional, Protocol, runtime_checkable
 
 from vulnclaw.agent.tool_call_manager import (
     handle_tool_calls,
@@ -341,7 +341,6 @@ async def call_llm_stream(
 
         full_text = ""
         reasoning_buffer = ""
-        in_reasoning = False
 
         async for chunk in response:
             if chunk.choices and len(chunk.choices) > 0:
@@ -449,7 +448,6 @@ async def call_llm_auto_stream(
         full_text = ""
         reasoning_buffer = ""
         tool_calls_chunks: list[dict] = []
-        collecting_tool_calls = False
 
         for chunk in response:
             if chunk.choices and len(chunk.choices) > 0:
@@ -482,7 +480,6 @@ async def call_llm_auto_stream(
                                 "arguments": getattr(tc_delta.function, "arguments", None) or "",
                             },
                         })
-                        collecting_tool_calls = True
 
         stream_sink.on_stream_end()
 
@@ -625,9 +622,6 @@ async def call_llm_auto_stream(
 
 
 # === Stream Output Protocol ===
-# 放在文件末尾，所有函数之后
-
-from typing import Protocol, Optional, runtime_checkable
 
 
 @runtime_checkable

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -262,7 +262,7 @@ class TestStreamOutputSequence:
         agent._build_openai_tools.return_value = []
 
         # Test
-        result = await call_llm_stream(agent, "system prompt", stream_sink=spy)
+        await call_llm_stream(agent, "system prompt", stream_sink=spy)
 
         # 验证序列
         assert len(spy.calls) > 0
@@ -326,7 +326,7 @@ class TestStreamOutputSequence:
         agent.context.get_messages.return_value = []
         agent._build_openai_tools.return_value = []
 
-        result = await call_llm_stream(agent, "system prompt", stream_sink=spy)
+        await call_llm_stream(agent, "system prompt", stream_sink=spy)
 
         # 验证 reasoning 出现在 content 之前
         thinking_calls = [c for c in spy.calls if c[0] == 'thinking']
@@ -408,7 +408,9 @@ class TestTerminalStreamSinkRealOutput:
     def test_sink_outputs_status(self):
         """测试 on_status 正确输出"""
         import io
+
         from rich.console import Console
+
         from vulnclaw.cli.main import TerminalStreamSink
 
         output = io.StringIO()
@@ -424,7 +426,9 @@ class TestTerminalStreamSinkRealOutput:
     def test_sink_outputs_content_tokens(self):
         """测试 on_content_token 正确输出"""
         import io
+
         from rich.console import Console
+
         from vulnclaw.cli.main import TerminalStreamSink
 
         output = io.StringIO()
@@ -443,7 +447,9 @@ class TestTerminalStreamSinkRealOutput:
     def test_sink_show_thinking_true_outputs_thinking(self):
         """测试 show_thinking=True 时 thinking 内容被输出"""
         import io
+
         from rich.console import Console
+
         from vulnclaw.cli.main import TerminalStreamSink
 
         output = io.StringIO()
@@ -459,7 +465,9 @@ class TestTerminalStreamSinkRealOutput:
     def test_sink_show_thinking_false_hides_thinking(self, capsys):
         """测试 show_thinking=False 时 thinking 内容被隐藏"""
         import io
+
         from rich.console import Console
+
         from vulnclaw.cli.main import TerminalStreamSink
 
         output = io.StringIO()
@@ -478,7 +486,9 @@ class TestTerminalStreamSinkRealOutput:
     def test_sink_outputs_tool_call(self):
         """测试 on_tool_call 正确输出"""
         import io
+
         from rich.console import Console
+
         from vulnclaw.cli.main import TerminalStreamSink
 
         output = io.StringIO()
@@ -495,7 +505,9 @@ class TestTerminalStreamSinkRealOutput:
     def test_sink_outputs_tool_result(self):
         """测试 on_tool_result 正确输出"""
         import io
+
         from rich.console import Console
+
         from vulnclaw.cli.main import TerminalStreamSink
 
         output = io.StringIO()
@@ -511,7 +523,9 @@ class TestTerminalStreamSinkRealOutput:
     def test_sink_truncates_long_tool_result(self):
         """测试超长工具结果被截断"""
         import io
+
         from rich.console import Console
+
         from vulnclaw.cli.main import TerminalStreamSink
 
         output = io.StringIO()

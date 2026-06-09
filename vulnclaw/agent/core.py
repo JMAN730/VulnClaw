@@ -33,7 +33,7 @@ from vulnclaw.agent.input_analysis import (
     get_payload_examples,
 )
 from vulnclaw.agent.kb_context import build_kb_context
-from vulnclaw.agent.llm_client import call_llm, StreamSink
+from vulnclaw.agent.llm_client import StreamSink, call_llm
 from vulnclaw.agent.loop_controller import auto_pentest as run_auto_pentest
 from vulnclaw.agent.loop_controller import persistent_pentest as run_persistent_pentest
 from vulnclaw.agent.prompt_context import build_round_context, generate_attack_summary
