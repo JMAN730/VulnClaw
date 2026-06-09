@@ -34,7 +34,22 @@ VulnClaw/
 |   |   |-- kb_context.py        # 知识库上下文注入
 |   |   `-- think_filter.py      # think 标签显示与隐藏
 |   |-- cli/
-|   |   `-- main.py              # CLI 命令、doctor、web 启动、target-state CLI
+|   |   |-- main.py              # CLI 命令、doctor、web 启动、target-state CLI
+|   |   |-- tui.py               # Rich 版 TUI（回退用）
+|   |   |-- repl.py              # REPL 交互逻辑
+|   |   |-- textui/              # Textual 版 TUI
+|   |   |   |-- app.py           # VulnClawApp 应用入口
+|   |   |   |-- screens/
+|   |   |   |   `-- main.py      # Dashboard 主屏幕（侧边栏 + ContentSwitcher）
+|   |   |   `-- widgets/
+|   |   |       |-- sidebar.py   # 左侧固定导航菜单
+|   |   |       |-- status_bar.py# 三列状态栏（target / mode / model）
+|   |   |       |-- overview.py  # 目标历史概览面板
+|   |   |       |-- scope.py     # 边界约束配置面板
+|   |   |       |-- exec_pane.py # 流式执行面板（LLM 输出 + 工具状态）
+|   |   |       |-- log_panel.py # RichLog 流式日志封装
+|   |   |       |-- tool_panel.py# 工具调用状态树
+|   |   |       `-- input_bar.py # 底部自然语言输入栏
 |   |-- config/                  # 配置 schema、加载、保存、环境变量覆盖
 |   |-- kb/                      # 知识库存储、检索、更新
 |   |-- mcp/
@@ -92,16 +107,21 @@ VulnClaw/
 
 如果同一行为同时出现在 CLI 和 Web，通常应该收敛到这里，而不是分别在 `cli/main.py` 和 `web/services/task_service.py` 各写一份。
 
-### 3. 修改命令行或 REPL 行为时，看 `vulnclaw/cli/main.py`
+### 3. 修改命令行或 TUI 行为时，看 `vulnclaw/cli/`
 
 适用场景：
-- Typer 命令
-- REPL 体验
+- Typer 命令与参数绑定
+- REPL 交互体验
 - `doctor` 输出
 - `web` 启动器行为
 - `target-state` 子命令
+- **Textual TUI 界面、布局、交互**
 
-这一层负责入口、参数绑定和用户输出，不适合承载核心渗透逻辑。
+`cli/main.py` 负责入口、参数绑定和命令路由。TUI 逻辑分为两层：
+- **旧版 Rich TUI**：`vulnclaw/cli/tui.py`，仅留作 `VULNCLAW_TUI_LEGACY=1` 回退
+- **新版 Textual TUI**：`vulnclaw/cli/textui/`，包含主屏幕 `screens/main.py`、流式执行视图 `widgets/exec_pane.py`、侧边栏 `widgets/sidebar.py` 等
+
+修改 TUI 布局、快捷键、流式回调时，在 `textui/` 目录内修改，`cli/main.py` 仅做入口切换。避免把 TUI 渲染逻辑写进 `main.py`。
 
 ### 4. 修改配置时，看 `vulnclaw/config/`
 
