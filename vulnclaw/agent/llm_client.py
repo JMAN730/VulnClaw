@@ -372,18 +372,18 @@ async def call_llm_stream(
         stream_sink.on_stream_end()
         return full_text
 
-    except (NotImplementedError, ValueError, Exception) as e:
-        # Fallback to non-streaming
+    except Exception as e:
+        # Fallback to non-streaming on streaming-related errors or general failures
         error_text = str(e).lower()
-        if any(
-            marker in error_text
-            for marker in [
-                "not supported",
-                "not implemented",
-                "streaming",
-            ]
-        ):
-            # Provider doesn't support streaming, fall back
+        streaming_markers = [
+            "not supported",
+            "not implemented",
+            "streaming",
+            "async for",
+            "requires an object with __aiter__",
+        ]
+        if any(marker in error_text for marker in streaming_markers):
+            # Provider doesn't support streaming or other streaming error, fall back
             pass
         else:
             # Other error, re-raise
