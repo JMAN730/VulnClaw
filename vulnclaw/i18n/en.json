@@ -161,6 +161,7 @@
   "tui.menu_title": "Operation Menu",
   "tui.select_action": "Select Action",
   "tui.exited": "[dim]Exited VulnClaw TUI.[/]",
+  "tui.press_again": "[dim]Press Ctrl+C again within 3 seconds to exit TUI[/]",
   "tui.press_enter": "Press Enter to return",
   "tui.read_error": "Read failed: {exc}",
   "tui.mcp_error": "MCP diagnostic failed: {exc}",

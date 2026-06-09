@@ -161,6 +161,7 @@
   "tui.menu_title": "操作菜单",
   "tui.select_action": "选择操作",
   "tui.exited": "[dim]已退出 VulnClaw TUI。[/]",
+  "tui.press_again": "[dim]3 秒内再次按 Ctrl+C 退出 TUI[/]",
   "tui.press_enter": "按 Enter 返回",
   "tui.read_error": "读取失败: {exc}",
   "tui.mcp_error": "MCP 诊断失败: {exc}",

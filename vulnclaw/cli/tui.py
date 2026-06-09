@@ -6,6 +6,7 @@ import io
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from typing import Callable, Literal
 
@@ -312,6 +313,9 @@ def run_tui(
     active_launcher = launcher or _default_launcher
     screen = Console()
 
+    exit_requested = False
+    _last_ctrlc_time = 0.0
+
     while True:
         screen.clear()
         screen.print(build_dashboard(config, state))
@@ -319,31 +323,50 @@ def run_tui(
         if once:
             return
 
-        choice = Prompt.ask(
-            _("tui.select_action"),
-            choices=list(MENU_ITEMS.keys()),
-            default="1" if not state.target else "4",
-        )
-        if choice == "q":
-            screen.print(_("tui.exited"))
-            return
-        if choice == "1":
-            _prompt_target(state)
-        elif choice == "2":
-            _prompt_mode(state)
-        elif choice == "3":
-            _prompt_scope(state)
-        elif choice == "4":
-            _confirm_and_launch(state, active_launcher)
-        elif choice == "5":
-            _show_target_history(screen, state)
-        elif choice == "6":
-            _generate_target_report(screen, state)
-        elif choice == "7":
-            screen.print(build_runtime_diagnostic_panel(config))
+        try:
+            choice = Prompt.ask(
+                _("tui.select_action"),
+                choices=list(MENU_ITEMS.keys()),
+                default="1" if not state.target else "4",
+            )
+        except KeyboardInterrupt:
+            now = time.monotonic()
+            if exit_requested and (now - _last_ctrlc_time) < 3.0:
+                screen.print(_("tui.exited"))
+                return
+            exit_requested = True
+            _last_ctrlc_time = now
+            screen.print(f"\n{_('tui.press_again')}")
             Prompt.ask(_("tui.press_enter"), default="")
-        elif choice == "8":
-            config = _prompt_llm_config(screen, config)
+            continue
+
+        # Reset double-ctrl-c guard on any normal input
+        exit_requested = False
+
+        try:
+            if choice == "q":
+                screen.print(_("tui.exited"))
+                return
+            if choice == "1":
+                _prompt_target(state)
+            elif choice == "2":
+                _prompt_mode(state)
+            elif choice == "3":
+                _prompt_scope(state)
+            elif choice == "4":
+                _confirm_and_launch(state, active_launcher)
+            elif choice == "5":
+                _show_target_history(screen, state)
+            elif choice == "6":
+                _generate_target_report(screen, state)
+            elif choice == "7":
+                screen.print(build_runtime_diagnostic_panel(config))
+                Prompt.ask(_("tui.press_enter"), default="")
+            elif choice == "8":
+                config = _prompt_llm_config(screen, config)
+        except KeyboardInterrupt:
+            # Interrupted inside a sub-prompt — return to main loop
+            continue
 
 
 def render_task_summary(draft: TuiTaskDraft, *, width: int = 100) -> str:
