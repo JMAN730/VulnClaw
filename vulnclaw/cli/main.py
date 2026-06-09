@@ -105,6 +105,7 @@ class TerminalStreamSink:
         """Receive content token."""
         # If we printed status and now getting content, move to new line
         if self._status_printed and not self._in_thinking:
+            self._console.print()  # 换行到新行
             self._status_printed = False
         self._console.print(token, end="", soft_wrap=True)
 
