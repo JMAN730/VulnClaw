@@ -25,7 +25,6 @@ from textual.widgets import Input, ListItem, ListView, RichLog, Static
 # [新增] 2026-06-10 Nyaecho - 自然语言驱动 / 响应式侧边栏: 新增颜色常量和动作辅助函数导入
 from vulnclaw.cli.tui import (
     C_ACCENT,
-    C_BORDER,
     C_ERROR,
     C_MUTED,
     C_PRIMARY,
@@ -768,8 +767,9 @@ class DashboardScreen(Screen):
 
     def _run_subprocess(self, draft: Any, nl_text: str | None = None) -> None:
         # [修改] 2026-06-10 Nyaecho - 将 NL 文本通过 --prompt 传递给 CLI 子进程
-        import sys
         import subprocess
+        import sys
+
         from vulnclaw.cli.tui import build_command_preview_args
 
         cmd_args = build_command_preview_args(draft, nl_text=nl_text)

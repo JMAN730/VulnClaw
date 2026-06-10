@@ -857,6 +857,7 @@ class TestCLISubCommands:
         from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["repl", "--help"])
+        assert result.exit_code == 0
 
     def test_run_with_prompt_option(self, runner):
         # [修改] 2026-06-10 Nyaecho - 添加 --prompt 选项测试
