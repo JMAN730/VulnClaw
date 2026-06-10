@@ -32,6 +32,7 @@ from vulnclaw.cli.textui.commands.config import ConfigCommand
 from vulnclaw.cli.textui.commands.clear import ClearCommand
 from vulnclaw.cli.textui.commands.load import LoadCommand
 from vulnclaw.cli.textui.commands.save import SaveCommand
+from vulnclaw.cli.textui.commands.settings import SettingsCommand
 from vulnclaw.cli.textui.commands.exit_cmd import ExitCommand
 from vulnclaw.cli.textui.commands.completion_rules import load_rules
 from vulnclaw.cli.textui.utils.state import TuiStateWrapper
@@ -83,6 +84,7 @@ class MainScreen(Screen):
         help_cmd = HelpCommand(self._cmd_registry)
         sc_cmd = ScanConfigCommand()
         config_cmd = ConfigCommand()
+        settings_cmd = SettingsCommand()
         clear_cmd = ClearCommand()
         load_cmd = LoadCommand()
         save_cmd = SaveCommand()
@@ -108,6 +110,12 @@ class MainScreen(Screen):
             usage="/config  |  /config llm set ...  |  /config render on|off  |  /config popup-mode embed|separate",
             detail=_("tui.screen.main.config_detail"),
             completions=_rules.get("config", []),
+        )
+        self._cmd_registry.register(
+            "settings", _("tui.screen.main.settings_desc"),
+            settings_cmd.run,
+            usage="/settings",
+            detail=_("tui.screen.main.settings_detail"),
         )
         self._cmd_registry.register("clear", _("tui.screen.main.clear_desc"), clear_cmd.run,
                                      detail=_("tui.screen.main.clear_detail"))

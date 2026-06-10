@@ -125,6 +125,12 @@ class ChatInput(Horizontal):
     def value(self, new_value: str) -> None:
         inp = self.query_one("#chat-input-field", Input)
         inp.value = new_value
+        inp.cursor_position = len(new_value)  # move cursor to the end
+
+    def focus_input(self) -> None:
+        """Focus the input field."""
+        inp = self.query_one("#chat-input-field", Input)
+        inp.focus()
 
     def clear(self) -> None:
         """Clear the input field and hide completions."""

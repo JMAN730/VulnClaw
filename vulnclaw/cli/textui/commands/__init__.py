@@ -11,6 +11,7 @@ from vulnclaw.cli.textui.commands.config import ConfigCommand
 from vulnclaw.cli.textui.commands.clear import ClearCommand
 from vulnclaw.cli.textui.commands.load import LoadCommand
 from vulnclaw.cli.textui.commands.save import SaveCommand
+from vulnclaw.cli.textui.commands.settings import SettingsCommand
 from vulnclaw.cli.textui.commands.exit_cmd import ExitCommand
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "LoadCommand",
     "SaveCommand",
     "ScanConfigCommand",
+    "SettingsCommand",
 ]

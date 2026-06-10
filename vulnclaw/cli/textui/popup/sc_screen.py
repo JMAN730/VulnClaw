@@ -60,7 +60,9 @@ class PopupSCApp(App):
         height: auto;
         max-height: 70vh;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 0 1;
+        scrollbar-gutter: stable;
     }
 
     .section {
@@ -93,13 +95,6 @@ class PopupSCApp(App):
     #actions > Button {
         margin: 0 1;
     }
-
-    #status {
-        height: auto;
-        text-align: center;
-        margin-top: 1;
-        color: $text-muted;
-    }
     """
 
     def __init__(self, session_dir: str) -> None:
@@ -111,68 +106,87 @@ class PopupSCApp(App):
         with Vertical(id="root"):
             yield Static(_("tui.popup.sc_screen.sc_config_title"), id="title")
             with Vertical(id="body"):
-                self._compose_target()
-                self._compose_boundaries()
-                self._compose_actions()
-                self._compose_mode()
+                # ── Target ──
+                with Vertical(classes="section"):
+                    yield Static("目标设置", classes="section-title")
+                    yield Input(
+                        value=self._data.get("target", ""),
+                        placeholder="目标地址 (IP/域名/URL)",
+                        id="sc-target",
+                    )
+
+                # ── Boundary constraints ──
+                with Vertical(classes="section"):
+                    yield Static(_("tui.popup.sc_screen.boundary_constraints"),
+                                 classes="section-title")
+                    for input_id, placeholder in (
+                        ("sc-only-host", _("tui.popup.sc_screen.only_host_placeholder")),
+                        ("sc-only-port", _("tui.popup.sc_screen.only_port_placeholder")),
+                        ("sc-only-path", _("tui.popup.sc_screen.only_path_placeholder")),
+                        ("sc-blocked-host", _("tui.popup.sc_screen.blocked_host_placeholder")),
+                        ("sc-blocked-path", _("tui.popup.sc_screen.blocked_path_placeholder")),
+                    ):
+                        key = input_id.replace("sc-", "").replace("-", "_")
+                        yield Input(
+                            value=str(self._data.get(key, "")),
+                            placeholder=placeholder,
+                            id=input_id,
+                        )
+
+                # ── Actions ──
+                with Vertical(classes="section"):
+                    yield Static("操作限制", classes="section-title")
+                    yield Input(
+                        value=self._data.get("allow_actions", ""),
+                        placeholder="允许操作 (逗号分隔, 例如 recon,scan)",
+                        id="sc-allow-actions",
+                    )
+                    yield Input(
+                        value=self._data.get("block_actions", ""),
+                        placeholder="禁止操作 (逗号分隔, 例如 exploit)",
+                        id="sc-block-actions",
+                    )
+
+                # ── Mode ──
+                with Vertical(classes="section"):
+                    yield Static("检查模式", classes="section-title")
+                    current_mode = self._data.get("mode", "standard")
+                    yield RadioSet(
+                        *[
+                            RadioButton(
+                                f"{m.label} - {m.description}",
+                                value=k == current_mode,
+                            )
+                            for k, m in MODES.items()
+                        ],
+                        id="sc-mode",
+                    )
+
+            # ── Buttons ──
             with Horizontal(id="actions"):
-                yield Button(_("tui.popup.sc_screen.btn_execute"), id="btn-execute", variant="primary")
-                yield Button(_("tui.popup.sc_screen.btn_save"), id="btn-save")
-                yield Button(_("tui.popup.sc_screen.btn_close"), id="btn-close")
-
-    def _compose_target(self) -> None:
-        with Vertical(classes="section"):
-            yield Static("目标设置", classes="section-title")
-            yield Input(placeholder="目标地址 (IP/域名/URL)", id="sc-target")
-
-    def _compose_boundaries(self) -> None:
-        with Vertical(classes="section"):
-            yield Static(_("tui.popup.sc_screen.boundary_constraints"), classes="section-title")
-            for item in [
-                ("sc-only-host", _("tui.popup.sc_screen.only_host_placeholder")),
-                ("sc-only-port", _("tui.popup.sc_screen.only_port_placeholder")),
-                ("sc-only-path", _("tui.popup.sc_screen.only_path_placeholder")),
-                ("sc-blocked-host", _("tui.popup.sc_screen.blocked_host_placeholder")),
-                ("sc-blocked-path", _("tui.popup.sc_screen.blocked_path_placeholder")),
-            ]:
-                yield Input(placeholder=item[1], id=item[0])
-
-    def _compose_actions(self) -> None:
-        with Vertical(classes="section"):
-            yield Static("操作限制", classes="section-title")
-            yield Input(
-                placeholder="允许操作 (逗号分隔, 例如 recon,scan)", id="sc-allow-actions",
-            )
-            yield Input(
-                placeholder="禁止操作 (逗号分隔, 例如 exploit)", id="sc-block-actions",
-            )
-
-    def _compose_mode(self) -> None:
-        with Vertical(classes="section"):
-            yield Static("检查模式", classes="section-title")
-            yield RadioSet(
-                *[
-                    RadioButton(f"{m.label} - {m.description}")
-                    for m in MODES.values()
-                ],
-                id="sc-mode",
-            )
+                yield Button(_("tui.popup.sc_screen.btn_execute"),
+                             id="btn-execute", variant="primary")
+                yield Button(_("tui.popup.sc_screen.btn_save"),
+                             id="btn-save")
+                yield Button(_("tui.popup.sc_screen.btn_close"),
+                             id="btn-close")
 
     def on_mount(self) -> None:
         """Load initial data from IPC and start polling."""
         payload = self._ipc.read()
         if payload:
             self._data = payload.get("data", {})
-            self._populate_form()
+            self._refresh_form()
 
         self.set_interval(1.0, self._poll_main)
 
-    def _populate_form(self) -> None:
-        """Fill form fields from the current data."""
+    def _refresh_form(self) -> None:
+        """Refresh form fields from the current data."""
+        # Update Input widgets
         for field_id in (
             "sc-target", "sc-only-host", "sc-only-port", "sc-only-path",
             "sc-blocked-host", "sc-blocked-path",
-            "sc-allow-actions", "sc-blocked-actions",
+            "sc-allow-actions", "sc-block-actions",
         ):
             key = field_id.replace("sc-", "").replace("-", "_")
             value = self._data.get(key, "")
@@ -200,44 +214,48 @@ class PopupSCApp(App):
         payload = self._ipc.read()
         if payload:
             self._data = payload.get("data", {})
-            self._populate_form()
+            self._refresh_form()
 
     # ── Button handlers ─────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button clicks."""
         btn_id = event.button.id
-        if btn_id == "btn-close":
-            self._ipc.write(self._collect(), action="close")
+        data = self._collect()
+
+        if btn_id == "btn-save":
+            self._ipc.write(data, action="save")
+            self.notify(_("tui.popup.sc_screen.synced_to_main"), timeout=2)
+            return  # stay open, independent window
+
+        if btn_id == "btn-execute":
+            self._ipc.write(data, action="execute")
+            self.notify(_("tui.popup.sc_screen.config_saved_executing"), timeout=2)
             self.exit()
             return
 
-        data = self._collect()
-        if btn_id == "btn-execute":
-            self._ipc.write(data, action="execute")
-        elif btn_id == "btn-save":
-            self._ipc.write(data, action="save")
-
-        self.notify(_("tui.popup.sc_screen.synced_to_main"), timeout=3)
-        self.exit()
+        if btn_id == "btn-close":
+            self._ipc.write(data, action="close")
+            self.exit()
+            return
 
     # ── Key bindings ────────────────────────────────────────────
 
-    def action_close(self) -> None:
-        """ESC — close without saving."""
-        self._ipc.write(self._collect(), action="close")
-        self.exit()
-
     def action_save(self) -> None:
-        """Ctrl+S — save and close."""
-        self._ipc.write(self._collect(), action="save")
-        self.notify("配置已保存", timeout=2)
-        self.exit()
+        """Ctrl+S — sync to main, keep popup open."""
+        data = self._collect()
+        self._ipc.write(data, action="save")
+        self.notify(_("tui.popup.sc_screen.synced_to_main"), timeout=2)
 
     def action_execute(self) -> None:
-        """Ctrl+E — save and execute."""
+        """Ctrl+E — sync and execute, then close."""
         self._ipc.write(self._collect(), action="execute")
         self.notify(_("tui.popup.sc_screen.config_saved_executing"), timeout=2)
+        self.exit()
+
+    def action_close(self) -> None:
+        """ESC — sync data and close."""
+        self._ipc.write(self._collect(), action="close")
         self.exit()
 
     # ── Helpers ─────────────────────────────────────────────────
