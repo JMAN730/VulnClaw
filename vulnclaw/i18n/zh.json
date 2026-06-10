@@ -224,6 +224,6 @@
   "tui.findings_count": "风险数",
   "tui.snapshot_count": "快照数",
   "tui.report_generated": "报告已生成",
-  "tui.slash_hint": "输入 /help 查看可用命令。示例: /target /mode /scope /start",
+  "tui.slash_hint": "命令: /target /mode /scope /start /run /continue ...",
   "tui.read_error_short": "读取失败"
 }

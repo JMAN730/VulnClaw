@@ -22,17 +22,24 @@ from textual.events import Key
 from textual.screen import Screen
 from textual.widgets import Input, ListItem, ListView, RichLog, Static
 
+# [新增] 2026-06-10 Nyaecho - 自然语言驱动 / 响应式侧边栏: 新增颜色常量和动作辅助函数导入
 from vulnclaw.cli.tui import (
+    C_ACCENT,
+    C_BORDER,
     C_ERROR,
     C_MUTED,
     C_PRIMARY,
+    C_SECONDARY,
     C_SUCCESS,
+    C_TEXT,
     C_WARNING,
     MODES,
     SLASH_COMMANDS,
     TuiState,
     _default_launcher,
     _draft_from_state,
+    _effective_allow_actions,
+    _effective_block_actions,
     _parse_action_csv,
     _parse_optional_port,
     build_dashboard,
@@ -359,13 +366,6 @@ def _h_quit(session: dict[str, Any], args: str) -> str:
     return "quit"
 
 
-@_register_handler("help")
-@_register_handler("h")
-def _h_help(session: dict[str, Any], args: str) -> str | None:
-    _set_prompt(session, "message", "Commands: " + "  ".join(f"/{n}" for n in SLASH_COMMANDS))
-    return None
-
-
 @_register_handler("target")
 @_register_handler("t")
 def _h_target(session: dict[str, Any], args: str) -> str | None:
@@ -430,7 +430,6 @@ def _h_scope(session: dict[str, Any], args: str) -> str | None:
     return None
 
 
-@_register_handler("start")
 @_register_handler("run")
 def _h_start(session: dict[str, Any], args: str) -> str | None:
     state = session["state"]
@@ -439,6 +438,11 @@ def _h_start(session: dict[str, Any], args: str) -> str | None:
         return None
     mode = MODES[state.mode]
     if args in ("-f", "--force"):
+        return "launch"
+    # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: /run <text> 将 text 作为 NL prompt 直接 launch
+    if args:
+        session["_nl_text"] = args
+        session["_nl_history"] = args
         return "launch"
     if mode.needs_extra_confirm:
         def cb(yes):
@@ -521,6 +525,12 @@ def _h_config(session: dict[str, Any], args: str) -> str | None:
 @_register_handler("cont")
 def _h_continue(session: dict[str, Any], args: str) -> str | None:
     if session.get("_last_draft") is not None:
+        # [修改] 2026-06-10 Nyaecho - 方案A累积拼接: /continue [text] 追加到 _nl_history, 无参则复用
+        history = session.get("_nl_history", "")
+        if args:
+            history = f"{history}; {args}" if history else args
+            session["_nl_history"] = history
+        session["_nl_text"] = history if history else None
         session["_continuing"] = True
         return "launch"
     session["_message"] = "No previous execution to continue"
@@ -545,11 +555,16 @@ class DashboardScreen(Screen):
         self._worker_running = False
         self._output_queue: Queue = Queue()
         self._output_lines: list[str] = []
+        # [新增] 2026-06-10 Nyaecho - 状态栏消息自动消失: 用递增计数器区分新旧消息定时器
+        self._bar_msg_id: int = 0
 
     def compose(self) -> ComposeResult:
+        # [修改] 2026-06-10 Nyaecho - 响应式分栏布局: #output-log 移入 Horizontal #exec-row 与 #exec-sidebar 并排
         with Vertical(id="body"):
             yield Static(id="dashboard")
-            yield RichLog(id="output-log", markup=True, wrap=True, auto_scroll=True)
+            with Horizontal(id="exec-row"):
+                yield Static(id="exec-sidebar")
+                yield RichLog(id="output-log", markup=True, wrap=True, auto_scroll=True)
         yield SecondaryPopup()
         yield CommandPalette(id="cmd-palette")
         yield Static(id="status-bar")
@@ -571,12 +586,21 @@ class DashboardScreen(Screen):
         self.query_one("#dashboard").update(dash)
 
     def _set_bar(self, text: str = "", style: str = "") -> None:
+        # [修改] 2026-06-10 Nyaecho - 状态栏消息4秒自动消失: msg_id 计数器防止旧定时器错误清除新消息
+        self._bar_msg_id += 1
+        msg_id = self._bar_msg_id
         bar = self.query_one("#status-bar")
         if text:
             bar.update(f"[{style}]{text}[/]")
             bar.add_class("-active")
+            self.set_timer(4.0, lambda: self._dismiss_bar(msg_id))
         else:
             bar.remove_class("-active")
+
+    def _dismiss_bar(self, msg_id: int) -> None:
+        # [新增] 2026-06-10 Nyaecho - 仅当前消息ID匹配时才关闭状态栏, 防止旧定时器覆盖新消息
+        if self._bar_msg_id == msg_id:
+            self.query_one("#status-bar").remove_class("-active")
 
     # ── Input events ──
 
@@ -619,7 +643,9 @@ class DashboardScreen(Screen):
                 self._s["_launch"] = False
                 draft = self._s.get("_last_draft")
                 continuing = self._s.pop("_continuing", False)
-                self._start_execution(draft, continuing=continuing)
+                # [修改] 2026-06-10 Nyaecho - 携带 NL 文本传递给子进程, /continue 时携带累积的历史 NL
+                nl_text = self._s.pop("_nl_text", None)
+                self._start_execution(draft, continuing=continuing, nl_text=nl_text)
                 return
             elif result is None:
                 if self._s.pop("_show_popup", False):
@@ -629,7 +655,16 @@ class DashboardScreen(Screen):
                 if self._s.get("_message"):
                     self._set_bar(self._s.pop("_message", ""), C_WARNING)
         elif text:
-            self._set_bar(_("tui.slash_hint"), C_MUTED)
+            # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: 无斜杠前缀的纯文本直接作为NL prompt启动
+            state = self._s["state"]
+            if not state.target.strip():
+                self._set_bar(_("tui.please_set_target"), C_WARNING)
+            else:
+                self._s["_launch"] = False
+                self._s["_nl_history"] = text
+                draft = _draft_from_state(state)
+                self._start_execution(draft, nl_text=text)
+                return
 
         self._refresh_dash()
         self.query_one("#cmd-input").clear()
@@ -690,12 +725,14 @@ class DashboardScreen(Screen):
         except Exception:
             pass
 
-    def _start_execution(self, draft: Any = None, *, continuing: bool = False) -> None:
+    def _start_execution(self, draft: Any = None, *, continuing: bool = False, nl_text: str | None = None) -> None:
+        # [修改] 2026-06-10 Nyaecho - 响应式分栏布局: 隐藏仪表盘, 显示 exec-row, 根据终端宽度动态显隐侧边栏
         self.query_one("#dashboard").add_class("-hidden")
         log = self.query_one("#output-log", RichLog)
         if not continuing:
             log.clear()
         log.add_class("-active")
+        self.query_one("#exec-row").add_class("-active")
         self.query_one("#exec-spinner").add_class("-active")
         self.query_one("#cmd-input", Input).disabled = True
         self.query_one("#exec-hint", Static).remove_class("-active")
@@ -709,18 +746,21 @@ class DashboardScreen(Screen):
             draft = _draft_from_state(self._s["state"])
         self._s["_last_draft"] = draft
         self._proc = None
+        # [新增] 2026-06-10 Nyaecho - 根据终端宽度决定是否显示侧边栏 (宽度>=100列时显示)
+        self._apply_responsive_layout()
         threading.Thread(
-            target=self._run_subprocess, args=(draft,), daemon=True
+            target=self._run_subprocess, args=(draft, nl_text), daemon=True
         ).start()
         self._start_polling()
         self._tick_spinner()
 
-    def _run_subprocess(self, draft: Any) -> None:
+    def _run_subprocess(self, draft: Any, nl_text: str | None = None) -> None:
+        # [修改] 2026-06-10 Nyaecho - 将 NL 文本通过 --prompt 传递给 CLI 子进程
         import sys
         import subprocess
         from vulnclaw.cli.tui import build_command_preview_args
 
-        cmd_args = build_command_preview_args(draft)
+        cmd_args = build_command_preview_args(draft, nl_text=nl_text)
         args = [sys.executable, "-m", "vulnclaw.cli.main"] + cmd_args[1:]
         creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         try:
@@ -768,6 +808,24 @@ class DashboardScreen(Screen):
         self.query_one("#exec-spinner", Static).update("".join(blocks))
         self.set_timer(0.12, self._tick_spinner)
 
+    def _apply_responsive_layout(self) -> None:
+        # [新增] 2026-06-10 Nyaecho - 响应式分栏: 终端宽度>=100列时显示侧边栏摘要, 否则仅显示输出日志
+        threshold = 100
+        show_sidebar = self.app.size.width >= threshold
+        sidebar = self.query_one("#exec-sidebar")
+        if show_sidebar:
+            if not sidebar.has_class("-active"):
+                sidebar.update(self._build_exec_sidebar())
+                sidebar.add_class("-active")
+        else:
+            sidebar.remove_class("-active")
+
+    def _check_responsive_resize(self) -> None:
+        # [新增] 2026-06-10 Nyaecho - 执行期间每0.3秒检测终端宽度变化, 动态切换分栏模式
+        if not self._worker_running:
+            return
+        self._apply_responsive_layout()
+
     def _poll_output(self) -> None:
         while not self._output_queue.empty():
             chunk = self._output_queue.get()
@@ -781,6 +839,8 @@ class DashboardScreen(Screen):
 
     def _start_polling(self) -> None:
         self._poll_output()
+        # [新增] 2026-06-10 Nyaecho - 轮询同时检测终端宽度变化, 实现响应式分栏
+        self._check_responsive_resize()
         if self._worker_running:
             self.set_timer(0.3, self._start_polling)
 
@@ -887,6 +947,57 @@ class DashboardScreen(Screen):
                 return
         self._set_bar("")
 
+    def _build_exec_sidebar(self) -> str:
+        # [新增] 2026-06-10 Nyaecho - 构建执行时侧边栏摘要: Target/Mode/Scope/Allow-Block/Resume/LLM 信息
+        state = self._s["state"]
+        mode = MODES[state.mode]
+
+        lines: list[str] = []
+        lines.append(f"[bold {C_ACCENT}]Target[/]")
+        lines.append(f"[{C_PRIMARY}]{state.target or '(not set)'}[/]")
+        lines.append("")
+        lines.append(f"[bold {C_ACCENT}]Mode[/]")
+        lines.append(f"[{C_SECONDARY}]{mode.label}[/]")
+        lines.append("")
+
+        scope_parts: list[str] = []
+        if state.only_host:
+            scope_parts.append(f"Host [{C_TEXT}]{state.only_host}[/]")
+        if state.only_port:
+            scope_parts.append(f"Port [{C_TEXT}]{state.only_port}[/]")
+        if state.only_path:
+            scope_parts.append(f"Path [{C_TEXT}]{state.only_path}[/]")
+        if state.blocked_host:
+            scope_parts.append(f"XHost [{C_ERROR}]{state.blocked_host}[/]")
+        if state.blocked_path:
+            scope_parts.append(f"XPath [{C_ERROR}]{state.blocked_path}[/]")
+
+        if scope_parts:
+            lines.append(f"[bold {C_ACCENT}]Scope[/]")
+            for part in scope_parts:
+                lines.append(f" {part}")
+            lines.append("")
+
+        allow = _effective_allow_actions(state)
+        block = _effective_block_actions(state)
+        if allow:
+            lines.append(f"[bold {C_ACCENT}]Allow[/]")
+            lines.append(f"[{C_SUCCESS}]{', '.join(allow)}[/]")
+            lines.append("")
+        if block:
+            lines.append(f"[bold {C_ACCENT}]Block[/]")
+            lines.append(f"[{C_ERROR}]{', '.join(block)}[/]")
+            lines.append("")
+
+        res_color = "green" if state.resume else C_WARNING
+        lines.append(f"Resume [{res_color}]{'on' if state.resume else 'off'}[/]")
+
+        provider = getattr(self._s["config"].llm, "provider", "?")
+        model = getattr(self._s["config"].llm, "model", "?")
+        lines.append(f"LLM [{C_MUTED}]{provider}/{model}[/]")
+
+        return "\n".join(lines)
+
     def _post_popup_refresh(self) -> None:
         self._refresh_dash()
         self.query_one("#cmd-input").clear()
@@ -898,6 +1009,7 @@ class DashboardScreen(Screen):
 
 # ── CSS ──
 
+# [修改] 2026-06-10 Nyaecho - 新增 #exec-row 分栏容器 + #exec-sidebar 30列侧边栏, 支持终端宽度>=100列时分栏显示
 CSS = """
 #body {
     height: 1fr;
@@ -950,6 +1062,27 @@ CSS = """
 
 #dashboard.-hidden {
     display: none;
+}
+
+#exec-row {
+    display: none;
+    height: 1fr;
+}
+#exec-row.-active {
+    display: block;
+}
+
+#exec-sidebar {
+    display: none;
+    width: 30;
+    overflow-y: auto;
+    border: solid #484848;
+    padding: 0 1;
+    margin-right: 1;
+    background: $surface;
+}
+#exec-sidebar.-active {
+    display: block;
 }
 
 #output-log {
