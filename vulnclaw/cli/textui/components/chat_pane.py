@@ -88,6 +88,15 @@ class ChatPane(Vertical):
         background: $accent 30%;
     }
 
+    #completion-hint {
+        height: 1;
+        display: none;
+        padding: 0 1;
+        background: $surface;
+        color: $text-muted;
+        text-style: italic;
+    }
+
     ChatInput {
         dock: bottom;
     }
@@ -148,6 +157,7 @@ class ChatPane(Vertical):
         with VerticalScroll(id="chat-messages"):
             yield Static("")  # placeholder — messages are mounted here
         yield ListView(id="completion-list")
+        yield Static("", id="completion-hint")
         yield ChatInput(id="chat-input")
 
     def on_mount(self) -> None:
@@ -246,17 +256,14 @@ class ChatPane(Vertical):
 
     @staticmethod
     def _cmd_name_from_item(item: ListItem) -> str:
-        """Extract the command name from a completion ListItem's label.
+        """Extract the full command key from a completion ListItem.
 
-        Label format: ``{name}  — {desc}``  (Textual markup stripped).
+        The key is stored as ``item._full_key`` (set when the item is
+        created in ``on_chat_input_show_completions``).  We avoid using
+        ``item.id`` because Textual IDs cannot contain spaces, and our
+        sub-command keys like ``"config popup-mode"`` include spaces.
         """
-        if not item.children:
-            return ""
-        try:
-            raw = str(item.children[0].render())
-            return raw.split(" \u2014 ")[0].strip().lstrip("/")
-        except Exception:
-            return ""
+        return getattr(item, "_full_key", "")
 
     # ------------------------------------------------------------------
     # ChatInput message handlers  (completion delegation)
@@ -266,13 +273,31 @@ class ChatPane(Vertical):
         self,
         event: ChatInput.ShowCompletions,
     ) -> None:
-        """Populate and show the completion list."""
+        """Populate and show the completion list.
+
+        Each match from ChatInput is a ``(display_name, full_key, desc)``
+        tuple.  The *display_name* is used for rendering (e.g.
+        ``"popup-mode"`` instead of ``"/config popup-mode"``), while the
+        *full_key* is stored as a private attribute for later submission.
+
+        The first item is auto-selected (``index = 0``) so that pressing
+        Enter immediately accepts it — no manual navigation required.
+        """
         list_view = self.query_one("#completion-list", ListView)
         list_view.clear()
-        for name, desc in event.matches:
-            item = ListItem(Static(f"[cyan]/{name}[/]  \u2014 [dim]{desc}[/]"))
+        for display_name, full_key, desc in event.matches:
+            item = ListItem(
+                Static(f"[cyan]{display_name}[/]  \u2014 [dim]{desc}[/]"),
+            )
+            item._full_key = full_key
             list_view.append(item)
+        if list_view.children:
+            list_view.index = 0  # auto-highlight first item
         list_view.display = True
+
+        hint = self.query_one("#completion-hint", Static)
+        hint.update(_("tui.component.completion.hint"))
+        hint.display = True
 
         chat_input = self.query_one("#chat-input", ChatInput)
         chat_input.completion_active = True
@@ -285,6 +310,9 @@ class ChatPane(Vertical):
         list_view = self.query_one("#completion-list", ListView)
         list_view.display = False
         list_view.clear()
+
+        hint = self.query_one("#completion-hint", Static)
+        hint.display = False
 
         chat_input = self.query_one("#chat-input", ChatInput)
         chat_input.completion_active = False
@@ -309,6 +337,36 @@ class ChatPane(Vertical):
                 list_view.index = 0  # wrap to first
             else:
                 list_view.action_cursor_down()
+
+    def on_chat_input_accept_completion(
+        self,
+        event: ChatInput.AcceptCompletion,
+    ) -> None:
+        """Fill the input with the highlighted completion (Tab).
+
+        Behaves like IDE / CMD autocomplete: the completed command is
+        inserted into the input field without submitting it, so the user
+        can continue typing or press Enter to submit.
+        """
+        list_view = self.query_one("#completion-list", ListView)
+        selected = list_view.highlighted_child
+        if selected is None:
+            return
+
+        cmd_name = self._cmd_name_from_item(selected)
+        if not cmd_name:
+            return
+
+        chat_input = self.query_one("#chat-input", ChatInput)
+        chat_input.value = f"/{cmd_name}"
+
+        # Hide completions after filling in
+        list_view.display = False
+        list_view.clear()
+        hint = self.query_one("#completion-hint", Static)
+        hint.display = False
+        chat_input.completion_active = False
+        chat_input.focus_input()
 
     def _get_highlighted_cmd_name(self) -> str:
         """Extract command name from the highlighted completion item."""
@@ -336,6 +394,8 @@ class ChatPane(Vertical):
         list_view = self.query_one("#completion-list", ListView)
         list_view.display = False
         list_view.clear()
+        hint = self.query_one("#completion-hint", Static)
+        hint.display = False
         chat_input.completion_active = False
 
     # ------------------------------------------------------------------
@@ -365,6 +425,8 @@ class ChatPane(Vertical):
                         # Hide completions after auto-select
                         list_view.display = False
                         list_view.clear()
+                        hint = self.query_one("#completion-hint", Static)
+                        hint.display = False
                         chat_input = self.query_one("#chat-input", ChatInput)
                         chat_input.completion_active = False
 

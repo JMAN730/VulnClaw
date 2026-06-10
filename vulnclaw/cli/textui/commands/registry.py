@@ -33,6 +33,7 @@ class CommandRegistry:
         handler: Callable[..., Coroutine[Any, Any, None]],
         usage: str = "",
         detail: str = "",
+        completions: list[tuple[str, str]] | None = None,
     ) -> None:
         """Register a slash command.
 
@@ -48,9 +49,14 @@ class CommandRegistry:
             Optional usage pattern shown in ``/help`` listing.
         detail:
             Optional multi-line help shown in ``/help <cmd>``.
+        completions:
+            Optional list of ``(suffix, description)`` tuples for
+            long-command completion.  E.g. ``[("popup-mode", "...")]``
+            so that typing ``/config p`` suggests ``popup-mode``.
         """
         self._commands[name] = _CommandEntry(
             name, description, handler, usage, detail,
+            completions=completions or [],
         )
 
     async def dispatch(self, command_line: str, **context) -> str | None:
@@ -92,15 +98,26 @@ class CommandRegistry:
         return cmd_name
 
     def list_commands(self) -> list[dict[str, str]]:
-        """Return all registered commands (name + description + usage)."""
-        return [
-            {
+        """Return all registered commands (name + description + usage).
+
+        Sub-commands registered via the ``completions`` parameter are
+        expanded as separate entries so that ``ChatInput`` can match
+        them for long-command autocomplete.
+        """
+        result: list[dict[str, str]] = []
+        for c in self._commands.values():
+            result.append({
                 "name": f"/{c.name}",
                 "description": c.description,
                 "usage": c.usage,
-            }
-            for c in self._commands.values()
-        ]
+            })
+            for suffix, desc in c.completions:
+                result.append({
+                    "name": f"/{c.name} {suffix}",
+                    "description": desc,
+                    "usage": "",
+                })
+        return result
 
     def get_command(self, name: str) -> dict[str, str] | None:
         """Return info for a single command, or None if not found."""
@@ -127,7 +144,8 @@ class CommandRegistry:
 class _CommandEntry:
     """Internal entry for a registered command."""
 
-    __slots__ = ("name", "description", "handler", "usage", "detail")
+    __slots__ = ("name", "description", "handler", "usage", "detail",
+                 "completions")
 
     def __init__(
         self,
@@ -136,9 +154,11 @@ class _CommandEntry:
         handler: Callable[..., Coroutine[Any, Any, None]],
         usage: str = "",
         detail: str = "",
+        completions: list[tuple[str, str]] | None = None,
     ) -> None:
         self.name = name
         self.description = description
         self.handler = handler
         self.usage = usage
         self.detail = detail
+        self.completions = completions or []

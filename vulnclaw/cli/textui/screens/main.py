@@ -33,6 +33,7 @@ from vulnclaw.cli.textui.commands.clear import ClearCommand
 from vulnclaw.cli.textui.commands.load import LoadCommand
 from vulnclaw.cli.textui.commands.save import SaveCommand
 from vulnclaw.cli.textui.commands.exit_cmd import ExitCommand
+from vulnclaw.cli.textui.commands.completion_rules import load_rules
 from vulnclaw.cli.textui.utils.state import TuiStateWrapper
 from vulnclaw.cli.textui.services.history import get_history_store
 
@@ -76,6 +77,9 @@ class MainScreen(Screen):
 
     def _register_commands(self) -> None:
         """Register all slash commands in the registry."""
+        # Load tab completion rules from the rule table
+        _rules = load_rules()
+
         help_cmd = HelpCommand(self._cmd_registry)
         sc_cmd = ScanConfigCommand()
         config_cmd = ConfigCommand()
@@ -89,24 +93,32 @@ class MainScreen(Screen):
             help_cmd.run,
             usage="/help [command]",
             detail=_("tui.screen.main.help_detail"),
+            completions=_rules.get("help", []),
         )
         self._cmd_registry.register(
             "sc", _("tui.screen.main.sc_desc"),
             sc_cmd.run,
             usage="/sc  或  /sc show  |  /sc run  |  /sc --key value",
             detail=_("tui.screen.main.sc_detail"),
+            completions=_rules.get("sc", []),
         )
         self._cmd_registry.register(
             "config", _("tui.screen.main.config_desc"),
             config_cmd.run,
             usage="/config  |  /config llm set ...  |  /config render on|off  |  /config popup-mode embed|separate",
             detail=_("tui.screen.main.config_detail"),
+            completions=_rules.get("config", []),
         )
-        self._cmd_registry.register("clear", _("tui.screen.main.clear_desc"), clear_cmd.run)
-        self._cmd_registry.register("load", _("tui.screen.main.load_desc"), load_cmd.run)
-        self._cmd_registry.register("save", _("tui.screen.main.save_desc"), save_cmd.run)
-        self._cmd_registry.register("exit", _("tui.screen.main.exit_desc"), exit_cmd.run)
-        self._cmd_registry.register("quit", _("tui.screen.main.quit_desc"), exit_cmd.run)
+        self._cmd_registry.register("clear", _("tui.screen.main.clear_desc"), clear_cmd.run,
+                                     detail=_("tui.screen.main.clear_detail"))
+        self._cmd_registry.register("load", _("tui.screen.main.load_desc"), load_cmd.run,
+                                     detail=_("tui.screen.main.load_detail"))
+        self._cmd_registry.register("save", _("tui.screen.main.save_desc"), save_cmd.run,
+                                     detail=_("tui.screen.main.save_detail"))
+        self._cmd_registry.register("exit", _("tui.screen.main.exit_desc"), exit_cmd.run,
+                                     detail=_("tui.screen.main.exit_detail"))
+        self._cmd_registry.register("quit", _("tui.screen.main.quit_desc"), exit_cmd.run,
+                                     detail=_("tui.screen.main.quit_detail"))
 
     def compose(self) -> ComposeResult:
         """Compose the main screen."""

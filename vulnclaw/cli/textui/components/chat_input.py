@@ -62,9 +62,15 @@ class ChatInput(Horizontal):
             self.value = value
 
     class ShowCompletions(Message):
-        """Ask the parent to display the completion list."""
+        """Ask the parent to display the completion list.
 
-        def __init__(self, matches: list[tuple[str, str]]) -> None:
+        Each match is a ``(display_name, full_key, description)`` tuple.
+        ``display_name`` is what the user sees (e.g. ``"popup-mode"``
+        instead of ``"config popup-mode"``); ``full_key`` is the complete
+        command path used for submission.
+        """
+
+        def __init__(self, matches: list[tuple[str, str, str]]) -> None:
             super().__init__()
             self.matches = matches
 
@@ -78,6 +84,14 @@ class ChatInput(Horizontal):
         def __init__(self, direction: str) -> None:
             super().__init__()
             self.direction = direction  # "up" or "down"
+
+    class AcceptCompletion(Message):
+        """Ask the parent to fill in the highlighted completion.
+
+        The parent inserts the selected completion into the input field
+        (without submitting), emulating IDE / CMD autocomplete behavior.
+        """
+        pass
 
     # ------------------------------------------------------------------
     # Reactive
@@ -168,7 +182,7 @@ class ChatInput(Horizontal):
         elif event.key == "tab":
             if self.completion_active:
                 event.stop()
-                self.post_message(self.NavigateCompletions("down"))
+                self.post_message(self.AcceptCompletion())
         elif event.key == "shift+tab":
             if self.completion_active:
                 event.stop()
@@ -185,14 +199,45 @@ class ChatInput(Horizontal):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _filter_commands(self, prefix: str) -> list[tuple[str, str]]:
-        """Return ``(name, desc)`` tuples matching *prefix*."""
+    def _filter_commands(self, prefix: str) -> list[tuple[str, str, str]]:
+        """Return ``(display_name, full_key, desc)`` tuples matching *prefix*.
+
+        **Depth-aware matching** — only returns completions at the same
+        hierarchical level as the current input, preventing deeply nested
+        suggestions from polluting shallow matches.
+
+        How it works:
+
+        +-----------------------------------+------------------+--------------------------+
+        | User input (after ``/``)          | Target depth     | Shown completions        |
+        +-----------------------------------+------------------+--------------------------+
+        | ``c``                             | 1 (top level)    | ``config``, ``clear``    |
+        | ``config ``                       | 2 (sub commands) | ``popup-mode``,          |
+        |                                   |                  | ``render``, ``llm``      |
+        | ``config popup-mode ``            | 3 (sub values)   | ``embed``, ``separate``  |
+        +-----------------------------------+------------------+--------------------------+
+
+        Depth is determined by the number of space-separated segments in
+        *prefix* (1 segment → depth 1, 2 segments → depth 2, …).
+
+        The *display_name* is the **last** segment of the key (sub-command
+        suffix), so the parent path is never repeated in the list.
+        """
         prefix_lower = prefix.lower()
-        return [
-            (k, v)
-            for k, v in self._commands.items()
-            if k.startswith(prefix_lower) or prefix_lower in v
-        ]
+        # Depth = number of space-separated segments
+        target_depth = prefix_lower.count(" ") + 1
+
+        results: list[tuple[str, str, str]] = []
+        for full_key, desc in self._commands.items():
+            if not full_key.startswith(prefix_lower):
+                continue
+            # Only show completions at the same depth level
+            key_depth = full_key.count(" ") + 1
+            if key_depth != target_depth:
+                continue
+            display = full_key.rsplit(maxsplit=1)[-1] if " " in full_key else full_key
+            results.append((display, full_key, desc))
+        return results
 
     def _submit(self, value: str) -> None:
         """Post :class:`Submitted` and clear."""
