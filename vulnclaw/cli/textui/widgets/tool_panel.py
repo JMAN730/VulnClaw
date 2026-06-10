@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from textual.widgets import Static
@@ -15,6 +14,8 @@ class ToolPanel(Static):
     ToolPanel {
         height: 1fr;
         margin: 0 1;
+        border: solid $border;
+        padding: 0 1;
     }
     """
 
@@ -47,11 +48,7 @@ class ToolPanel(Static):
 
     def _refresh(self) -> None:
         if not self._tools:
-            panel = Panel(
-                Text("暂无工具调用", style="dim"),
-                border_style="blue",
-            )
-            self.update(panel)
+            self.update("[dim]暂无工具调用[/]")
             return
 
         table = Table.grid(expand=True)
@@ -59,17 +56,24 @@ class ToolPanel(Static):
         table.add_column("状态", ratio=1)
         table.add_column("结果", ratio=3)
 
-        for tool in self._tools[-10:]:  # show last 10
+        for tool in self._tools[-10:]:
             info = tool["info"]
             name = info.get("function", {}).get("name", "unknown")
             status = tool["status"]
-            status_style = {"pending": "yellow", "done": "green", "error": "red"}.get(status, "white")
-            result_text = tool["result"][:80] if tool["result"] else ("..." if status == "pending" else "")
+            status_style = {
+                "pending": "yellow",
+                "done": "green",
+                "error": "red",
+            }.get(status, "white")
+            result_text = (
+                tool["result"][:80]
+                if tool["result"]
+                else ("..." if status == "pending" else "")
+            )
             table.add_row(
                 Text(name, style="bold"),
                 Text(status, style=status_style),
                 Text(result_text, style="dim"),
             )
 
-        panel = Panel(table, border_style="blue")
-        self.update(panel)
+        self.update(table)

@@ -13,7 +13,7 @@ class InputBar(Horizontal):
 
     DEFAULT_CSS = """
     InputBar {
-        height: 1;
+        height: 3;
         background: $panel;
         border-top: solid $primary;
         padding: 0 1;
@@ -28,7 +28,7 @@ class InputBar(Horizontal):
     }
 
     InputBar > Input {
-        height: 1;
+        height: 3;
     }
     """
 

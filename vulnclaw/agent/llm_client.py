@@ -214,6 +214,7 @@ async def call_llm_auto_stream(
     while True:
         try:
             full_content: list[str] = []
+            reasoning_content: list[str] = []
             tool_call_deltas: dict[int, dict] = {}
 
             def _do_stream() -> None:
@@ -226,6 +227,11 @@ async def call_llm_auto_stream(
                         delta = chunk.choices[0].delta
                         if delta is None:
                             continue
+
+                        # Reasoning content (thinking mode models)
+                        rc = getattr(delta, "reasoning_content", None)
+                        if rc:
+                            reasoning_content.append(rc)
 
                         if delta.content:
                             full_content.append(delta.content)
@@ -273,11 +279,14 @@ async def call_llm_auto_stream(
                         },
                     })
 
-                assistant_msg = {
+                rc_text = "".join(reasoning_content)
+                assistant_msg: dict[str, Any] = {
                     "role": "assistant",
                     "content": response_text or "",
                     "tool_calls": reconstructed_calls,
                 }
+                if rc_text:
+                    assistant_msg["reasoning_content"] = rc_text
                 messages.append(assistant_msg)
 
                 tool_results, skipped_info = await handle_tool_calls_with_results(agent, reconstructed_calls)
@@ -356,7 +365,8 @@ async def call_llm_auto(agent: Any, system_prompt: str, round_context: str) -> s
                 continue
             executed_tcs.append(tc["tool_call"])
 
-        assistant_msg = {
+        rc = getattr(choice.message, "reasoning_content", None)
+        assistant_msg: dict[str, Any] = {
             "role": "assistant",
             "content": choice.message.content or "",
             "tool_calls": [
@@ -371,6 +381,8 @@ async def call_llm_auto(agent: Any, system_prompt: str, round_context: str) -> s
                 for tc in executed_tcs
             ],
         }
+        if rc:
+            assistant_msg["reasoning_content"] = rc
         messages.append(assistant_msg)
 
         for tool_result in tool_results:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from textual.widgets import Static
@@ -15,6 +14,8 @@ class OverviewPanel(Static):
     OverviewPanel {
         height: auto;
         margin: 0 0;
+        background: $panel;
+        padding: 0 1;
     }
     """
 
@@ -29,14 +30,16 @@ class OverviewPanel(Static):
     def on_mount(self) -> None:
         self._refresh()
 
+    def _empty_table(self, text: str) -> Table:
+        table = Table.grid(expand=True)
+        table.add_column("", ratio=1)
+        table.add_column("", ratio=2)
+        table.add_row(Text(text, style="dim"), "")
+        return table
+
     def _refresh(self) -> None:
         if not self._target:
-            panel = Panel(
-                Text("尚未设置目标", style="dim"),
-                title="目标概览",
-                border_style="blue",
-            )
-            self.update(panel)
+            self.update(self._empty_table("尚未设置目标"))
             return
 
         from vulnclaw.target_state.store import get_target_state_preview, list_target_snapshots
@@ -45,21 +48,11 @@ class OverviewPanel(Static):
             preview = get_target_state_preview(self._target)
             snapshots = list_target_snapshots(self._target)
         except Exception:
-            panel = Panel(
-                Text("读取目标历史失败", style="red"),
-                title="目标概览",
-                border_style="red",
-            )
-            self.update(panel)
+            self.update(self._empty_table("读取目标历史失败"))
             return
 
         if preview is None:
-            panel = Panel(
-                Text("无历史记录", style="dim"),
-                title="目标概览",
-                border_style="blue",
-            )
-            self.update(panel)
+            self.update(self._empty_table("无历史记录"))
             return
 
         table = Table.grid(expand=True)
@@ -77,5 +70,4 @@ class OverviewPanel(Static):
             violations = []
         table.add_row("违规数", str(len(violations)))
 
-        panel = Panel(table, title=f"目标概览 — {self._target}", border_style="cyan")
-        self.update(panel)
+        self.update(table)

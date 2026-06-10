@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from rich.panel import Panel
 from rich.table import Table
 from textual.widgets import Static
 
@@ -14,6 +13,8 @@ class ScopePanel(Static):
     ScopePanel {
         height: auto;
         margin: 0 0;
+        background: $panel;
+        padding: 0 1;
     }
     """
 
@@ -75,5 +76,4 @@ class ScopePanel(Static):
         table.add_row("允许操作", self._val(self._allow_actions))
         table.add_row("禁止操作", self._val(self._block_actions))
 
-        panel = Panel(table, title="边界约束", border_style="yellow")
-        self.update(panel)
+        self.update(table)

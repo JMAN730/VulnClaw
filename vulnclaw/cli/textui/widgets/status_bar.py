@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 from textual.widgets import Static
 
@@ -14,6 +14,7 @@ class StatusBar(Static):
     StatusBar {
         height: 2;
         margin: 0 1;
+        background: $panel;
     }
     """
 
@@ -49,29 +50,25 @@ class StatusBar(Static):
         self._refresh()
 
     def _refresh(self) -> None:
-        from rich.table import Table
-
         table = Table.grid(padding=(0, 2), expand=True)
 
-        target_text = Text(self._target or "未设置", style="bold cyan" if self._target else "dim")
+        target_text = Text(self._target or "未设置", style="bold" if self._target else "dim")
         mode_styles = {
-            "quick": "yellow",
-            "standard": "green",
-            "deep": "magenta",
-            "continuous": "red",
+            "quick": "bold yellow",
+            "standard": "bold green",
+            "deep": "bold",
+            "continuous": "bold",
         }
         mode_style = mode_styles.get(self._mode, "white")
-        mode_text = Text(self._mode.upper(), style=f"bold {mode_style}")
+        mode_text = Text(self._mode.upper(), style=mode_style)
 
         model_label = self._model or "未知"
         provider_label = f"[{self._provider}] " if self._provider else ""
-        model_text = Text(f"{provider_label}{model_label}", style="bold green" if self._model else "dim")
+        model_text = Text(f"{provider_label}{model_label}", style="bold" if self._model else "dim")
 
         table.add_column("Target", ratio=3)
         table.add_column("Mode", ratio=2)
         table.add_column("Model", ratio=3)
 
         table.add_row(target_text, mode_text, model_text)
-
-        panel = Panel(table, border_style="blue", padding=(0, 1))
-        self.update(panel)
+        self.update(table)

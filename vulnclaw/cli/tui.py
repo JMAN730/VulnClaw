@@ -846,3 +846,117 @@ def _default_launcher(draft: TuiTaskDraft) -> None:
         cli_main.persistent(rounds=0, cycles=0, no_report=False, **common)
     else:
         cli_main.run(scope="full", output=None, **common)
+
+
+# ── CLI helper functions (relocated from cli/main.py to avoid import side effects) ──
+
+
+def tui_should_auto_pentest(user_input: str, current_target: str | None) -> bool:
+    """Determine if user input should trigger autonomous pentest loop."""
+    input_lower = user_input.lower()
+
+    auto_keywords = [
+        "渗透测试",
+        "进行渗透",
+        "做渗透",
+        "打一下",
+        "全面测试",
+        "pentest",
+        "full test",
+        "auto",
+        "自主渗透模式",
+        "自主模式",
+        "找出flag",
+        "找到flag",
+        "拿flag",
+        "get flag",
+        "find flag",
+        "解题",
+        "做题",
+        "challenge",
+        "ctf",
+        "弱口令",
+        "爆破",
+        "绕过",
+        "bypass",
+        "brute",
+        "搜集",
+        "收集",
+        "信息收集",
+        "侦察",
+        "recon",
+        "reconnaissance",
+        "社工",
+        "osint",
+        "情报",
+        "intelligence",
+        "分析目标",
+        "目标分析",
+        "资产发现",
+        "目录扫描",
+        "探测",
+        "探索",
+        "调查",
+        "investigate",
+        "enumerate",
+        "全面分析",
+        "深度分析",
+        "详细分析",
+        "全面扫描",
+        "子域名",
+        "subdomain",
+    ]
+
+    single_step_keywords = [
+        "生成报告",
+        "report",
+        "help",
+        "帮助",
+    ]
+
+    if any(kw in input_lower for kw in single_step_keywords) and not any(
+        kw in input_lower for kw in auto_keywords
+    ):
+        return False
+
+    if any(kw in input_lower for kw in auto_keywords):
+        has_target = bool(current_target) or bool(tui_extract_target_from_input(user_input))
+        return has_target
+
+    has_target = bool(current_target) or bool(tui_extract_target_from_input(user_input))
+    if has_target:
+        multi_step_indicators = [
+            "并",
+            "然后",
+            "输出",
+            "保存",
+            "写到",
+            "导出",
+            "所有",
+            "全部",
+            "完整",
+            "详细",
+        ]
+        if any(ind in input_lower for ind in multi_step_indicators):
+            return True
+
+    return False
+
+
+def tui_extract_target_from_input(user_input: str) -> str | None:
+    """Extract target (URL, IP, domain) from user input string."""
+    import re
+
+    url_match = re.search(r"(https?://[a-zA-Z0-9][-a-zA-Z0-9.:]*)", user_input)
+    if url_match:
+        return url_match.group(1).rstrip("/")
+
+    ip_match = re.search(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})", user_input)
+    if ip_match:
+        return ip_match.group(1)
+
+    domain_match = re.search(r"([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,})", user_input)
+    if domain_match:
+        return domain_match.group(1)
+
+    return None

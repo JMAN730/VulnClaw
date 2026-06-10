@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from rich.panel import Panel
-from rich.text import Text
 from textual.reactive import reactive
 from textual.widgets import Static
 
@@ -15,12 +13,14 @@ class LogPanel(Static):
     LogPanel {
         height: 1fr;
         margin: 0 1;
+        border: solid $border;
+        padding: 0 1;
     }
     """
 
     content: reactive[str] = reactive("", init=False)
 
-    def __init__(self, title: str = "输出日志", **kwargs) -> None:
+    def __init__(self, title: str = "", **kwargs) -> None:
         super().__init__(**kwargs)
         self._title = title
         self._lines: list[str] = []
@@ -31,7 +31,7 @@ class LogPanel(Static):
     def write(self, text: str) -> None:
         """Append text to the log."""
         self._lines.append(text)
-        self.content = "".join(self._lines[-200:])  # keep last 200 lines worth
+        self.content = "".join(self._lines[-200:])
 
     def clear(self) -> None:
         """Clear all log content."""
@@ -44,10 +44,4 @@ class LogPanel(Static):
 
     def _refresh(self) -> None:
         display = self.content[-5000:] if len(self.content) > 5000 else self.content
-        panel = Panel(
-            Text(display or "等待输出...", style="dim" if not display else "default"),
-            title=self._title,
-            border_style="green",
-            highlight=True,
-        )
-        self.update(panel)
+        self.update(display or "[dim]等待输出...[/]")
