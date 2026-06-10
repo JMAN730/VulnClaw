@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import shlex
+import sys
 
 from vulnclaw.i18n import _
 
@@ -75,7 +76,11 @@ class ScanConfigCommand:
         chat_pane._focus_input()
 
     async def _open_separate(self, chat_pane) -> None:
-        """Open scan configuration in a new terminal window (file IPC)."""
+        """Open scan configuration in a new terminal window (file IPC).
+
+        Non-blocking — spawns a background task that polls the child's IPC
+        file so the main chat stays responsive.
+        """
         import json
         import tempfile
         import uuid
@@ -98,48 +103,66 @@ class ScanConfigCommand:
 
         from vulnclaw.cli.textui.popup.launcher import open_terminal
 
-        python = "python"
-        open_terminal(
-            f'{python} -m vulnclaw.cli.textui.popup --session-dir "{session_dir}"',
-        )
+        open_terminal([
+            sys.executable, "-m", "vulnclaw.cli.textui.popup",
+            "--session-dir", str(session_dir),
+        ])
 
         chat_pane.add_system_message(
             _("tui.command.sc.opened_separate", session_id=session_id)
         )
 
-        # Poll for result from child process
+        # Spawn background poller — main thread is NOT blocked
+        asyncio.create_task(
+            self._poll_separate_background(session_dir, chat_pane)
+        )
+
+        chat_pane._focus_input()
+
+    @staticmethod
+    async def _poll_separate_background(
+        session_dir: Path, chat_pane,
+    ) -> None:
+        """Background task: poll child IPC, sync/execute on action.
+
+        Runs until the child sends ``"close"`` or ``"execute"``, or until
+        the session is cleaned up externally.
+        """
+        import json
+        import shutil
+
         child_file = session_dir / "child_to_main.json"
         last_version = 0
-        max_attempts = 600  # 10 minutes timeout
-        for _ in range(max_attempts):
+        timeout = 7200  # 2 hours before auto-cleanup
+        for _i in range(timeout):
             await asyncio.sleep(1)
             try:
                 raw = child_file.read_text(encoding="utf-8")
                 data = json.loads(raw)
-                if data.get("version", 0) > last_version:
-                    last_version = data["version"]
-                    if data.get("action") in ("save", "execute"):
+                ver = data.get("version", 0)
+                if ver > last_version:
+                    last_version = ver
+                    action = data.get("action")
+                    if action == "save":
+                        # Silent sync — popup already shows its own notification
                         result = data.get("data", {})
-                        await self._apply_and_maybe_execute(
-                            chat_pane, result,
-                            execute=data["action"] == "execute",
+                        chat_pane._apply_sc_config(result)
+                    elif action == "execute":
+                        result = data.get("data", {})
+                        await ScanConfigCommand._apply_and_maybe_execute(
+                            chat_pane, result, execute=True,
                         )
                         break
-                    elif data.get("action") == "close":
+                    elif action == "close":
                         break
             except (FileNotFoundError, json.JSONDecodeError):
                 pass
-        else:
-            chat_pane.add_system_message(_("tui.command.sc.timeout_close"))
 
         # Cleanup
-        import shutil
         try:
             shutil.rmtree(session_dir)
         except Exception:
             pass
-
-        chat_pane._focus_input()
 
     @staticmethod
     async def _apply_and_maybe_execute(

@@ -1,7 +1,11 @@
 """Cross-platform terminal launcher.
 
-Opens a new terminal window running a given command string.
-Supports Windows (cmd.exe) and Linux (common terminal emulators).
+Opens a new terminal window running a given command.
+Supports Windows (cmd.exe / start) and Linux (common terminal emulators).
+
+Usage::
+
+    open_terminal([sys.executable, "-m", "my_module", "--flag", "value"])
 """
 
 from __future__ import annotations
@@ -11,32 +15,36 @@ import subprocess
 import sys
 
 
-def open_terminal(command: str) -> None:
-    """Open a new terminal window executing *command*.
+def open_terminal(cmd_args: list[str]) -> None:
+    """Open a new terminal window executing *cmd_args*.
 
     Parameters
     ----------
-    command:
-        Shell command to run in the new window, e.g.
-        ``"python -m vulnclaw.cli.textui.popup --session-dir /tmp/x"``.
+    cmd_args:
+        Command and arguments as a list, e.g.
+        ``[sys.executable, "-m", "vulnclaw.cli.textui.popup",
+         "--session-dir", "/tmp/x"]``.
     """
     if sys.platform == "win32":
-        _open_windows(command)
+        _open_windows(cmd_args)
     else:
-        _open_linux(command)
+        _open_linux(cmd_args)
 
 
-def _open_windows(command: str) -> None:
-    """Windows: use ``start`` with a new console."""
-    subprocess.Popen(
-        f'start "VulnClaw Popup" {command}',
-        shell=True,
-        creationflags=subprocess.CREATE_NEW_CONSOLE,
-    )
+def _open_windows(cmd_args: list[str]) -> None:
+    """Windows: new CMD window that closes when done.
+
+    Uses ``cmd /c`` (close after execution). The child process handles
+    its own error display and pause before exit.
+    """
+    cmd_line = subprocess.list2cmdline(cmd_args)
+    full_cmd = f'start "" cmd /c {cmd_line}'
+    subprocess.Popen(full_cmd, shell=True)
 
 
-def _open_linux(command: str) -> None:
+def _open_linux(cmd_args: list[str]) -> None:
     """Linux: try common terminal emulators in order."""
+    command = shlex.join(cmd_args)
     terminals = [
         ("x-terminal-emulator", ("-e", command)),
         ("gnome-terminal", ("--", "sh", "-c", command)),

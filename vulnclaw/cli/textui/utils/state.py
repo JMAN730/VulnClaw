@@ -73,6 +73,14 @@ class TuiStateWrapper:
             self._config = load_config()
         return self._config
 
+    def reload_config(self) -> None:
+        """Force config reload from file on next access.
+
+        Call this after any external config file change
+        (e.g. after /config popup-mode save).
+        """
+        self._config = None
+
     def to_dict(self) -> dict[str, Any]:
         """Export as flat dict (for screen config, history metadata, etc.)."""
         return {

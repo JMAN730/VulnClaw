@@ -57,7 +57,9 @@ class ConfigCommand:
 
         # ── Subcommand: popup-mode ──────────────────────────────
         if args.startswith("popup-mode") or args == "popup":
-            await self._handle_popup_mode(args.split(maxsplit=1)[-1], chat_pane)
+            parts = args.split(maxsplit=1)
+            sub_args = parts[1] if len(parts) > 1 else ""
+            await self._handle_popup_mode(sub_args, chat_pane)
             return
 
         # ── Unknown subcommand ───────────────────────────────────
@@ -356,10 +358,12 @@ class ConfigCommand:
         if args == "embed":
             cfg.session.popup_mode = "embed"
             save_config(cfg)
+            chat_pane._state.reload_config()
             chat_pane.add_system_message(_("tui.command.config.popup_switched_embed"))
         elif args == "separate":
             cfg.session.popup_mode = "separate"
             save_config(cfg)
+            chat_pane._state.reload_config()
             chat_pane.add_system_message(_("tui.command.config.popup_switched_separate"))
         else:
             chat_pane.add_system_message(
