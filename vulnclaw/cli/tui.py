@@ -17,13 +17,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Optional
 
-from prompt_toolkit import Application
-from prompt_toolkit.buffer import Buffer
-from prompt_toolkit.formatted_text import ANSI
-from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
-from prompt_toolkit.layout import Float, FloatContainer, HSplit, Layout, Window
-from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
-from prompt_toolkit.styles import Style
+# [修改] 2026-06-10 Nyaecho - 将 prompt_toolkit 导入移到 _run_pt_tui() 函数内部，避免硬性依赖
 from rich import box
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -348,7 +342,14 @@ def _run_pt_tui(session: dict[str, Any]) -> Optional[str]:
 
     Returns 'quit', 'launch', or None (interrupted).
     """
-    # [修改] prompt_toolkit 替代 Rich Prompt, 提供全屏 UI、补全面板、快捷键绑定
+    # [修改] 2026-06-10 Nyaecho - 将 prompt_toolkit 导入移到函数内部，避免硬性依赖
+    from prompt_toolkit import Application
+    from prompt_toolkit.buffer import Buffer
+    from prompt_toolkit.formatted_text import ANSI
+    from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
+    from prompt_toolkit.layout import Float, FloatContainer, HSplit, Layout, Window
+    from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
+    from prompt_toolkit.styles import Style
     session["_action"] = None
     session["_prompt"] = None
     session["_message"] = ""
@@ -1175,6 +1176,7 @@ def _build_command_preview_args(draft: TuiTaskDraft) -> list[str]:
 def build_command_preview_args(draft: TuiTaskDraft, nl_text: str | None = None) -> list[str]:
     """Build a copyable CLI command from a TUI task draft."""
     # [修改] 2026-06-10 Nyaecho - TUI自然语言驱动: 支持 nl_text 传入并通过 --prompt 传递给CLI子进程
+    # [修改] 2026-06-10 Nyaecho - 添加安全风险提示：通过命令行传递prompt可能暴露给其他本地用户
     args = ["vulnclaw", draft.command, draft.target]
     if nl_text:
         args.extend(["--prompt", nl_text])
