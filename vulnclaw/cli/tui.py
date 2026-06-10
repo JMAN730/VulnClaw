@@ -303,9 +303,17 @@ def build_dashboard(config, state: TuiState) -> Group:
         overview_table.add_row(_("tui.history_error"), overview.error)
 
     command_preview = _draft_from_state(state).command_line
+    # [修改] 这里改用 Rich Text 逐段上色，避免把 markup 当普通字符串显示出来
+    footer_body = Text()
+    footer_body.append(_("tui.command_preview"), style=f"bold {C_TEXT}")
+    footer_body.append("\n")
+    footer_body.append("┃  ", style=C_MUTED)
+    footer_body.append(command_preview, style=C_MUTED)
+    footer_body.append("\n\n")
+    footer_body.append(_("tui.cli_note"), style=C_MUTED)
+
     footer = Panel(
-        f"[bold {C_TEXT}]{_('tui.command_preview')}\n{C_MUTED}┃  {command_preview}[/]\n\n"
-        f"[{C_MUTED}]{_('tui.cli_note')}[/]",
+        footer_body,
         title=_("tui.confirm_title"),
         title_align="left",
         border_style=C_SUCCESS if state.target else C_WARNING,
@@ -632,8 +640,9 @@ SLASH_COMMANDS: dict[str, str] = {
     "target": "Set authorized target URL / domain / IP",
     "mode": "Select check mode (quick / standard / deep / continuous)",
     "scope": "Configure test scope boundaries",
-    "start": "Start authorized security check",
     "run": "Start authorized security check",
+    # [新增] 2026-06-10 Nyaecho - TUI命令面板新增 /continue 斜杠命令入口
+    "continue": "Resume previous execution",
     "history": "View target history summary",
     "report": "Generate target report",
     "diag": "Run environment diagnostic",
@@ -688,7 +697,7 @@ def _dispatch_slash(text: str, session: dict[str, Any]) -> None:
     if handler:
         handler(session, args)
     else:
-        session["_message"] = f"Unknown command: /{cmd}. Type /help for commands."
+        session["_message"] = f"Unknown command: /{cmd}"
 
 
 _SLASH_HANDLERS: dict[str, Callable[[dict[str, Any], str], None]] = {}
@@ -706,13 +715,6 @@ def _register_handler(cmd: str):
 @_register_handler("q")
 def _cmd_quit(session: dict[str, Any], args: str) -> None:
     session["_action"] = "quit"
-
-
-@_register_handler("help")
-@_register_handler("h")
-def _cmd_help(session: dict[str, Any], args: str) -> None:
-    lines = ["  " + "  ".join(f"/{n}" for n in SLASH_COMMANDS)]
-    _set_prompt_message(session, "; ".join(lines))
 
 
 @_register_handler("target")
@@ -797,7 +799,6 @@ def _parse_scope_args(state: TuiState, args: str) -> None:
                 state.resume = v.lower() in ("true", "yes", "1", "on")
 
 
-@_register_handler("start")
 @_register_handler("run")
 def _cmd_start(session: dict[str, Any], args: str) -> None:
     state: TuiState = session["state"]
@@ -1171,9 +1172,12 @@ def _build_command_preview_args(draft: TuiTaskDraft) -> list[str]:
     return build_command_preview_args(draft)
 
 
-def build_command_preview_args(draft: TuiTaskDraft) -> list[str]:
+def build_command_preview_args(draft: TuiTaskDraft, nl_text: str | None = None) -> list[str]:
     """Build a copyable CLI command from a TUI task draft."""
+    # [修改] 2026-06-10 Nyaecho - TUI自然语言驱动: 支持 nl_text 传入并通过 --prompt 传递给CLI子进程
     args = ["vulnclaw", draft.command, draft.target]
+    if nl_text:
+        args.extend(["--prompt", nl_text])
     if not draft.resume:
         args.append("--no-resume")
     if draft.only_port is not None:

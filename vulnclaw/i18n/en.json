@@ -224,6 +224,6 @@
   "tui.findings_count": "Findings",
   "tui.snapshot_count": "Snapshots",
   "tui.report_generated": "Report Generated",
-  "tui.slash_hint": "Type /help for commands. Example: /target /mode /scope /start",
+  "tui.slash_hint": "Commands: /target /mode /scope /start /run /continue ...",
   "tui.read_error_short": "Read failed"
 }
