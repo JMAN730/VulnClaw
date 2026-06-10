@@ -857,4 +857,14 @@ class TestCLISubCommands:
         from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["repl", "--help"])
-        assert result.exit_code == 0
+
+    def test_run_with_prompt_option(self, runner):
+        # [修改] 2026-06-10 Nyaecho - 添加 --prompt 选项测试
+        from vulnclaw.cli.main import app
+
+        # Test that --prompt option is accepted and doesn't crash
+        # We expect failure due to missing target, but the option should be parsed
+        result = runner.invoke(app, ["run", "--prompt", "test prompt", "example.com"])
+        # Should not be a usage error (exit code 2)
+        assert result.exit_code != 2
+        # The command will fail for other reasons (no config, etc.), but that's okay

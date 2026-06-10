@@ -63,7 +63,10 @@ def _register_handler(cmd: str):
 
 def _dispatch(session: dict[str, Any], text: str) -> str | None:
     """Dispatch slash command. Returns 'quit', 'launch', or None."""
+    # [修改] 2026-06-10 Nyaecho - 修复空 parts 导致 IndexError 的问题
     parts = text.lstrip("/").strip().split(maxsplit=1)
+    if not parts:
+        return None
     cmd = parts[0].lower()
     args = parts[1] if len(parts) > 1 else ""
     handler = _SLASH_HANDLERS.get(cmd)
@@ -393,6 +396,7 @@ def _h_mode(session: dict[str, Any], args: str) -> str | None:
 @_register_handler("scope")
 @_register_handler("s")
 def _h_scope(session: dict[str, Any], args: str) -> str | None:
+    # [修改] 2026-06-10 Nyaecho - 修复 /scope port 验证问题，添加端口验证防止 ValueError
     state = session["state"]
     if args:
         for pair in args.split():
@@ -401,7 +405,12 @@ def _h_scope(session: dict[str, Any], args: str) -> str | None:
                 if k == "host":
                     state.only_host = v
                 elif k == "port":
-                    state.only_port = v
+                    try:
+                        _parse_optional_port(v)
+                        state.only_port = v
+                    except ValueError as e:
+                        session["_message"] = str(e)
+                        return None
                 elif k == "path":
                     state.only_path = v
                 elif k == "blocked_host":
@@ -496,26 +505,29 @@ def _h_diag(session: dict[str, Any], args: str) -> str | None:
 @_register_handler("config")
 @_register_handler("cfg")
 def _h_config(session: dict[str, Any], args: str) -> str | None:
+    # [修改] 2026-06-10 Nyaecho - 修复 config 变量引用问题，使用 nonlocal 更新闭包变量
     config = session["config"]
     providers = [item["provider"] for item in list_providers()]
     cur = config.llm.provider
 
     def on_provider(v):
+        nonlocal config
         if v and v != cur:
-            session["config"] = apply_provider_preset(config, v)
+            config = apply_provider_preset(config, v)
+            session["config"] = config
         _set_prompt(session, "input", f"Model (current: {config.llm.model}):", on_model, config.llm.model)
 
     def on_model(v):
         if v:
-            config.llm.model = v.strip()
-        ks = _("tui.api_key_configured") if config.llm.api_key else _("tui.api_key_not_configured")
+            session["config"].llm.model = v.strip()
+        ks = _("tui.api_key_configured") if session["config"].llm.api_key else _("tui.api_key_not_configured")
         _set_prompt(session, "input", f"API Key ({ks}, enter to keep):", on_apikey)
 
     def on_apikey(v):
         if v:
-            config.llm.api_key = v.strip()
-        save_config(config)
-        _set_prompt(session, "message", f"{_('tui.config_saved')}: {config.llm.provider}/{config.llm.model}")
+            session["config"].llm.api_key = v.strip()
+        save_config(session["config"])
+        _set_prompt(session, "message", f"{_('tui.config_saved')}: {session['config'].llm.provider}/{session['config'].llm.model}")
 
     _set_prompt(session, "choice", f"Provider (current: {cur}):", providers, on_provider)
     return None
