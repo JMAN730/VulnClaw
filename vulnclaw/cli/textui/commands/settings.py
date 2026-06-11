@@ -84,7 +84,11 @@ class SettingsCommand:
         if chat_pane is None:
             return
 
-        popup_mode = chat_pane._state.config.session.popup_mode
+        # Read config directly from file — bypass TuiStateWrapper cache
+        # to guarantee we see the latest popup_mode even if the user just
+        # changed it via /config popup-mode.
+        cfg = load_config()
+        popup_mode = cfg.session.popup_mode
         if popup_mode == "separate":
             await self._open_separate(chat_pane)
         else:
@@ -101,6 +105,8 @@ class SettingsCommand:
 
         if result:
             chat_pane._state.reload_config()
+            # Re-init LLM service so provider/api_key/base_url/model take effect
+            chat_pane._llm.reconfigure()
             chat_pane.add_system_message(_("tui.command.settings.saved"))
             # Re-compose the whole UI so language/text changes take effect
             chat_pane.app.recompose()
@@ -116,12 +122,13 @@ class SettingsCommand:
                        "vulnclaw_popup" / session_id)
         session_dir.mkdir(parents=True, exist_ok=True)
 
-        # Write initial config
+        # Write initial config — read fresh from file for consistency
+        cfg = load_config()
         main_file = session_dir / "main_to_child.json"
         main_file.write_text(
             json.dumps({
                 "version": 1,
-                "data": _config_to_flat(chat_pane._state.config),
+                "data": _config_to_flat(cfg),
                 "action": None,
             }),
             encoding="utf-8",
@@ -172,15 +179,19 @@ class SettingsCommand:
                         if new_lang != last_lang:
                             set_language(new_lang)
                             last_lang = new_lang
+                            chat_pane.app.recompose()
                         _flat_to_config(flat)
                         chat_pane._state.reload_config()
+                        chat_pane._llm.reconfigure()
                     elif action == "close":
                         flat = data.get("data", {})
                         new_lang = flat.get("session_language", "auto")
                         if new_lang != last_lang:
                             set_language(new_lang)
+                            chat_pane.app.recompose()
                         _flat_to_config(flat)
                         chat_pane._state.reload_config()
+                        chat_pane._llm.reconfigure()
                         break
             except (FileNotFoundError, json.JSONDecodeError):
                 pass

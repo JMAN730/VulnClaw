@@ -232,10 +232,16 @@ class PopupSettingsApp(App):
 
     def on_mount(self) -> None:
         """Load initial data from IPC."""
+        self._try_read_ipc(retries=10)
+
+    def _try_read_ipc(self, retries: int = 10) -> None:
+        """Attempt to read IPC data; retry with delay if file not ready."""
         payload = self._ipc.read()
-        if payload:
+        if payload is not None:
             self._data = payload.get("data", {})
             self._refresh_form()
+        elif retries > 0:
+            self.set_timer(0.1, lambda: self._try_read_ipc(retries - 1))
 
     def _refresh_form(self) -> None:
         """Push current data into form widgets."""

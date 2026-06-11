@@ -255,6 +255,15 @@ class LlmService:
             "syntax_hint": "",
         }
 
+    def reconfigure(self) -> None:
+        """Reset cached client & model so the next call picks up new config.
+
+        Call this after settings are saved to make LLM config changes
+        (provider, api_key, base_url, model, etc.) take effect immediately.
+        """
+        self._client = None
+        self._model = ""
+
     def _get_client(self) -> AsyncOpenAI:
         if self._client is None:
             config = load_config()
