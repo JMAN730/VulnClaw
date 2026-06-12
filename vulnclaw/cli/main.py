@@ -497,8 +497,6 @@ def _run_repl() -> None:
                             def on_step(round_num, result):
                                 nonlocal current_target, current_phase
                                 console.print(f"[dim]-- Round {round_num} --[/]")
-                                if result.output:
-                                    _print_agent_output(result.output, config)
                                 console.print()
                                 if result.target:
                                     current_target = result.target
@@ -563,8 +561,9 @@ def _run_repl() -> None:
                                     current_target = result.target
                                 if result.phase:
                                     current_phase = result.phase
-                                if result.output:
-                                    _print_agent_output(result.output, config)
+                                # 注释掉: 流式输出已通过 TerminalStreamSink 实时显示，无需重复打印
+                                # if result.output:
+                                #     _print_agent_output(result.output, config)
 
                         await _run_repl_agent_call(agent, call=call, after_result=after_result)
 
