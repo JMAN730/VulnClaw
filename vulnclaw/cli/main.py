@@ -368,8 +368,7 @@ def _run_repl() -> None:
 
                 def _on_persistent_step(round_num: int, cycle_num: int, result) -> None:
                     console.print(f"[dim]-- Cycle {cycle_num} | Round {round_num} --[/]")
-                    if result.output:
-                        _print_agent_output(result.output, config)
+                    # TerminalStreamSink 已实时流式显示，回调不重复打印
                     console.print()
                     nonlocal current_target, current_phase
                     if result.target:
@@ -951,8 +950,7 @@ def persistent(
     def _on_cycle_step(round_num: int, cycle_num: int, result) -> None:
         """Real-time output for each step within a cycle."""
         console.print(f"[dim]-- Cycle {cycle_num} | Round {round_num} --[/]")
-        if result.output:
-            _print_agent_output(result.output, config)
+        # TerminalStreamSink 已实时流式显示，回调不重复打印
         console.print()
 
     def _on_cycle_complete(cycle_num: int, cycle_result: PersistentCycleResult) -> None:
@@ -1078,10 +1076,8 @@ def recon(
     async def _run():
         async def runner(agent, _config):
             sink = TerminalStreamSink(console, _config.session.show_thinking)
-            result = await agent.chat(task_prompt, target=target, stream_sink=sink)
-            if result and result.output:
-                console.print(result.output)
-            return result
+            # TerminalStreamSink 已实时流式显示，不重复 console.print
+            return await agent.chat(task_prompt, target=target, stream_sink=sink)
 
         await _run_cli_orchestrated_task(
             command="recon",
@@ -1143,10 +1139,8 @@ def scan(
     async def _run():
         async def runner(agent, _config):
             sink = TerminalStreamSink(console, _config.session.show_thinking)
-            result = await agent.chat(task_prompt, target=target, stream_sink=sink)
-            if result and result.output:
-                console.print(result.output)
-            return result
+            # TerminalStreamSink 已实时流式显示，不重复 console.print
+            return await agent.chat(task_prompt, target=target, stream_sink=sink)
 
         await _run_cli_orchestrated_task(
             command="scan",
@@ -1211,10 +1205,8 @@ def exploit(
     async def _run():
         async def runner(agent, _config):
             sink = TerminalStreamSink(console, _config.session.show_thinking)
-            result = await agent.chat(task_prompt, target=target, stream_sink=sink)
-            if result and result.output:
-                console.print(result.output)
-            return result
+            # TerminalStreamSink 已实时流式显示，不重复 console.print
+            return await agent.chat(task_prompt, target=target, stream_sink=sink)
 
         await _run_cli_orchestrated_task(
             command="exploit",
