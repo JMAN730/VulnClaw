@@ -22,6 +22,8 @@ from textual.events import Key
 from textual.screen import Screen
 from textual.widgets import Input, ListItem, ListView, RichLog, Static
 
+import vulnclaw.cli.tui as _tui
+
 # [新增] 2026-06-10 Nyaecho - 自然语言驱动 / 响应式侧边栏: 新增颜色常量和动作辅助函数导入
 from vulnclaw.cli.tui import (
     C_ACCENT,
@@ -32,8 +34,6 @@ from vulnclaw.cli.tui import (
     C_SUCCESS,
     C_TEXT,
     C_WARNING,
-    MODES,
-    SLASH_COMMANDS,
     TuiState,
     _default_launcher,
     _draft_from_state,
@@ -43,9 +43,10 @@ from vulnclaw.cli.tui import (
     _parse_optional_port,
     build_dashboard,
     build_runtime_diagnostic,
+    rebuild_translations,
 )
 from vulnclaw.config.settings import apply_provider_preset, list_providers, load_config, save_config
-from vulnclaw.i18n import _
+from vulnclaw.i18n import _, init_i18n
 from vulnclaw.target_state.store import get_target_state_preview, list_target_snapshots
 
 # ── Slash dispatch ──
@@ -100,10 +101,10 @@ class CommandPalette(ListView):
         for item in self.query_children(ListItem):
             item.remove()
         self._commands.clear()
-        for cmd, desc in SLASH_COMMANDS.items():
+        for cmd, desc in _tui.SLASH_COMMANDS.items():
             if cmd.startswith(prefix):
                 item = ListItem(Static(
-                    f"[bold {C_PRIMARY}]/{cmd}[/]  [{C_MUTED}]{desc[:40]}[/]"
+                    f"[bold {C_PRIMARY}]/{cmd}[/]  [{C_MUTED}]{desc}[/]"
                 ))
                 self.mount(item)
                 self._commands.append(cmd)
@@ -219,7 +220,7 @@ class SecondaryPopup(Vertical):
             f"[{C_MUTED}]{text}[/]"
         )
         hint = Static(
-            f"  [{C_MUTED}]Enter to dismiss[/]",
+            f"  [{C_MUTED}]{_('tui.enter_to_dismiss')}[/]",
             id="popup-hint",
         )
         self.mount(hint)
@@ -274,7 +275,7 @@ class SecondaryPopup(Vertical):
                         state.only_port = value
                     except ValueError:
                         self.query_one("#popup-desc", Static).update(
-                            f"[bold {C_ERROR}]Invalid port (1-65535)[/]\n  [{C_MUTED}]{fld_title}[/]"
+                            f"[bold {C_ERROR}]{_('tui.invalid_port_label')}[/]\n  [{C_MUTED}]{fld_title}[/]"
                         )
                         inp = self.query_one("#popup-input", Input)
                         inp.value = ""
@@ -376,7 +377,7 @@ def _h_target(session: dict[str, Any], args: str) -> str | None:
         state.target = args.strip()
         return None
     def cb(v): state.target = v if v else state.target
-    _set_prompt(session, "input", "Target URL/IP:", cb, state.target)
+    _set_prompt(session, "input", _("tui.prompt_target"), cb, state.target)
     return None
 
 
@@ -384,11 +385,11 @@ def _h_target(session: dict[str, Any], args: str) -> str | None:
 @_register_handler("m")
 def _h_mode(session: dict[str, Any], args: str) -> str | None:
     state = session["state"]
-    if args and args in MODES:
+    if args and args in _tui.MODES:
         state.mode = args
         return None
     def cb(v): state.mode = v
-    _set_prompt(session, "choice", "Select mode:", list(MODES.keys()), cb)
+    _set_prompt(session, "choice", _("tui.prompt_select_mode"), list(_tui.MODES.keys()), cb)
     return None
 
 
@@ -424,16 +425,16 @@ def _h_scope(session: dict[str, Any], args: str) -> str | None:
                     state.resume = v.lower() in ("true", "yes", "1", "on")
         return None
     fields = [
-        ("only_host", "Only Test Host", state.only_host or ""),
-        ("only_port", "Only Test Port", state.only_port),
-        ("only_path", "Only Test Path", state.only_path or ""),
-        ("blocked_host", "Blocked Host", state.blocked_host or ""),
-        ("blocked_path", "Blocked Path", state.blocked_path or ""),
-        ("__allow_actions", "Allowed Actions (csv)", ",".join(state.allow_actions)),
-        ("__block_actions", "Blocked Actions (csv)", ",".join(state.block_actions)),
+        ("only_host", _("tui.prompt_only_host"), state.only_host or ""),
+        ("only_port", _("tui.prompt_only_port"), state.only_port),
+        ("only_path", _("tui.prompt_only_path"), state.only_path or ""),
+        ("blocked_host", _("tui.prompt_blocked_host"), state.blocked_host or ""),
+        ("blocked_path", _("tui.prompt_blocked_path"), state.blocked_path or ""),
+        ("__allow_actions", _("tui.prompt_allowed_actions"), ",".join(state.allow_actions)),
+        ("__block_actions", _("tui.prompt_blocked_actions"), ",".join(state.block_actions)),
     ]
     def on_resume(yes): state.resume = yes
-    def ask(): _set_prompt(session, "confirm", f"Resume? (y/n, current={'yes' if state.resume else 'no'})", on_resume)
+    def ask(): _set_prompt(session, "confirm", _("tui.prompt_resume", state=_("tui.on") if state.resume else _("tui.off")), on_resume)
     _set_prompt(session, "chain", fields, 0, ask)
     return None
 
@@ -444,7 +445,7 @@ def _h_start(session: dict[str, Any], args: str) -> str | None:
     if not state.target.strip():
         session["_message"] = _("tui.please_set_target")
         return None
-    mode = MODES[state.mode]
+    mode = _tui.MODES[state.mode]
     if args in ("-f", "--force"):
         return "launch"
     # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: /run <text> 将 text 作为 NL prompt 直接 launch
@@ -514,13 +515,13 @@ def _h_config(session: dict[str, Any], args: str) -> str | None:
         if v and v != cur:
             config = apply_provider_preset(config, v)
             session["config"] = config
-        _set_prompt(session, "input", f"Model (current: {config.llm.model}):", on_model, config.llm.model)
+        _set_prompt(session, "input", _("tui.prompt_enter_model", model=config.llm.model), on_model, config.llm.model)
 
     def on_model(v):
         if v:
             session["config"].llm.model = v.strip()
         ks = _("tui.api_key_configured") if session["config"].llm.api_key else _("tui.api_key_not_configured")
-        _set_prompt(session, "input", f"API Key ({ks}, enter to keep):", on_apikey)
+        _set_prompt(session, "input", _("tui.prompt_enter_apikey", status=ks), on_apikey)
 
     def on_apikey(v):
         if v:
@@ -528,7 +529,54 @@ def _h_config(session: dict[str, Any], args: str) -> str | None:
         save_config(session["config"])
         _set_prompt(session, "message", f"{_('tui.config_saved')}: {session['config'].llm.provider}/{session['config'].llm.model}")
 
-    _set_prompt(session, "choice", f"Provider (current: {cur}):", providers, on_provider)
+    _set_prompt(session, "choice", _("tui.prompt_select_provider", provider=cur), providers, on_provider)
+    return None
+
+
+# ── Language switch handler ──
+
+_SUPPORTED_LANGUAGES = ["auto", "zh", "en"]
+
+
+def _get_language_labels_textual() -> dict[str, str]:
+    """Return {lang_key: translated_label} for supported languages."""
+    return {c: _(f"tui.language_{c}") for c in _SUPPORTED_LANGUAGES}
+
+
+def _apply_language_textual(session: dict[str, Any], lang: str) -> None:
+    """Apply language switch and mark for UI recompose."""
+    session["config"].session.language = lang
+    save_config(session["config"])
+    init_i18n(lang=lang if lang != "auto" else None, config=session["config"])
+    rebuild_translations()
+    lang_labels = _get_language_labels_textual()
+    session["_message"] = _("tui.language_switched", lang=lang_labels.get(lang, lang))
+    session["_needs_recompose"] = True
+
+
+@_register_handler("language")
+@_register_handler("lang")
+def _h_language(session: dict[str, Any], args: str) -> str | None:
+    """Handle /language command — switch UI language at runtime.
+
+    /language         → popup with three choices (auto/zh/en)
+    /language zh      → direct switch to Chinese
+    /lang en          → direct switch to English
+    """
+    lang = args.strip().lower() if args else ""
+    if lang in _SUPPORTED_LANGUAGES:
+        _apply_language_textual(session, lang)
+        return None
+    # No valid direct arg → show choice popup
+    labels = _get_language_labels_textual()
+    choice_labels = [labels[c] for c in _SUPPORTED_LANGUAGES]
+    # Build reverse lookup dict for robust label → lang_key resolution
+    label_to_lang = dict(zip(choice_labels, _SUPPORTED_LANGUAGES))
+
+    def _on_choice(value: str) -> None:
+        _apply_language_textual(session, label_to_lang.get(value, "auto"))
+
+    _set_prompt(session, "choice", _("tui.prompt_select_language"), choice_labels, _on_choice)
     return None
 
 
@@ -544,7 +592,7 @@ def _h_continue(session: dict[str, Any], args: str) -> str | None:
         session["_nl_text"] = history if history else None
         session["_continuing"] = True
         return "launch"
-    session["_message"] = "No previous execution to continue"
+    session["_message"] = _("tui.no_previous_execution")
     return None
 
 
@@ -588,6 +636,9 @@ class DashboardScreen(Screen):
     def on_mount(self) -> None:
         self._refresh_dash()
         self.query_one("#cmd-input").focus()
+        msg = self._s.pop("_message", None)
+        if msg:
+            self._set_bar(msg, C_SUCCESS)
 
     def _refresh_dash(self) -> None:
         state = self._s["state"]
@@ -665,6 +716,12 @@ class DashboardScreen(Screen):
                     return
                 if self._s.get("_message"):
                     self._set_bar(self._s.pop("_message", ""), C_WARNING)
+                if self._s.pop("_needs_recompose", False):
+                    self._refresh_dash()
+                    self.query_one("#cmd-input").clear()
+                    self.query_one("#cmd-input").placeholder = _("tui.slash_hint")
+                    self.app.recompose()
+                    return
         elif text:
             # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: 无斜杠前缀的纯文本直接作为NL prompt启动
             state = self._s["state"]
@@ -863,10 +920,10 @@ class DashboardScreen(Screen):
         inp.focus()
         if self._interrupted:
             self.query_one("#output-log", RichLog).write(
-                f"\n[{C_WARNING}]Execution interrupted (Esc). Type /continue to resume.[/]\n"
+                f"\n[{C_WARNING}]{_('tui.execution_interrupted')}[/]\n"
             )
         hint = self.query_one("#exec-hint", Static)
-        hint.update(f"[{C_MUTED}]Esc to interrupt  |  /continue to resume[/]")
+        hint.update(f"[{C_MUTED}]{_('tui.exec_hint')}[/]")
         hint.add_class("-active")
         config = load_config()
         if config:
@@ -906,7 +963,7 @@ class DashboardScreen(Screen):
                 self._set_bar("")
                 cb(text)
             else:
-                self._set_bar(f"Invalid: {text}. Options: {', '.join(choices)}", C_ERROR)
+                self._set_bar(_("tui.invalid_choice", choice=text, options=", ".join(choices)), C_ERROR)
                 return
         elif ptype == "confirm":
             _, label, cb = p
@@ -962,11 +1019,11 @@ class DashboardScreen(Screen):
     def _build_exec_sidebar(self) -> str:
         # [新增] 2026-06-10 Nyaecho - 构建执行时侧边栏摘要: Target/Mode/Scope/Allow-Block/Resume/LLM 信息
         state = self._s["state"]
-        mode = MODES[state.mode]
+        mode = _tui.MODES[state.mode]
 
         lines: list[str] = []
         lines.append(f"[bold {C_ACCENT}]Target[/]")
-        lines.append(f"[{C_PRIMARY}]{state.target or '(not set)'}[/]")
+        lines.append(f"[{C_PRIMARY}]{state.target or _('tui.not_set_sidebar')}[/]")
         lines.append("")
         lines.append(f"[bold {C_ACCENT}]Mode[/]")
         lines.append(f"[{C_SECONDARY}]{mode.label}[/]")
@@ -1002,7 +1059,7 @@ class DashboardScreen(Screen):
             lines.append("")
 
         res_color = "green" if state.resume else C_WARNING
-        lines.append(f"Resume [{res_color}]{'on' if state.resume else 'off'}[/]")
+        lines.append(f"Resume [{res_color}]{_('tui.on') if state.resume else _('tui.off')}[/]")
 
         provider = getattr(self._s["config"].llm, "provider", "?")
         model = getattr(self._s["config"].llm, "model", "?")
@@ -1011,6 +1068,14 @@ class DashboardScreen(Screen):
         return "\n".join(lines)
 
     def _post_popup_refresh(self) -> None:
+        # If language was switched via popup, refresh dashboard text immediately
+        # then recompose the whole UI for full hot-reload (commit 201e8ec pattern).
+        if self._s.pop("_needs_recompose", False):
+            self._refresh_dash()
+            self.query_one("#cmd-input").clear()
+            self.query_one("#cmd-input").placeholder = _("tui.slash_hint")
+            self.app.recompose()
+            return
         self._refresh_dash()
         self.query_one("#cmd-input").clear()
         self.query_one("#cmd-input").focus()
@@ -1227,4 +1292,4 @@ def run_tui_textual(*, launcher=None, once=False, initial_state=None) -> None:
             session["_launch"] = False
 
     from rich.console import Console
-    Console().print(f"[{C_MUTED}]Exited VulnClaw TUI.[/]")
+    Console().print(f"[{C_MUTED}]{_('tui.exited_textual')}[/]")
