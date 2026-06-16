@@ -341,6 +341,7 @@ async def call_llm_stream(
 
         full_text = ""
         reasoning_buffer = ""
+        tool_calls_chunks: list[dict] = []
 
         # sync client → sync 迭代（OpenAI sync Stream 用 for）
         for chunk in response:
@@ -356,20 +357,73 @@ async def call_llm_stream(
                 # Handle content
                 content = getattr(delta, "content", None) or ""
                 if content:
-                    # If we were collecting reasoning and now get content,
-                    # wrap the reasoning in tags
                     if reasoning_buffer:
                         full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
                         reasoning_buffer = ""
-
                     stream_sink.on_content_token(content)
                     full_text += content
 
-        # Flush any remaining reasoning
+                # Handle tool_calls（流式 chat 模式也需要处理）
+                tc = getattr(delta, "tool_calls", None)
+                if tc:
+                    for tc_delta in tc:
+                        tool_calls_chunks.append({
+                            "index": getattr(tc_delta, "index", 0),
+                            "id": getattr(tc_delta, "id", None) or "",
+                            "function": {
+                                "name": getattr(tc_delta.function, "name", None) or "",
+                                "arguments": getattr(tc_delta.function, "arguments", None) or "",
+                            },
+                        })
+
         if reasoning_buffer:
             full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
 
         stream_sink.on_stream_end()
+
+        # 如果有 tool_calls，路由到 handle_tool_calls（同 call_llm_auto_stream 的逻辑）
+        if tool_calls_chunks:
+            from openai.types.chat.chat_completion_message_tool_call import (
+                ChatCompletionMessageToolCall,
+                Function,
+            )
+
+            tc_by_index: dict[int, dict] = {}
+            for tc_chunk in tool_calls_chunks:
+                idx = tc_chunk["index"]
+                if idx not in tc_by_index:
+                    tc_by_index[idx] = {"id": "", "function": {"name": "", "arguments": ""}}
+                tc_by_index[idx]["id"] += tc_chunk["id"]
+                tc_by_index[idx]["function"]["name"] += tc_chunk["function"]["name"]
+                tc_by_index[idx]["function"]["arguments"] += tc_chunk["function"]["arguments"]
+
+            tool_calls = [
+                ChatCompletionMessageToolCall(
+                    id=tc_data["id"],
+                    type="function",
+                    function=Function(
+                        name=tc_data["function"]["name"],
+                        arguments=tc_data["function"]["arguments"],
+                    ),
+                )
+                for tc_data in tc_by_index.values()
+                if tc_data["function"]["name"]
+            ]
+
+            if tool_calls:
+                dummy_msg = type("obj", (object,), {
+                    "content": full_text,
+                    "tool_calls": tool_calls,
+                })()
+                for tc in tool_calls:
+                    stream_sink.on_tool_call(tc.function.name, tc.function.arguments[:200])
+                # handle_tool_calls 执行工具并做第二轮 LLM 调用
+                result = await handle_tool_calls(agent, dummy_msg)
+                if result:
+                    stream_sink.on_content_token(result)
+                stream_sink.on_stream_end()
+                return result
+
         return full_text
 
     except Exception as e:
