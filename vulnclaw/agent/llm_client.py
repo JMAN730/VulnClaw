@@ -342,7 +342,8 @@ async def call_llm_stream(
         full_text = ""
         reasoning_buffer = ""
 
-        async for chunk in response:
+        # sync client → sync 迭代（OpenAI sync Stream 用 for）
+        for chunk in response:
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
 
@@ -375,11 +376,9 @@ async def call_llm_stream(
         # Fallback to non-streaming on streaming-related errors or general failures
         error_text = str(e).lower()
         streaming_markers = [
-            "not supported",
-            "not implemented",
-            "streaming",
-            "async for",
+            "not supported", "not implemented", "streaming",
             "requires an object with __aiter__",
+            "stream is not iterable", "doesn't support",
         ]
         if any(marker in error_text for marker in streaming_markers):
             # Provider doesn't support streaming or other streaming error, fall back
@@ -396,19 +395,8 @@ async def call_llm_stream(
         "单轮",
     )
 
-    choice = response_fallback.choices[0]
-    if choice.message.tool_calls:
-        # Has tool calls, need full handling
-        return await handle_tool_calls(agent, choice.message)
-
-    full_text = extract_response(choice.message)
-
-    # Simulate streaming output for fallback
-    if full_text:
-        stream_sink.on_content_token(full_text)
-    stream_sink.on_stream_end()
-
-    return full_text
+    # 降级到非流式 call_llm（有 retry + tool_calls 处理），行为一致
+    return await call_llm(agent, system_prompt)
 
 
 async def call_llm_auto_stream(
@@ -612,12 +600,12 @@ async def call_llm_auto_stream(
 
     except (NotImplementedError, ValueError, Exception) as e:
         error_text = str(e).lower()
-        if any(
+        if not any(
             marker in error_text
-            for marker in ["not supported", "not implemented", "streaming"]
+            for marker in [
+                "not supported", "not implemented", "streaming",
+            ]
         ):
-            pass
-        else:
             raise
 
     # Fallback to non-streaming
