@@ -8,10 +8,41 @@ import json
 import sys
 from typing import Any, Optional, Protocol, runtime_checkable
 
+from vulnclaw.agent.token_counter import estimate_tokens, truncate_messages
 from vulnclaw.agent.tool_call_manager import (
     handle_tool_calls,
     handle_tool_calls_with_results,
 )
+
+_CONTEXT_USABLE_RATIO = 0.9
+
+
+def _fit_context_window(agent: Any, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Truncate messages to fit the configured context window (90% usable budget)."""
+    llm = getattr(agent, "config", None)
+    llm = getattr(llm, "llm", None) if llm is not None else None
+    max_context = getattr(llm, "max_context_tokens", None)
+    if not isinstance(max_context, (int, float)) or isinstance(max_context, bool):
+        return messages
+    if max_context <= 0:
+        return messages
+
+    budget = int(max_context * _CONTEXT_USABLE_RATIO)
+    current = estimate_tokens(messages)
+    if current <= budget:
+        return messages
+
+    trimmed = truncate_messages(messages, budget, preserve_system=True)
+    try:
+        from rich.console import Console
+
+        Console().print(
+            f"[yellow][!] 上下文约 {current} tokens 超过窗口预算 {budget}，"
+            f"已截断至约 {estimate_tokens(trimmed)} tokens[/yellow]"
+        )
+    except Exception:
+        print(f"[!] 上下文截断: {current} → {estimate_tokens(trimmed)} tokens (预算 {budget})")
+    return trimmed
 
 
 def extract_response(message: Any) -> str:
@@ -180,6 +211,7 @@ async def call_llm(
 
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(agent.context.get_messages())
+    messages = _fit_context_window(agent, messages)
     tools = agent._build_openai_tools()
 
     kwargs = build_chat_completion_kwargs(agent, messages, tools)
@@ -212,6 +244,7 @@ async def call_llm_auto(
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(agent.context.get_messages())
     messages.append({"role": "user", "content": round_context})
+    messages = _fit_context_window(agent, messages)
     tools = agent._build_openai_tools()
 
     kwargs = build_chat_completion_kwargs(agent, messages, tools)
@@ -287,7 +320,7 @@ async def call_llm_auto(
             tool_summary_parts.append(f"⚠️ 本轮跳过: {'; '.join(skipped_info)}")
 
         try:
-            kwargs["messages"] = messages
+            kwargs["messages"] = _fit_context_window(agent, messages)
             response2, second_retry_attempts = await _call_with_persistent_retries(
                 agent,
                 lambda: client.chat.completions.create(**kwargs),
@@ -342,6 +375,126 @@ def _ensure_async_iter(response):
     return None  # 不是可迭代对象，由调用方走降级路径
 
 
+def _collect_tool_call_deltas(delta: Any, tool_calls_chunks: list[dict]) -> None:
+    """从单个流式 delta 中提取 tool_call 分片，追加到累积列表。
+
+    处理各 provider 的差异：
+    - 某些 provider 第一个分片只带 id（function 字段为 None）
+    - 某些 provider name 与 arguments 分别在不同分片到达
+    - index 缺失/为 None（回退到 0）
+    - tc_delta 本身为 None
+    """
+    tc = getattr(delta, "tool_calls", None)
+    if not tc:
+        return
+    for tc_delta in tc:
+        if tc_delta is None:
+            continue
+        # function 字段在仅含 id 的首个分片中可能为 None
+        func = getattr(tc_delta, "function", None)
+        if func is not None:
+            name = getattr(func, "name", None) or ""
+            arguments = getattr(func, "arguments", None) or ""
+        else:
+            name = ""
+            arguments = ""
+        index = getattr(tc_delta, "index", None)
+        if index is None:
+            index = 0
+        tool_calls_chunks.append({
+            "index": index,
+            "id": getattr(tc_delta, "id", None) or "",
+            "function": {"name": name, "arguments": arguments},
+        })
+
+
+def _validate_tool_call(tool_call: Any) -> bool:
+    """验证聚合后的 tool_call 是否完整可用。
+
+    要求：
+    - id 非空（某些 provider 仅在首个分片给出，分片丢失会导致空 id）
+    - function.name 非空
+    - arguments 为合法 JSON 或空字符串（流式中断会产生截断的不完整 JSON）
+    """
+    tc_id = getattr(tool_call, "id", None)
+    if not tc_id:
+        return False
+    func = getattr(tool_call, "function", None)
+    if func is None or not getattr(func, "name", None):
+        return False
+    arguments = getattr(func, "arguments", None)
+    if arguments in (None, ""):
+        return True
+    try:
+        json.loads(arguments)
+        return True
+    except (json.JSONDecodeError, TypeError):
+        return False
+
+
+def _build_tool_call(tc_id: str, name: str, arguments: str) -> Any:
+    """构造一个 tool_call 对象。
+
+    优先使用 OpenAI 官方 pydantic 类型（生产路径）；导入失败时回退到等价
+    轻量对象（仅暴露下游用到的 .id/.type/.function.name/.function.arguments），
+    保证组装逻辑可在不安装 openai 的环境中独立测试。
+    """
+    try:
+        from openai.types.chat.chat_completion_message_tool_call import (
+            ChatCompletionMessageToolCall,
+            Function,
+        )
+
+        return ChatCompletionMessageToolCall(
+            id=tc_id,
+            type="function",
+            function=Function(name=name, arguments=arguments),
+        )
+    except Exception:
+        func = type("Function", (), {"name": name, "arguments": arguments})()
+        return type("ToolCall", (), {"id": tc_id, "type": "function", "function": func})()
+
+
+def _assemble_tool_calls(tool_calls_chunks: list[dict]) -> list[Any]:
+    """将累积的流式分片按 index 聚合为完整 tool_call 列表。
+
+    跨多个 chunk 分片到达的 id/name/arguments 按 index 对齐拼接。
+    聚合后逐个校验，丢弃缺失 id、缺失 name 或 arguments JSON 不完整的调用并记录警告。
+    """
+    if not tool_calls_chunks:
+        return []
+
+    # 按 index 对齐拼接（dict 保持首次出现顺序）
+    tc_by_index: dict[int, dict] = {}
+    for tc_chunk in tool_calls_chunks:
+        idx = tc_chunk["index"]
+        if idx not in tc_by_index:
+            tc_by_index[idx] = {"id": "", "function": {"name": "", "arguments": ""}}
+        tc_by_index[idx]["id"] += tc_chunk["id"]
+        tc_by_index[idx]["function"]["name"] += tc_chunk["function"]["name"]
+        tc_by_index[idx]["function"]["arguments"] += tc_chunk["function"]["arguments"]
+
+    tool_calls: list[Any] = []
+    for tc_data in tc_by_index.values():
+        candidate = _build_tool_call(
+            tc_data["id"],
+            tc_data["function"]["name"],
+            tc_data["function"]["arguments"],
+        )
+        if not _validate_tool_call(candidate):
+            print(
+                f"[!] 丢弃不完整的流式 tool_call: id={tc_data['id']!r} "
+                f"name={tc_data['function']['name']!r} "
+                f"args={tc_data['function']['arguments'][:80]!r}",
+                file=sys.stderr,
+                flush=True,
+            )
+            continue
+        tool_calls.append(candidate)
+
+    return tool_calls
+
+
 async def call_llm_stream(
     agent: Any,
     system_prompt: str,
@@ -364,6 +517,7 @@ async def call_llm_stream(
 
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(agent.context.get_messages())
+    messages = _fit_context_window(agent, messages)
     tools = agent._build_openai_tools()
 
     kwargs = build_chat_completion_kwargs(agent, messages, tools)
@@ -400,17 +554,7 @@ async def call_llm_stream(
                     full_text += content
 
                 # Handle tool_calls（流式 chat 模式也需要处理）
-                tc = getattr(delta, "tool_calls", None)
-                if tc:
-                    for tc_delta in tc:
-                        tool_calls_chunks.append({
-                            "index": getattr(tc_delta, "index", 0),
-                            "id": getattr(tc_delta, "id", None) or "",
-                            "function": {
-                                "name": getattr(tc_delta.function, "name", None) or "",
-                                "arguments": getattr(tc_delta.function, "arguments", None) or "",
-                            },
-                        })
+                _collect_tool_call_deltas(delta, tool_calls_chunks)
 
         if reasoning_buffer:
             full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
@@ -419,32 +563,7 @@ async def call_llm_stream(
 
         # 如果有 tool_calls，路由到 handle_tool_calls（同 call_llm_auto_stream 的逻辑）
         if tool_calls_chunks:
-            from openai.types.chat.chat_completion_message_tool_call import (
-                ChatCompletionMessageToolCall,
-                Function,
-            )
-
-            tc_by_index: dict[int, dict] = {}
-            for tc_chunk in tool_calls_chunks:
-                idx = tc_chunk["index"]
-                if idx not in tc_by_index:
-                    tc_by_index[idx] = {"id": "", "function": {"name": "", "arguments": ""}}
-                tc_by_index[idx]["id"] += tc_chunk["id"]
-                tc_by_index[idx]["function"]["name"] += tc_chunk["function"]["name"]
-                tc_by_index[idx]["function"]["arguments"] += tc_chunk["function"]["arguments"]
-
-            tool_calls = [
-                ChatCompletionMessageToolCall(
-                    id=tc_data["id"],
-                    type="function",
-                    function=Function(
-                        name=tc_data["function"]["name"],
-                        arguments=tc_data["function"]["arguments"],
-                    ),
-                )
-                for tc_data in tc_by_index.values()
-                if tc_data["function"]["name"]
-            ]
+            tool_calls = _assemble_tool_calls(tool_calls_chunks)
 
             if tool_calls:
                 dummy_msg = type("obj", (object,), {
@@ -515,6 +634,7 @@ async def call_llm_auto_stream(
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(agent.context.get_messages())
     messages.append({"role": "user", "content": round_context})
+    messages = _fit_context_window(agent, messages)
     tools = agent._build_openai_tools()
 
     kwargs = build_chat_completion_kwargs(agent, messages, tools)
@@ -552,23 +672,14 @@ async def call_llm_auto_stream(
                     full_text += content
 
                 # Handle tool_calls
-                tc = getattr(delta, "tool_calls", None)
-                if tc:
-                    for tc_delta in tc:
-                        tool_calls_chunks.append({
-                            "index": getattr(tc_delta, "index", 0),
-                            "id": getattr(tc_delta, "id", None) or "",
-                            "function": {
-                                "name": getattr(tc_delta.function, "name", None) or "",
-                                "arguments": getattr(tc_delta.function, "arguments", None) or "",
-                            },
-                        })
+                _collect_tool_call_deltas(delta, tool_calls_chunks)
 
         stream_sink.on_stream_end()
 
-        # Flush reasoning
+        # Flush reasoning（重置缓冲，避免泄漏到第二轮总结流导致重复输出）
         if reasoning_buffer:
             full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
+            reasoning_buffer = ""
 
         # Check if we have tool calls
         choice_dummy = type("obj", (object,), {"message": type("obj", (object,), {
@@ -579,34 +690,7 @@ async def call_llm_auto_stream(
         # Reconstruct message for tool call handling
         # We need to check if there are tool calls from the accumulated chunks
         if tool_calls_chunks:
-            # Build tool_calls from accumulated chunks
-            from openai.types.chat.chat_completion_message_tool_call import (
-                ChatCompletionMessageToolCall,
-                Function,
-            )
-
-            # Group chunks by index
-            tc_by_index: dict[int, dict] = {}
-            for tc_chunk in tool_calls_chunks:
-                idx = tc_chunk["index"]
-                if idx not in tc_by_index:
-                    tc_by_index[idx] = {"id": "", "function": {"name": "", "arguments": ""}}
-                tc_by_index[idx]["id"] += tc_chunk["id"]
-                tc_by_index[idx]["function"]["name"] += tc_chunk["function"]["name"]
-                tc_by_index[idx]["function"]["arguments"] += tc_chunk["function"]["arguments"]
-
-            tool_calls = [
-                ChatCompletionMessageToolCall(
-                    id=tc_data["id"],
-                    type="function",
-                    function=Function(
-                        name=tc_data["function"]["name"],
-                        arguments=tc_data["function"]["arguments"],
-                    ),
-                )
-                for tc_data in tc_by_index.values()
-                if tc_data["function"]["name"]
-            ]
+            tool_calls = _assemble_tool_calls(tool_calls_chunks)
 
             if tool_calls:
                 # [修改] 流式聚合后 tool_calls 仅存在于 delta 片段中, 需回填到聚合消息对象以便后续处理
@@ -652,7 +736,7 @@ async def call_llm_auto_stream(
                         })
 
                 # Second LLM call (streaming) for summary
-                kwargs["messages"] = messages
+                kwargs["messages"] = _fit_context_window(agent, messages)
                 stream_sink.on_status("Summarizing...")
 
                 try:

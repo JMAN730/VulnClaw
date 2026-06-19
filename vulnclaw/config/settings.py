@@ -159,7 +159,7 @@ def _overlay_env(config: VulnClawConfig) -> VulnClawConfig:
     """Overlay environment variables onto config.
 
     Supported env vars (prefix VULNCLAW_):
-        LLM:        API_KEY, BASE_URL, MODEL, PROVIDER, MAX_TOKENS, TEMPERATURE
+        LLM:        API_KEY, BASE_URL, MODEL, PROVIDER, MAX_TOKENS, MAX_CONTEXT_TOKENS, TEMPERATURE
         Session:    OUTPUT_DIR, AUTO_SAVE, REPORT_FORMAT, MAX_ROUNDS, SHOW_THINKING
         Safety:     PYTHON_EXECUTE_ENABLED, PYTHON_EXECUTE_RESTRICTED, PYTHON_EXECUTE_MODE,
                     PYTHON_EXECUTE_MAX_LINES, PYTHON_EXECUTE_SHOW_WARNING,
@@ -177,6 +177,9 @@ def _overlay_env(config: VulnClawConfig) -> VulnClawConfig:
     if v := os.environ.get("VULNCLAW_LLM_MAX_TOKENS"):
         with suppress(ValueError):
             config.llm.max_tokens = int(v)
+    if v := os.environ.get("VULNCLAW_LLM_MAX_CONTEXT_TOKENS"):
+        with suppress(ValueError):
+            config.llm.max_context_tokens = int(v)
     if v := os.environ.get("VULNCLAW_LLM_TEMPERATURE"):
         with suppress(ValueError):
             config.llm.temperature = float(v)

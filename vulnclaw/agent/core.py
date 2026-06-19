@@ -47,9 +47,10 @@ from vulnclaw.target_state.store import save_target_state
 
 # Optional KB integration — gracefully degrade if KB data is unavailable
 try:
-    from vulnclaw.kb.retriever import KnowledgeRetriever
+    from vulnclaw.kb.retriever import KnowledgeRetriever, RetrieverStatus
 except Exception:
     KnowledgeRetriever = None
+    RetrieverStatus = None
 
 
 class AgentCore:
@@ -64,7 +65,38 @@ class AgentCore:
         self._reset_runtime_state()
         # Optional KB retriever — lazily initialized on first use
         self._kb_retriever: Any = None
+        self._kb_context_cache: dict[Any, str] = {}
         self._finding_parser = FindingParser(self.context, self.runtime)
+        self._report_kb_status()
+
+    def _report_kb_status(self) -> None:
+        """Print the knowledge-base backend status once at startup."""
+        if KnowledgeRetriever is None:
+            return
+        try:
+            self._kb_retriever = KnowledgeRetriever()
+            status = self._kb_retriever.get_status()
+        except Exception:
+            return
+
+        try:
+            from rich.console import Console
+
+            console = Console()
+        except Exception:
+            return
+
+        if RetrieverStatus is None:
+            return
+        if status == RetrieverStatus.CHROMADB_ACTIVE:
+            console.print("[green]✓ 知识库已启用 (ChromaDB)[/green]")
+        elif status == RetrieverStatus.KEYWORD_FALLBACK:
+            console.print(
+                "[yellow]⚠ 知识库已降级为关键词模式 "
+                "(chromadb 未安装，运行 pip install vulnclaw[kb] 启用语义搜索)[/yellow]"
+            )
+        else:
+            console.print("[red]✗ 知识库已禁用 (无可用数据)[/red]")
 
     def _maybe_auto_save_session(self) -> None:
         """Persist session state when auto-save is enabled."""
