@@ -200,7 +200,6 @@ def generate_report(
     Pending, candidate, and rejected findings remain in summary/governance views.
     """
     from vulnclaw import __version__
-
     from vulnclaw.report.filter import deduplicate_report_findings
 
     all_findings = session.findings
@@ -606,7 +605,6 @@ def generate_persistent_cycle_report(
         Path to the generated report file.
     """
     from vulnclaw import __version__
-
     from vulnclaw.report.filter import deduplicate_report_findings
 
     # ★ 包含所有 findings（包括 pending 和 confirmed，不只是 verified）

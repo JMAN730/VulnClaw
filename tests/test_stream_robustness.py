@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import MagicMock
 
 import pytest
@@ -24,7 +23,6 @@ from vulnclaw.agent.llm_client import (
     call_llm_auto_stream,
     call_llm_stream,
 )
-
 
 # === 测试辅助 mock 类型（模拟 OpenAI 流式 delta 结构） ===
 

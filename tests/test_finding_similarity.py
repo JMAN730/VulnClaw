@@ -12,7 +12,6 @@ from vulnclaw.agent.finding_similarity import (
     url_similarity,
 )
 
-
 # ── normalize_text ───────────────────────────────────────────────────
 
 

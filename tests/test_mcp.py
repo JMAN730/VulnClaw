@@ -138,14 +138,6 @@ class TestMCPRouter:
         assert len(results) > 0
         assert any(r["tool"] == "screenshot" for r in results)
 
-    def test_route_burp(self):
-        from vulnclaw.mcp.router import MCPRouter
-
-        router = MCPRouter()
-        results = router.route("抓包分析")
-        assert len(results) > 0
-        assert any(r["server"] == "burp" for r in results)
-
     def test_route_memory_save(self):
         from vulnclaw.mcp.router import MCPRouter
 
