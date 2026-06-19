@@ -289,3 +289,51 @@ def list_providers() -> list[dict[str, str]]:
             }
         )
     return result
+
+
+def fetch_provider_models(base_url: str, api_key: str, timeout: float = 10.0) -> list[str]:
+    """Fetch available models from a provider's OpenAI-compatible API.
+
+    Uses the OpenAI SDK's ``client.models.list()`` endpoint.
+    Returns a sorted list of model ID strings.  Returns an empty list
+    on any error (network, auth, timeout, etc.).
+    """
+    if not base_url or not api_key:
+        return []
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
+        models_page = client.models.list()
+        model_ids = [m.id for m in models_page if m.id]
+        return sorted(model_ids)
+    except Exception:
+        return []
+
+
+def fetch_provider_models_async(
+    base_url: str,
+    api_key: str,
+    timeout: float = 10.0,
+    on_result: Any = None,
+):
+    """Fetch provider models in a background thread.
+
+    Calls ``fetch_provider_models()`` in a daemon thread.  When the
+    fetch completes, *on_result* (if provided) is called with the
+    model list on the **calling** thread via ``app.call_later()``-style
+    scheduling — the caller is responsible for arranging thread-safe
+    delivery (e.g. by passing a lambda that uses ``call_later``).
+
+    Returns the ``Thread`` object so callers can track or join it.
+    """
+    import threading
+
+    def _worker() -> None:
+        models = fetch_provider_models(base_url, api_key, timeout)
+        if on_result is not None:
+            on_result(models)
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+    return t
