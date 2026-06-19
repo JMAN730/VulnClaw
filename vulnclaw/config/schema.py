@@ -113,6 +113,9 @@ class LLMConfig(BaseModel):
     )
     model: str = Field(default="gpt-4o", description="Model name to use (auto-filled by provider)")
     max_tokens: int = Field(default=4096, description="Max tokens per response")
+    max_context_tokens: int = Field(
+        default=128000, description="Max context window tokens before sliding-window truncation"
+    )
     temperature: float = Field(default=0.1, description="Sampling temperature")
     reasoning_effort: str = Field(
         default="high", description="Reasoning effort level (OpenAI o-series only)"
@@ -177,6 +180,14 @@ class SafetyConfig(BaseModel):
     python_execute_audit_enabled: bool = Field(
         default=True,
         description="Write python_execute audit records to the local config directory",
+    )
+    tool_parallel: bool = Field(
+        default=True,
+        description="Execute independent tool calls in a single LLM turn concurrently",
+    )
+    tool_max_concurrent: int = Field(
+        default=5,
+        description="Max number of tool calls executed concurrently per round (1=serial)",
     )
 
 
@@ -264,17 +275,6 @@ BUILTIN_MCP_SERVERS: dict[str, dict[str, Any]] = {
             "args": ["-y", "chrome-devtools-mcp@latest"],
         },
     },
-    "js-reverse": {
-        "name": "js-reverse",
-        "enabled": False,
-        "priority": 0,
-        "description": "JavaScript reverse engineering with anti-detection",
-        "transport": {
-            "type": "stdio",
-            "command": "npx",
-            "args": ["js-reverse-mcp"],
-        },
-    },
     "burp": {
         "name": "burp",
         "enabled": False,
@@ -284,82 +284,6 @@ BUILTIN_MCP_SERVERS: dict[str, dict[str, Any]] = {
             "type": "stdio",
             "command": "java",
             "args": ["-jar", "mcp-proxy.jar", "--sse-url", "http://127.0.0.1:9876"],
-        },
-    },
-    "frida-mcp": {
-        "name": "frida-mcp",
-        "enabled": False,
-        "priority": 1,
-        "description": "Frida dynamic instrumentation for mobile pentest",
-        "transport": {
-            "type": "stdio",
-            "command": "python",
-            "args": ["frida_mcp.py"],
-        },
-    },
-    "adb-mcp": {
-        "name": "adb-mcp",
-        "enabled": False,
-        "priority": 1,
-        "description": "ADB device control for Android pentest",
-        "transport": {
-            "type": "stdio",
-            "command": "python",
-            "args": ["adb-mcp/server.py"],
-        },
-    },
-    "jadx": {
-        "name": "jadx",
-        "enabled": False,
-        "priority": 1,
-        "description": "APK decompilation via JADX",
-        "transport": {
-            "type": "sse",
-            "url": "http://localhost:8651/mcp",
-        },
-    },
-    "ida-pro-mcp": {
-        "name": "ida-pro-mcp",
-        "enabled": False,
-        "priority": 1,
-        "description": "IDA Pro reverse engineering assistant",
-        "transport": {
-            "type": "stdio",
-            "command": "python",
-            "args": ["ida_pro_mcp/server.py"],
-        },
-    },
-    "sequential-thinking": {
-        "name": "sequential-thinking",
-        "enabled": False,
-        "priority": 1,
-        "description": "Complex reasoning chain for multi-step analysis",
-        "transport": {
-            "type": "stdio",
-            "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
-        },
-    },
-    "context7": {
-        "name": "context7",
-        "enabled": False,
-        "priority": 1,
-        "description": "Code & documentation context retrieval",
-        "transport": {
-            "type": "stdio",
-            "command": "npx",
-            "args": ["-y", "@upstash/context7-mcp"],
-        },
-    },
-    "everything-search": {
-        "name": "everything-search",
-        "enabled": False,
-        "priority": 2,
-        "description": "Local file search (Windows Everything integration)",
-        "transport": {
-            "type": "stdio",
-            "command": "node",
-            "args": ["everything-mcp/index.js"],
         },
     },
 }

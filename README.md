@@ -53,7 +53,7 @@ VulnClaw 自动执行：
 
 - **自然语言驱动** — 用人话描述渗透意图，自动识别阶段和工具
 - **13 个 LLM Provider** — OpenAI / MiniMax / DeepSeek / 智谱 / Moonshot / 千问 / SiliconFlow / 豆包 / 百川 / 阶跃星辰 / 商汤 / 零一万物，一键切换
-- **MCP 工具链** — 已内置 12 个 MCP 服务配置和 23 个工具定义；当前 `fetch` / `memory` 以稳定的 `local` 模式运行，其余 MCP 集成多仍处于预览或占位阶段，待完整 session 生命周期管理落地后再逐步恢复真实协议接入
+- **MCP 工具链** — 4 个 MCP 服务：`fetch` / `memory` 本地实现开箱即用，`chrome-devtools` / `burp` 对接外部 MCP 服务实现浏览器自动化和 HTTP 抓包重放
 - **AI Agent 核心** — OpenAI 兼容协议 + Tool Calling + 自主渗透循环
 - **21 个渗透 Skill** — 7 核心 + 14 专项 Skill（含 CTF Web/Crypto/Misc、osint-recon、secknowledge-skill），含 180 个参考文档
 - **编解码/加解密工具** — 29 种操作（Base64/Hex/URL/AES/JWT/Morse 等），LLM 可精确调用，不再靠猜测
@@ -451,7 +451,7 @@ vulnclaw config provider minimax   # 一键切换
 │               └─────┬──────┘                │
 │               ┌─────▼──────┐                │
 │               │ MCP 编排层  │                │
-│               │ (11 服务)  │                │
+│               │ (4 服务)   │                │
 │               └─────┬──────┘                │
 │               ┌─────▼──────┐                │
 │               │ 安全知识库  │                │
@@ -483,24 +483,81 @@ vulnclaw config provider minimax   # 一键切换
 
 ## MCP 工具链
 
-| MCP 服务            | 工具数 | 用途                   | 优先级 |
-| ------------------- | ------ | ---------------------- | ------ |
-| fetch               | 1      | HTTP 请求、API 测试    | P0     |
-| memory              | 2      | 上下文记忆、状态持久化 | P0     |
-| chrome-devtools     | 4      | 浏览器自动化           | P0     |
-| js-reverse          | 2      | JS 逆向工程            | P0     |
-| burp                | 2      | HTTP 抓包、重放        | P0     |
-| frida-mcp           | 2      | 移动端 Hook            | P1     |
-| adb-mcp             | 3      | 安卓设备控制           | P1     |
-| jadx                | 2      | APK 反编译             | P1     |
-| ida-pro-mcp         | 2      | 二进制逆向             | P1     |
-| sequential-thinking | 1      | 复杂推理链             | P1     |
-| context7            | 1      | 代码上下文检索         | P1     |
-| everything-search   | 1      | 本地文件搜索           | P2     |
+| MCP 服务 | 工具数 | 模式 | 用途 | 状态 |
+|---|---|---|---|---|
+| fetch | 1 | 本地 (httpx) | HTTP 请求、API 测试 | 开箱即用 |
+| memory | 2 | 本地 (JSON) | 上下文记忆、状态持久化 | 开箱即用 |
+| chrome-devtools | 31+ | stdio MCP | 浏览器自动化、截图、JS 执行 | 需部署 |
+| burp | 多个 | stdio MCP | HTTP 抓包、重放、漏洞扫描 | 需部署 |
 
-> 共 12 个 MCP 服务、23 个工具定义。另有 3 个内置 Agent 工具（`load_skill_reference` + `crypto_decode` + `python_execute`），无需 MCP 即可调用。
->
-> 当前 `fetch` / `memory` 以 `local` 模式稳定运行；其余服务多为 `preview / placeholder`。后续会通过独立的 session 生命周期管理层逐步恢复并扩展真实 MCP 协议接入。
+> 另有 5 个内置 Agent 工具（`python_execute` + `nmap_scan` + `crypto_decode` + `brute_force_login` + `load_skill_reference`），无需 MCP 即可调用。
+
+### Chrome DevTools MCP 部署
+
+[仓库: ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) — 31+ 工具，覆盖点击/表单/截图/JS执行/网络监控/性能分析
+
+**前置条件**: Node.js LTS (v20+) + Chrome 浏览器
+
+```bash
+# Step 1: 启动 Chrome 远程调试
+# Windows
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir=C:\tmp\chrome-debug
+# Linux/Mac
+google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug
+
+# Step 2: 启用 VulnClaw 配置（自动通过 npx 拉取，无需手动安装）
+vulnclaw config set mcp.servers.chrome-devtools.enabled true
+```
+
+VulnClaw 配置已内置 `npx -y chrome-devtools-mcp@latest`，启用后自动连接。如需指定 Chrome 调试地址，编辑 `~/.vulnclaw/config.yaml`：
+
+```yaml
+mcp:
+  servers:
+    chrome-devtools:
+      enabled: true
+      transport:
+        type: stdio
+        command: npx
+        args: ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222"]
+```
+
+### Burp Suite MCP 部署
+
+[仓库: PortSwigger/mcp-server](https://github.com/PortSwigger/mcp-server) — 官方 MCP 扩展，支持 SSE + Stdio 协议
+
+**前置条件**: Java 11+ + Burp Suite Professional
+
+```bash
+# Step 1: 克隆并构建
+git clone https://github.com/PortSwigger/mcp-server.git burp-mcp
+cd burp-mcp
+./gradlew embedProxyJar    # Windows: gradlew.bat embedProxyJar
+# 产物: build/libs/burp-mcp-all.jar
+
+# Step 2: 加载到 Burp Suite
+# Burp → Extensions → Add → Type: Java → 选择 burp-mcp-all.jar
+
+# Step 3: 在 Burp 的 MCP 标签页勾选 "Enabled"（默认监听 127.0.0.1:9876）
+
+# Step 4: 启用 VulnClaw 配置
+vulnclaw config set mcp.servers.burp.enabled true
+```
+
+建议将 JAR 复制到固定位置并更新配置：
+
+```yaml
+mcp:
+  servers:
+    burp:
+      enabled: true
+      transport:
+        type: stdio
+        command: java
+        args: ["-jar", "~/.vulnclaw/tools/burp-mcp-all.jar", "--sse-url", "http://127.0.0.1:9876"]
+```
+
+> 详细部署说明参见 [docs/mcp-deployment.md](docs/mcp-deployment.md)
 
 ---
 
