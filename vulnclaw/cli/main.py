@@ -1497,6 +1497,40 @@ def kb_update() -> None:
     console.print(f"    Categories: {category_summary or 'empty'}")
 
 
+@kb_app.command("status")
+def kb_status() -> None:
+    """Show the knowledge base retrieval backend status."""
+    from vulnclaw.kb.retriever import KnowledgeRetriever, RetrieverStatus
+    from vulnclaw.kb.store import KnowledgeStore
+
+    store = KnowledgeStore()
+    retriever = KnowledgeRetriever(store=store)
+    status = retriever.get_status()
+    detail = retriever.get_status_detail()
+    stats = store.get_stats()
+    total = sum(stats.values())
+    category_summary = ", ".join(f"{cat}={count}" for cat, count in sorted(stats.items()))
+
+    if status == RetrieverStatus.CHROMADB_ACTIVE:
+        line = "[green]✓ 知识库已启用 (ChromaDB 语义检索)[/green]"
+    elif status == RetrieverStatus.KEYWORD_FALLBACK:
+        line = "[yellow]⚠ 知识库已降级为关键词模式 (chromadb 未安装)[/yellow]"
+    else:
+        line = "[red]✗ 知识库已禁用 (无可用数据)[/red]"
+
+    console.print(
+        Panel(
+            f"{line}\n"
+            f"Backend: [bold]{status.value}[/]\n"
+            f"Detail: {detail or 'n/a'}\n"
+            f"Entries: [bold]{total}[/] ({category_summary or 'empty'})\n"
+            f"语义搜索: 运行 [bold]pip install vulnclaw\\[kb][/] 启用 ChromaDB",
+            title="KB Status",
+            border_style="cyan",
+        )
+    )
+
+
 @target_state_app.command("list")
 def target_state_list(
     target: str = typer.Argument(..., help="Target host/IP/URL"),

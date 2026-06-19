@@ -201,8 +201,10 @@ def generate_report(
     """
     from vulnclaw import __version__
 
+    from vulnclaw.report.filter import deduplicate_report_findings
+
     all_findings = session.findings
-    verified_findings = session.get_verified_findings()
+    verified_findings = deduplicate_report_findings(session.get_verified_findings())
     pending_findings = session.get_pending_findings()
     rejected_findings = session.get_rejected_findings()
     candidate_findings = (
@@ -605,9 +607,11 @@ def generate_persistent_cycle_report(
     """
     from vulnclaw import __version__
 
+    from vulnclaw.report.filter import deduplicate_report_findings
+
     # ★ 包含所有 findings（包括 pending 和 confirmed，不只是 verified）
     all_findings = session.findings
-    verified_findings = session.get_verified_findings()
+    verified_findings = deduplicate_report_findings(session.get_verified_findings())
     manual_review_findings = (
         session.get_manual_review_findings()
         if hasattr(session, "get_manual_review_findings")

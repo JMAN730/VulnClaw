@@ -96,8 +96,8 @@ class TestVulnClawConfig:
     def test_builtin_mcp_server_count(self):
         from vulnclaw.config.schema import BUILTIN_MCP_SERVERS
 
-        # Should have 12 builtin servers
-        assert len(BUILTIN_MCP_SERVERS) == 12
+        # Should have 4 builtin servers (fetch, memory, chrome-devtools, burp)
+        assert len(BUILTIN_MCP_SERVERS) == 4
 
     def test_provider_presets(self):
         from vulnclaw.config.schema import PROVIDER_PRESETS

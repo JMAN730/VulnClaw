@@ -138,21 +138,13 @@ class TestMCPRouter:
         assert len(results) > 0
         assert any(r["tool"] == "screenshot" for r in results)
 
-    def test_route_frida(self):
+    def test_route_burp(self):
         from vulnclaw.mcp.router import MCPRouter
 
         router = MCPRouter()
-        results = router.route("hook这个函数")
+        results = router.route("抓包分析")
         assert len(results) > 0
-        assert any(r["server"] == "frida-mcp" for r in results)
-
-    def test_route_js_reverse(self):
-        from vulnclaw.mcp.router import MCPRouter
-
-        router = MCPRouter()
-        results = router.route("分析js逻辑")
-        assert len(results) > 0
-        assert any(r["server"] == "js-reverse" for r in results)
+        assert any(r["server"] == "burp" for r in results)
 
     def test_route_memory_save(self):
         from vulnclaw.mcp.router import MCPRouter
