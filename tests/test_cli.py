@@ -789,12 +789,13 @@ class TestCLI:
         from vulnclaw.config.schema import VulnClawConfig
 
         config = VulnClawConfig()
+        # New flow: provider → base_url → api_key → (fetch models) → model → enter
         answers = iter(
             [
                 "deepseek",
                 "https://api.deepseek.com/v1",
-                "deepseek-chat",
                 "sk-test",
+                "deepseek-chat",
                 "",
             ]
         )
@@ -802,6 +803,8 @@ class TestCLI:
 
         monkeypatch.setattr(tui_mod.Prompt, "ask", lambda *args, **kwargs: next(answers))
         monkeypatch.setattr(tui_mod, "save_config", lambda cfg: saved.append(cfg))
+        # Mock fetch_provider_models to return a model list
+        monkeypatch.setattr(tui_mod, "fetch_provider_models", lambda *a, **kw: ["deepseek-chat", "deepseek-reasoner"])
 
         screen = tui_mod.Console(
             file=io.StringIO(),

@@ -25,7 +25,13 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.text import Text
 
-from vulnclaw.config.settings import apply_provider_preset, list_providers, load_config, save_config
+from vulnclaw.config.settings import (
+    apply_provider_preset,
+    fetch_provider_models,
+    list_providers,
+    load_config,
+    save_config,
+)
 from vulnclaw.i18n import _, init_i18n
 from vulnclaw.target_state.store import get_target_state_preview, list_target_snapshots
 
@@ -918,17 +924,38 @@ def _cmd_config(session: dict[str, Any], args: str) -> None:
             nonlocal config
             session["config"] = apply_provider_preset(config, value)
             config = session["config"]
-        _set_prompt_input(session, _("tui.prompt_enter_model", model=config.llm.model), _on_model, default=config.llm.model)
-
-    def _on_model(value: str) -> None:
-        if value:
-            config.llm.model = value.strip()
+        # 流程变更：选择提供商后先输入 API Key
         key_status = _("tui.api_key_configured") if config.llm.api_key else _("tui.api_key_not_configured")
         _set_prompt_input(session, _("tui.prompt_enter_apikey", status=key_status), _on_apikey)
 
     def _on_apikey(value: str) -> None:
         if value:
             config.llm.api_key = value.strip()
+        base_url = config.llm.base_url
+        api_key = config.llm.api_key
+        # custom 提供商或缺少 base_url/api_key 时跳过获取，直接手动输入
+        if not base_url or not api_key:
+            _set_prompt_input(session, _("tui.prompt_enter_model_fallback", model=config.llm.model), _on_model_input, default=config.llm.model)
+            return
+        # prompt_toolkit 版本：同步获取模型列表
+        _set_prompt_message(session, _("tui.fetching_models"))
+        # Note: 在 prompt_toolkit 同步循环中，消息不会立即渲染
+        # 直接同步获取模型列表
+        models = fetch_provider_models(base_url, api_key)
+        if models:
+            _set_prompt_choice(session, _("tui.prompt_select_model", model=config.llm.model), models, _on_model_selected)
+        else:
+            _set_prompt_input(session, _("tui.prompt_enter_model_fallback", model=config.llm.model), _on_model_input, default=config.llm.model)
+
+    def _on_model_selected(value: str) -> None:
+        if value:
+            config.llm.model = value.strip()
+        save_config(config)
+        _set_prompt_message(session, f"{_('tui.config_saved')}: {config.llm.provider}/{config.llm.model}")
+
+    def _on_model_input(value: str) -> None:
+        if value:
+            config.llm.model = value.strip()
         save_config(config)
         _set_prompt_message(session, f"{_('tui.config_saved')}: {config.llm.provider}/{config.llm.model}")
 
@@ -1297,16 +1324,45 @@ def _prompt_llm_config(screen: Console, config):
         config = apply_provider_preset(config, provider)
 
     base_url = Prompt.ask("Base URL", default=config.llm.base_url).strip()
-    model = Prompt.ask("Model", default=config.llm.model).strip()
-    current_key = _("tui.api_key_configured") if config.llm.api_key else _("tui.api_key_not_configured")
-    api_key = Prompt.ask(_("tui.enter_api_key"), default="").strip()
-
     if base_url:
         config.llm.base_url = base_url
-    if model:
-        config.llm.model = model
+
+    # 流程变更：先输入 API Key，再获取模型列表
+    current_key = _("tui.api_key_configured") if config.llm.api_key else _("tui.api_key_not_configured")
+    api_key = Prompt.ask(f"API Key ({current_key})", default="").strip()
     if api_key:
         config.llm.api_key = api_key
+
+    # 尝试获取模型列表
+    effective_base_url = config.llm.base_url
+    effective_api_key = config.llm.api_key
+    model = config.llm.model
+
+    if effective_base_url and effective_api_key:
+        Console().print(f"  [{C_MUTED}]{_('tui.fetching_models')}[/]")
+        models = fetch_provider_models(effective_base_url, effective_api_key)
+        if models:
+            model_table = Table(title=_("tui.prompt_select_model", model=model), box=box.ROUNDED, border_style=C_BORDER_SUBTLE)
+            model_table.add_column("#", style=f"bold {C_PRIMARY}", width=4)
+            model_table.add_column("Model", style=C_TEXT)
+            for i, m in enumerate(models, 1):
+                marker = " *" if m == model else ""
+                model_table.add_row(str(i), f"{m}{marker}")
+            screen.print(model_table)
+            model = Prompt.ask(
+                _("tui.prompt_select_model", model=model),
+                default=model,
+            ).strip()
+        else:
+            model = Prompt.ask(
+                _("tui.prompt_enter_model_fallback", model=model),
+                default=model,
+            ).strip()
+    else:
+        model = Prompt.ask("Model", default=model).strip()
+
+    if model:
+        config.llm.model = model
     save_config(config)
 
     screen.print(

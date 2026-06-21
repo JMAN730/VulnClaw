@@ -270,5 +270,10 @@
   "tui.language_auto": "自动 (跟随系统)",
   "tui.language_zh": "中文",
   "tui.language_en": "English",
-  "tui.language_switched": "界面语言已切换为: {lang}"
+  "tui.language_switched": "界面语言已切换为: {lang}",
+  "tui.prompt_select_model": "选择模型 (当前: {model}):",
+  "tui.prompt_enter_model_fallback": "获取模型列表失败，请手动输入模型名 (当前: {model}):",
+  "tui.fetching_models": "正在获取模型列表...",
+  "tui.fetch_models_failed": "获取模型列表失败",
+  "tui.no_models_available": "该提供商未返回可用模型"
 }

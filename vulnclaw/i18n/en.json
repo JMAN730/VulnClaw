@@ -270,5 +270,10 @@
   "tui.language_auto": "Auto (follow system)",
   "tui.language_zh": "Chinese",
   "tui.language_en": "English",
-  "tui.language_switched": "UI language switched to: {lang}"
+  "tui.language_switched": "UI language switched to: {lang}",
+  "tui.prompt_select_model": "Select Model (current: {model}):",
+  "tui.prompt_enter_model_fallback": "Failed to fetch models, enter model name manually (current: {model}):",
+  "tui.fetching_models": "Fetching model list...",
+  "tui.fetch_models_failed": "Failed to fetch model list",
+  "tui.no_models_available": "No models available from this provider"
 }

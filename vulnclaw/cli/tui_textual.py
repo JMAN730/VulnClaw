@@ -45,7 +45,13 @@ from vulnclaw.cli.tui import (
     build_runtime_diagnostic,
     rebuild_translations,
 )
-from vulnclaw.config.settings import apply_provider_preset, list_providers, load_config, save_config
+from vulnclaw.config.settings import (
+    apply_provider_preset,
+    fetch_provider_models,
+    list_providers,
+    load_config,
+    save_config,
+)
 from vulnclaw.i18n import _, init_i18n
 from vulnclaw.target_state.store import get_target_state_preview, list_target_snapshots
 
@@ -130,7 +136,7 @@ class CommandPalette(ListView):
 class SecondaryPopup(Vertical):
     """Secondary popup for parameter input when a slash command needs arguments.
 
-    Supports input / choice / confirm / message / chain modes.
+    Supports input / choice / confirm / message / chain / loading modes.
     """
     can_focus = True
     def __init__(self, **kwargs: Any):
@@ -143,6 +149,8 @@ class SecondaryPopup(Vertical):
         self._chain_idx: int = 0
         self._session: dict[str, Any] | None = None
         self._on_done: Any = None
+        self._loading_dots: int = 0
+        self._loading_timer: Any = None
 
     def compose(self) -> ComposeResult:
         yield Static(id="popup-desc", markup=True)
@@ -170,6 +178,21 @@ class SecondaryPopup(Vertical):
         elif ptype == "chain":
             _, fields, idx, cb = prompt
             self._show_chain(fields, idx, cb)
+        elif ptype == "loading":
+            _, label, cb = prompt[:3]
+            self._show_loading(label, cb)
+            # If the session has fetch args, start the background model fetch
+            fetch_args = session.get("_fetch_models_args")
+            if fetch_args:
+                base_url, api_key = fetch_args
+                session.pop("_fetch_models_args", None)
+
+                def _bg_fetch() -> None:
+                    models = fetch_provider_models(base_url, api_key)
+                    # Schedule completion on the main thread
+                    self.app.call_later(lambda: self._finish_model_fetch(models))
+
+                threading.Thread(target=_bg_fetch, daemon=True).start()
 
     def _show_input(self, label: str, callback: Any, default: str) -> None:
         self._clear_dynamic()
@@ -241,6 +264,71 @@ class SecondaryPopup(Vertical):
             inp = Input(value=fld_default if fld_default else "", id="popup-input")
             self.mount(inp)
         self._render_chain_step()
+
+    def _show_loading(self, label: str, callback: Any) -> None:
+        """Show a loading indicator with animated dots.
+
+        The popup stays open until ``complete_loading()`` is called
+        from an external source (typically a background thread via
+        ``app.call_later()``).
+        """
+        self._clear_dynamic()
+        self._ptype = "loading"
+        self._cb = callback
+        self._loading_dots = 0
+        self.query_one("#popup-desc", Static).update(
+            f"[bold {C_PRIMARY}]{label}[/]"
+        )
+        hint = Static("  ●", id="popup-hint")
+        self.mount(hint)
+        self.add_class("open")
+        self.focus()
+        # Start dot animation timer
+        self._tick_loading()
+
+    def _tick_loading(self) -> None:
+        """Animate loading dots."""
+        if self._ptype != "loading":
+            return
+        self._loading_dots = (self._loading_dots + 1) % 4
+        dots = "●" + " ○" * self._loading_dots
+        try:
+            self.query_one("#popup-hint", Static).update(
+                f"  [{C_MUTED}]{dots}[/]"
+            )
+        except Exception:
+            return
+        self._loading_timer = self.set_timer(0.5, self._tick_loading)
+
+    def complete_loading(self, result: Any = None) -> None:
+        """Complete a loading prompt and trigger the callback with *result*.
+
+        Typically called via ``app.call_later()`` from a background
+        thread after the async operation finishes.
+        """
+        # Stop the animation timer
+        if self._loading_timer is not None:
+            self._loading_timer.stop()
+            self._loading_timer = None
+        cb = self._cb
+        self._cb = None
+        self._dismiss()
+        if cb:
+            cb(result)
+        if self._on_done:
+            on_done = self._on_done
+            self._on_done = None
+            self.app.call_later(on_done)
+
+    def _finish_model_fetch(self, models: list[str]) -> None:
+        """Called on the main thread after background model fetch completes.
+
+        Completes the loading prompt, triggers the callback, then shows
+        the next prompt (model choice or fallback input).
+        """
+        # Complete the loading — this calls on_models_loaded(models)
+        # and then _on_done (which is _post_popup_refresh)
+        self.complete_loading(models)
 
     def _render_chain_step(self) -> None:
         idx = self._chain_idx
@@ -370,6 +458,9 @@ class SecondaryPopup(Vertical):
             if event.key in ("enter", "escape"):
                 event.stop()
                 self._cancel()
+        elif self._ptype == "loading":
+            # Loading cannot be cancelled by user — ignore all keys
+            event.stop()
         elif event.key == "escape":
             event.stop()
             self._cancel()
@@ -520,7 +611,7 @@ def _h_diag(session: dict[str, Any], args: str) -> str | None:
 @_register_handler("config")
 @_register_handler("cfg")
 def _h_config(session: dict[str, Any], args: str) -> str | None:
-    # [修改] 2026-06-10 Nyaecho - 修复 config 变量引用问题，使用 nonlocal 更新闭包变量
+    # [修改] 重构 config 流程: 选择提供商 → 输入 API Key → 获取模型列表 → 选择/输入模型
     config = session["config"]
     providers = [item["provider"] for item in list_providers()]
     cur = config.llm.provider
@@ -530,17 +621,38 @@ def _h_config(session: dict[str, Any], args: str) -> str | None:
         if v and v != cur:
             config = apply_provider_preset(config, v)
             session["config"] = config
-        _set_prompt(session, "input", _("tui.prompt_enter_model", model=config.llm.model), on_model, config.llm.model)
-
-    def on_model(v):
-        if v:
-            session["config"].llm.model = v.strip()
+        # 流程变更：选择提供商后先输入 API Key
         ks = _("tui.api_key_configured") if session["config"].llm.api_key else _("tui.api_key_not_configured")
         _set_prompt(session, "input", _("tui.prompt_enter_apikey", status=ks), on_apikey)
 
     def on_apikey(v):
         if v:
             session["config"].llm.api_key = v.strip()
+        base_url = session["config"].llm.base_url
+        api_key = session["config"].llm.api_key
+        # custom 提供商或缺少 base_url 时跳过获取，直接手动输入
+        if not base_url or not api_key:
+            _set_prompt(session, "input", _("tui.prompt_enter_model_fallback", model=session["config"].llm.model), on_model_input, session["config"].llm.model)
+            return
+        # 显示 loading，后台获取模型列表
+        session["_fetch_models_args"] = (base_url, api_key)
+        _set_prompt(session, "loading", _("tui.fetching_models"), on_models_loaded)
+
+    def on_models_loaded(models):
+        if models:
+            _set_prompt(session, "choice", _("tui.prompt_select_model", model=session["config"].llm.model), models, on_model_selected)
+        else:
+            _set_prompt(session, "input", _("tui.prompt_enter_model_fallback", model=session["config"].llm.model), on_model_input, session["config"].llm.model)
+
+    def on_model_selected(v):
+        if v:
+            session["config"].llm.model = v.strip()
+        save_config(session["config"])
+        _set_prompt(session, "message", f"{_('tui.config_saved')}: {session['config'].llm.provider}/{session['config'].llm.model}")
+
+    def on_model_input(v):
+        if v:
+            session["config"].llm.model = v.strip()
         save_config(session["config"])
         _set_prompt(session, "message", f"{_('tui.config_saved')}: {session['config'].llm.provider}/{session['config'].llm.model}")
 
