@@ -201,6 +201,18 @@ class SessionConfig(BaseModel):
     )
     poc_language: str = Field(default="python", description="Default PoC language: python, bash")
     max_rounds: int = Field(default=15, description="Max autonomous pentest rounds (1-100)")
+    # Autonomous engine: "solve" = goal-driven OODA (default), "rounds" = legacy fixed-round loop
+    engine: str = Field(
+        default="solve", description="Autonomous engine: solve (goal-driven) or rounds (legacy)"
+    )
+    # Solve-engine knobs
+    solve_max_steps: int = Field(
+        default=40, description="Safety cap on solve explore steps (not a fixed workflow length)"
+    )
+    solve_max_intents: int = Field(default=3, description="Max new intents per reason step")
+    solve_max_tool_rounds: int = Field(
+        default=6, description="Max tool-calling rounds per intent exploration"
+    )
     show_thinking: bool = Field(
         default=False, description="Show LLM thinking/reasoning output (default: off)"
     )
@@ -223,7 +235,33 @@ class SessionConfig(BaseModel):
     language: str = Field(
         default="auto", description="UI language: auto, zh, en"
     )
-
+    reasoning_state_enabled: bool = Field(
+        default=True, description="Enable reasoning state tracking"
+    )
+    reflexion_enabled: bool = Field(
+        default=True, description="Enable reflexion feedback loop"
+    )
+    reflexion_max_same_vuln_fails: int = Field(
+        default=2, description="Max repeated failures for the same vulnerability"
+    )
+    reflexion_max_total_no_progress: int = Field(
+        default=5, description="Max total rounds without progress before reflexion"
+    )
+    escalation_max_level: int = Field(
+        default=4, description="Max escalation level"
+    )
+    plugin_runtime_enabled: bool = Field(
+        default=True, description="Enable plugin runtime"
+    )
+    plugin_default_timeout: int = Field(
+        default=10, description="Default plugin timeout in seconds"
+    )
+    plugin_max_requests_per_target: int = Field(
+        default=30, description="Max plugin requests per target"
+    )
+    evidence_min_report_level: str = Field(
+        default="L4", description="Minimum evidence level for report inclusion"
+    )
 
 class VulnClawConfig(BaseModel):
     """Top-level VulnClaw configuration."""

@@ -282,6 +282,7 @@ class TestCLI:
 
         config = VulnClawConfig()
         config.llm.api_key = "test-key"
+        config.session.engine = "rounds"
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
 
         prompts = []
@@ -323,6 +324,7 @@ class TestCLI:
 
         config = VulnClawConfig()
         config.llm.api_key = "test-key"
+        config.session.engine = "rounds"
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
 
         prompts = []

@@ -74,6 +74,24 @@ class TestMCPServerConfig:
         assert config.transport.type == "sse"
 
 
+class TestSessionConfig:
+    """Test SessionConfig schema."""
+
+    def test_runtime_integration_default_values(self):
+        from vulnclaw.config.schema import SessionConfig
+
+        config = SessionConfig()
+        assert config.reasoning_state_enabled is True
+        assert config.reflexion_enabled is True
+        assert config.reflexion_max_same_vuln_fails == 2
+        assert config.reflexion_max_total_no_progress == 5
+        assert config.escalation_max_level == 4
+        assert config.plugin_runtime_enabled is True
+        assert config.plugin_default_timeout == 10
+        assert config.plugin_max_requests_per_target == 30
+        assert config.evidence_min_report_level == "L4"
+
+
 class TestVulnClawConfig:
     """Test VulnClawConfig schema."""
 
@@ -83,6 +101,8 @@ class TestVulnClawConfig:
         config = VulnClawConfig()
         assert config.llm.model == "gpt-4o"
         assert isinstance(config.mcp.servers, dict)
+        assert config.session.reasoning_state_enabled is True
+        assert config.session.reflexion_enabled is True
 
     def test_mcp_builtin_servers(self):
         from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, VulnClawConfig
@@ -200,3 +220,25 @@ class TestSettingsLoad:
         # The env var may or may not be applied depending on load_config implementation
         # Just verify it doesn't crash
         assert config is not None
+
+    def test_env_var_override_new_session_fields(self, monkeypatch):
+        """二开新增的 session 配置（反思/插件）可通过环境变量注入。"""
+        from vulnclaw.config.settings import load_config
+
+        monkeypatch.setenv("VULNCLAW_SESSION_REFLEXION_ENABLED", "false")
+        monkeypatch.setenv("VULNCLAW_SESSION_REASONING_STATE_ENABLED", "false")
+        monkeypatch.setenv("VULNCLAW_SESSION_REFLEXION_MAX_SAME_VULN_FAILS", "5")
+        monkeypatch.setenv("VULNCLAW_SESSION_ESCALATION_MAX_LEVEL", "2")
+        monkeypatch.setenv("VULNCLAW_SESSION_PLUGIN_RUNTIME_ENABLED", "false")
+        monkeypatch.setenv("VULNCLAW_SESSION_PLUGIN_MAX_REQUESTS_PER_TARGET", "7")
+        monkeypatch.setenv("VULNCLAW_SESSION_EVIDENCE_MIN_REPORT_LEVEL", "L2")
+
+        config = load_config()
+
+        assert config.session.reflexion_enabled is False
+        assert config.session.reasoning_state_enabled is False
+        assert config.session.reflexion_max_same_vuln_fails == 5
+        assert config.session.escalation_max_level == 2
+        assert config.session.plugin_runtime_enabled is False
+        assert config.session.plugin_max_requests_per_target == 7
+        assert config.session.evidence_min_report_level == "L2"
