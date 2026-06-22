@@ -123,7 +123,7 @@ class TestBuiltinMcpExecution:
         )
 
         assert "SQL" in result or "sql" in result
-        assert "注入" in result or "injection" in result.lower()
+        assert "injection" in result.lower()
 
     async def test_execute_mcp_tool_includes_structured_content_summary(self):
         import vulnclaw.agent.builtin_tools as builtin_tools

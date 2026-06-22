@@ -1,32 +1,32 @@
-# 🦞 War Stories — VulnClaw 实战经验库
+# 🦞 War Stories — VulnClaw case study note
 
-这里存放 VulnClaw 的真实渗透测试/CTF 解题战报。
+case study note VulnClaw case study note/CTF case study note。
 
-每份战报记录完整的攻击链：从信息收集到最终 flag，包括走了哪些弯路、关键突破口在哪里。
+case study note：case study note flag，case study note、case study note。
 
-## 文件命名规则
+## case study note
 
 ```
-YYYY-MM-DD_题目类型_关键词.md
+YYYY-MM-DD_case study note_case study note.md
 ```
 
-例如：`2026-04-19_php-deserialization_regex-bypass.md`
+case study note：`2026-04-19_php-deserialization_regex-bypass.md`
 
-## 战报模板
+## case study note
 
-每份战报应包含：
+case study note：
 
-| 区块 | 内容 |
+| case study note | case study note |
 |------|------|
-| **元信息** | 日期、目标、类型、关键词、轮数、工具链 |
-| **攻击链** | 每一步做了什么、发现了什么 |
-| **关键突破** | 哪一步是决定性的，为什么 |
-| **走的弯路** | 哪些尝试失败了，原因是什么 |
-| **Payload** | 最终可复现的利用代码 |
-| **经验总结** | 可迁移到同类题目的方法论 |
+| **case study note** | case study note、case study note、case study note、case study note、case study note、case study note |
+| **case study note** | case study note、case study note |
+| **case study note** | case study note，case study note |
+| **case study note** | case study note，case study note |
+| **Payload** | case study note |
+| **case study note** | case study note |
 
-## 战报索引
+## case study note
 
-| 日期 | 题目 | 类型 | 轮数 | 链接 |
+| case study note | case study note | case study note | case study note | case study note |
 |------|------|------|------|------|
-| 2026-04-19 | NSSCTF PHP 正则绕过 | Web / PHP / 正则绕过 | 14 | [→](./2026-04-19_php-deserialization_regex-bypass.md) |
+| 2026-04-19 | NSSCTF PHP case study note | Web / PHP / case study note | 14 | [→](./2026-04-19_php-deserialization_regex-bypass.md) |

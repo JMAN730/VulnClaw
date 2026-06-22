@@ -1,207 +1,207 @@
-# LFI/RFI文件包含
+# LFI/RFIfile security testing guidance
 English: LFI/RFI File Inclusion
 - Entry Count: 12
 - Use this file to shortlist relevant payloads, then open the linked source markdown for the full workflow and commands.
-## 本地文件包含
+## file security testing guidance
 - ID: lfi-basic
 - Difficulty: intermediate
-- Subcategory: 本地包含
+- Subcategory: file security testing guidance
 - Tags: lfi, local, file, inclusion
 - Original Extracted Source: original extracted web-security-wiki source/lfi-basic.md
 Description:
-本地文件包含漏洞利用技术
+file security testing guidance
 Prerequisites:
-- 存在文件包含功能
-- 用户可控制包含路径
+- file security testing guidance
+- file security testing guidance
 Execution Outline:
-1. 1. 探测LFI
-2. 2. 读取敏感文件
-3. 3. PHP伪协议
-4. 4. 日志投毒
-## 远程文件包含
+1. 1. file security testing guidanceLFI
+2. 2. file security testing guidance
+3. 3. PHPfile security testing guidance
+4. 4. file security testing guidance
+## file security testing guidance
 - ID: rfi-basic
 - Difficulty: intermediate
-- Subcategory: 远程包含
+- Subcategory: file security testing guidance
 - Tags: rfi, remote, file, inclusion
 - Original Extracted Source: original extracted web-security-wiki source/rfi-basic.md
 Description:
-远程文件包含漏洞利用技术
+file security testing guidance
 Prerequisites:
-- 存在文件包含功能
+- file security testing guidance
 - allow_url_include=On
-- 用户可控制包含路径
+- file security testing guidance
 Execution Outline:
-1. 1. 探测RFI
-2. 2. 托管恶意文件
-3. 3. 反弹Shell
-4. 4. 使用data协议
-## 日志投毒LFI
+1. 1. file security testing guidanceRFI
+2. 2. file security testing guidance
+3. 3. file security testing guidanceShell
+4. 4. file security testing guidancedatafile security testing guidance
+## file security testing guidanceLFI
 - ID: lfi-log-poison
 - Difficulty: intermediate
-- Subcategory: 日志投毒
+- Subcategory: file security testing guidance
 - Tags: lfi, log, poison, rce
 - Original Extracted Source: original extracted web-security-wiki source/lfi-log-poison.md
 Description:
-通过日志投毒实现LFI到RCE
+file security testing guidanceLFIfile security testing guidanceRCE
 Prerequisites:
-- 存在LFI漏洞
-- 可包含日志文件
-- 日志文件可写
+- file security testing guidanceLFIfile security testing guidance
+- file security testing guidance
+- file security testing guidance
 Execution Outline:
-1. 1. 探测日志文件位置
-2. 2. 投毒User-Agent
-3. 3. 投毒请求路径
-4. 4. 执行命令
-## PHP伪协议利用
+1. 1. file security testing guidance
+2. 2. file security testing guidanceUser-Agent
+3. 3. file security testing guidance
+4. 4. file security testing guidance
+## PHPfile security testing guidance
 - ID: lfi-wrapper
 - Difficulty: intermediate
-- Subcategory: 伪协议
+- Subcategory: file security testing guidance
 - Tags: lfi, wrapper, php, protocol
 - Original Extracted Source: original extracted web-security-wiki source/lfi-wrapper.md
 Description:
-利用PHP伪协议进行LFI攻击
+file security testing guidancePHPfile security testing guidanceLFIfile security testing guidance
 Prerequisites:
-- 存在LFI漏洞
-- PHP环境
-- 伪协议未禁用
+- file security testing guidanceLFIfile security testing guidance
+- PHPfile security testing guidance
+- file security testing guidance
 Execution Outline:
 1. 1. php://filter
 2. 2. php://input
-3. 3. data://协议
-4. 4. phar://协议
-## 目录遍历技术
+3. 3. data://file security testing guidance
+4. 4. phar://file security testing guidance
+## file security testing guidance
 - ID: lfi-traversal
 - Difficulty: beginner
-- Subcategory: 目录遍历
+- Subcategory: file security testing guidance
 - Tags: lfi, traversal, bypass, path
 - Original Extracted Source: original extracted web-security-wiki source/lfi-traversal.md
 Description:
-LFI目录遍历绕过技术
+LFIfile security testing guidance
 Prerequisites:
-- 存在LFI漏洞
-- 存在路径过滤
+- file security testing guidanceLFIfile security testing guidance
+- file security testing guidance
 Execution Outline:
-1. 1. 基础遍历
-2. 2. 绕过删除../
-3. 3. URL编码绕过
-4. 4. Unicode编码绕过
-## PHP Filter链攻击
+1. 1. file security testing guidance
+2. 2. file security testing guidance../
+3. 3. URLfile security testing guidance
+4. 4. Unicodefile security testing guidance
+## PHP Filterfile security testing guidance
 - ID: lfi-php-filter
 - Difficulty: intermediate
 - Subcategory: PHP Filter
 - Tags: lfi, php, filter, chain
 - Original Extracted Source: original extracted web-security-wiki source/lfi-php-filter.md
 Description:
-利用PHP Filter链进行LFI攻击
+file security testing guidancePHP Filterfile security testing guidanceLFIfile security testing guidance
 Prerequisites:
-- 存在LFI漏洞
-- PHP环境
-- filter伪协议可用
+- file security testing guidanceLFIfile security testing guidance
+- PHPfile security testing guidance
+- filterfile security testing guidance
 Execution Outline:
-1. 1. 读取源码
-2. 2. 多重过滤器
-3. 3. Filter链RCE
-4. 4. 读取配置文件
-## PHP Input执行
+1. 1. file security testing guidance
+2. 2. file security testing guidance
+3. 3. Filterfile security testing guidanceRCE
+4. 4. file security testing guidance
+## PHP Inputfile security testing guidance
 - ID: lfi-php-input
 - Difficulty: intermediate
 - Subcategory: PHP Input
 - Tags: lfi, php, input, rce
 - Original Extracted Source: original extracted web-security-wiki source/lfi-php-input.md
 Description:
-利用php://input执行PHP代码
+file security testing guidancephp://inputfile security testing guidancePHPfile security testing guidance
 Prerequisites:
-- 存在LFI漏洞
+- file security testing guidanceLFIfile security testing guidance
 - allow_url_include=On
-- POST方法可用
+- POSTfile security testing guidance
 Execution Outline:
-1. 1. 基础执行
-2. 2. 命令执行
-3. 3. 文件操作
-4. 4. 反弹Shell
-## PHP Data协议攻击
+1. 1. file security testing guidance
+2. 2. file security testing guidance
+3. 3. file security testing guidance
+4. 4. file security testing guidanceShell
+## PHP Datafile security testing guidance
 - ID: lfi-php-data
 - Difficulty: intermediate
 - Subcategory: PHP Data
 - Tags: lfi, php, data, protocol
 - Original Extracted Source: original extracted web-security-wiki source/lfi-php-data.md
 Description:
-利用data://协议执行PHP代码
+file security testing guidancedata://file security testing guidancePHPfile security testing guidance
 Prerequisites:
-- 存在LFI漏洞
+- file security testing guidanceLFIfile security testing guidance
 - allow_url_include=On
-- data协议可用
+- datafile security testing guidance
 Execution Outline:
-1. 1. 基础执行
-2. 2. Base64编码
-3. 3. 命令执行
-4. 4. 反弹Shell
-## PHP Zip协议攻击
+1. 1. file security testing guidance
+2. 2. Base64file security testing guidance
+3. 3. file security testing guidance
+4. 4. file security testing guidanceShell
+## PHP Zipfile security testing guidance
 - ID: lfi-php-zip
 - Difficulty: intermediate
 - Subcategory: PHP Zip
 - Tags: lfi, php, zip, archive
 - Original Extracted Source: original extracted web-security-wiki source/lfi-php-zip.md
 Description:
-利用zip://协议进行LFI攻击
+file security testing guidancezip://file security testing guidanceLFIfile security testing guidance
 Prerequisites:
-- 存在LFI漏洞
-- 可上传zip文件
-- zip协议可用
+- file security testing guidanceLFIfile security testing guidance
+- file security testing guidancezipfile security testing guidance
+- zipfile security testing guidance
 Execution Outline:
-1. 1. 创建恶意Zip
-2. 2. 上传Zip文件
-3. 3. 包含Zip文件
-4. 4. 图片马
-## Phar反序列化攻击
+1. 1. file security testing guidanceZip
+2. 2. file security testing guidanceZipfile security testing guidance
+3. 3. file security testing guidanceZipfile security testing guidance
+4. 4. file security testing guidance
+## Pharfile security testing guidance
 - ID: lfi-phar
 - Difficulty: advanced
-- Subcategory: Phar反序列化
+- Subcategory: Pharfile security testing guidance
 - Tags: lfi, phar, deserialization, rce
 - Original Extracted Source: original extracted web-security-wiki source/lfi-phar.md
 Description:
-利用Phar反序列化进行RCE
+file security testing guidancePharfile security testing guidanceRCE
 Prerequisites:
-- 存在LFI漏洞
-- PHP环境
-- phar扩展可用
+- file security testing guidanceLFIfile security testing guidance
+- PHPfile security testing guidance
+- pharfile security testing guidance
 Execution Outline:
-1. 1. 创建Phar文件
-2. 2. 触发反序列化
-3. 3. 图片马Phar
-4. 4. 常见Gadget链
-## Session文件包含
+1. 1. file security testing guidancePharfile security testing guidance
+2. 2. file security testing guidance
+3. 3. file security testing guidancePhar
+4. 4. file security testing guidanceGadgetfile security testing guidance
+## Sessionfile security testing guidance
 - ID: lfi-session
 - Difficulty: intermediate
-- Subcategory: Session包含
+- Subcategory: Sessionfile security testing guidance
 - Tags: lfi, session, file, inclusion
 - Original Extracted Source: original extracted web-security-wiki source/lfi-session.md
 Description:
-利用Session文件进行LFI攻击
+file security testing guidanceSessionfile security testing guidanceLFIfile security testing guidance
 Prerequisites:
-- 存在LFI漏洞
-- 可控制Session内容
-- 知道Session路径
+- file security testing guidanceLFIfile security testing guidance
+- file security testing guidanceSessionfile security testing guidance
+- file security testing guidanceSessionfile security testing guidance
 Execution Outline:
-1. 1. 探测Session路径
-2. 2. 控制Session内容
-3. 3. 包含Session文件
-4. 4. Session竞争条件
-## Proc文件系统利用
+1. 1. file security testing guidanceSessionfile security testing guidance
+2. 2. file security testing guidanceSessionfile security testing guidance
+3. 3. file security testing guidanceSessionfile security testing guidance
+4. 4. Sessionfile security testing guidance
+## Procfile security testing guidance
 - ID: lfi-proc
 - Difficulty: intermediate
-- Subcategory: Proc文件系统
+- Subcategory: Procfile security testing guidance
 - Tags: lfi, proc, linux, environ
 - Original Extracted Source: original extracted web-security-wiki source/lfi-proc.md
 Description:
-利用/proc文件系统进行LFI攻击
+file security testing guidance/procfile security testing guidanceLFIfile security testing guidance
 Prerequisites:
-- 存在LFI漏洞
-- Linux系统
-- /proc可访问
+- file security testing guidanceLFIfile security testing guidance
+- Linuxfile security testing guidance
+- /procfile security testing guidance
 Execution Outline:
-1. 1. 读取进程信息
-2. 2. 读取环境变量
-3. 3. 通过fd读取日志
-4. 4. 读取其他进程
+1. 1. file security testing guidance
+2. 2. file security testing guidance
+3. 3. file security testing guidancefdfile security testing guidance
+4. 4. file security testing guidance
 

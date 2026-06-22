@@ -1,50 +1,50 @@
-# 开放重定向
+# web security testing guidance
 English: Open Redirect
 - Entry Count: 3
 - Use this file to shortlist relevant payloads, then open the linked source markdown for the full workflow and commands.
-## 基础开放重定向
+## web security testing guidance
 - ID: redirect-basic
 - Difficulty: beginner
-- Subcategory: 基础
+- Subcategory: web security testing guidance
 - Tags: redirect, url, phishing
 - Original Extracted Source: original extracted web-security-wiki source/redirect-basic.md
 Description:
-URL跳转漏洞利用
+URLweb security testing guidance
 Prerequisites:
-- 目标参数控制跳转地址
+- web security testing guidance
 Execution Outline:
-1. 直接跳转
-2. 绕过验证
-3. 斜杠绕过
-## 重定向绕过
+1. web security testing guidance
+2. web security testing guidance
+3. web security testing guidance
+## web security testing guidance
 - ID: redirect-bypass
 - Difficulty: intermediate
 - Subcategory: Bypass
 - Tags: redirect, bypass
 - Original Extracted Source: original extracted web-security-wiki source/redirect-bypass.md
 Description:
-开放重定向绕过技巧
+web security testing guidance
 Prerequisites:
-- 存在重定向参数
+- web security testing guidance
 Execution Outline:
-1. URL编码
-2. @符号
-3. 反斜杠
-## 重定向到SSRF
+1. URLweb security testing guidance
+2. @web security testing guidance
+3. web security testing guidance
+## web security testing guidanceSSRF
 - ID: redirect-ssrf
 - Difficulty: intermediate
 - Subcategory: SSRF
 - Tags: redirect, ssrf
 - Original Extracted Source: original extracted web-security-wiki source/redirect-ssrf.md
 Description:
-利用开放重定向漏洞作为跳板将SSRF探测引导到内部网络，绕过SSRF的URL白名单/黑名单限制
+web security testing guidanceSSRFweb security testing guidance，web security testing guidanceSSRFweb security testing guidanceURLweb security testing guidance/web security testing guidance
 Prerequisites:
-- 目标存在开放重定向(Open Redirect)漏洞
-- 目标存在SSRF功能点(URL参数/Webhook等)
-- SSRF过滤仅检查初始URL而不跟踪重定向
+- web security testing guidance(Open Redirect)web security testing guidance
+- web security testing guidanceSSRFweb security testing guidance(URLweb security testing guidance/Webhookweb security testing guidance)
+- SSRFweb security testing guidanceURLweb security testing guidance
 Execution Outline:
-1. 识别开放重定向点
-2. 通过重定向绕过SSRF过滤
-3. 短链接和DNS重绑定辅助
-4. 完整利用链: 重定向→SSRF→内网探测
+1. web security testing guidance
+2. web security testing guidanceSSRFweb security testing guidance
+3. web security testing guidanceDNSweb security testing guidance
+4. web security testing guidance: web security testing guidance→SSRF→web security testing guidance
 

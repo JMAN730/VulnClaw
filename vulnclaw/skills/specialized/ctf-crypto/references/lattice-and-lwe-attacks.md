@@ -1,101 +1,101 @@
-# 格攻击与 LWE
+# cryptography testing guidance LWE
 
-## 基础概念
+## cryptography testing guidance
 
 ```
-格 (Lattice): Z^n 中的离散加法子群
-格基 (Basis): 生成格的线性无关向量组
-LLL 算法: 求格基的近似最短向量 (SVP 近似)
-CVP (Closest Vector Problem): 找最近向量
-SVP (Shortest Vector Problem): 找最短向量
+cryptography testing guidance (Lattice): Z^n cryptography testing guidance
+cryptography testing guidance (Basis): cryptography testing guidance
+LLL cryptography testing guidance: cryptography testing guidance (SVP cryptography testing guidance)
+CVP (Closest Vector Problem): cryptography testing guidance
+SVP (Shortest Vector Problem): cryptography testing guidance
 ```
 
-## LLL 算法
+## LLL cryptography testing guidance
 
 ```python
-# SageMath 实现
+# SageMath cryptography testing guidance
 """
-A = matrix(ZZ, [[...], [...], ...])  # 格基矩阵
-B = A.LLL()  # LLL 规约基
-# B 的列向量是接近最短的格向量
+A = matrix(ZZ, [[...], [...], ...])  # cryptography testing guidance
+B = A.LLL()  # LLL cryptography testing guidance
+# B cryptography testing guidance
 ```
 
 ## Hidden Number Problem (HNP)
 
 ```python
 """
-已知: (d_i, (t_i * a + k_i * d_i) mod p) 部分位
-恢复: a (私钥)
-利用 Coppersmith 求出 k_i
+cryptography testing guidance: (d_i, (t_i * a + k_i * d_i) mod p) cryptography testing guidance
+cryptography testing guidance: a (cryptography testing guidance)
+cryptography testing guidance Coppersmith cryptography testing guidance k_i
 """
 # SageMath
 def hnp_attack(d, t, bits, p):
     F.<x> = PolynomialRing(Zmod(p))
-    # 构造多项式...
+    # cryptography testing guidance...
 ```
 
-## Coppersmith 相关
+## Coppersmith cryptography testing guidance
 
 ```python
 """
-Coppersmith 求多项式小根：
+Coppersmith cryptography testing guidance：
 f(x) = 0 mod n, |x| < n^(1/d)
-其中 d 是多项式次数
+cryptography testing guidance d cryptography testing guidance
 """
 
 # SageMath
 def coppersmith_small_root(f, n, d, m):
-    """f(x) = 0 mod n, 求小根 x, |x| < n^(1/(d*omega))"""
-    # 构造格并 LLL
+    """f(x) = 0 mod n, cryptography testing guidance x, |x| < n^(1/(d*omega))"""
+    # cryptography testing guidance LLL
 ```
 
 ## LWE (Learning With Errors)
 
 ```python
 """
-LWE 问题：
-已知: (A, b = As + e) mod q
-恢复: s (私钥)
-其中 e 是小误差向量
+LWE cryptography testing guidance：
+cryptography testing guidance: (A, b = As + e) mod q
+cryptography testing guidance: s (cryptography testing guidance)
+cryptography testing guidance e cryptography testing guidance
 
-常用攻击:
-1. 枚举小误差 (e 很小时)
-2. BKW 算法
-3. 规约到 SVP/CVP
+cryptography testing guidance:
+1. cryptography testing guidance (e cryptography testing guidance)
+2. BKW cryptography testing guidance
+3. cryptography testing guidance SVP/CVP
 """
 ```
 
-## HNP 攻击模板
+## HNP cryptography testing guidance
 
 ```python
-# SageMath: 从部分私钥恢复 RSA 私钥
+# SageMath: cryptography testing guidance RSA cryptography testing guidance
 """
-DCP (Diffie-Hellman Claw Problem) 变种
-利用格规约求解
+DCP (Diffie-Hellman Claw Problem) cryptography testing guidance
+cryptography testing guidance
 """
 
-# 基本模板
+# cryptography testing guidance
 """
 F = GF(p)
 P.<x> = PolynomialRing(F)
 
-# 构造格基矩阵
-# 应用 LLL
-# 从规约基中提取私钥
+# cryptography testing guidance
+# cryptography testing guidance LLL
+# cryptography testing guidance
 """
 ```
 
-## 格攻击通用模板
+## cryptography testing guidance
 
 ```python
-# 当遇到以下场景时考虑格攻击：
-# 1. 多条等式有未知数和 "小误差"
-# 2. 部分私钥/部分明文恢复
-# 3. 规约到格最近向量问题
+# cryptography testing guidance：
+# 1. cryptography testing guidance "cryptography testing guidance"
+# 2. cryptography testing guidance/cryptography testing guidance
+# 3. cryptography testing guidance
 
-# 步骤：
-# 1. 将问题建模为格中的 CVP/SVP
-# 2. 构造格基矩阵
-# 3. 使用 LLL/BKZ 规约
-# 4. 从规约基提取解
+# cryptography testing guidance：
+# 1. cryptography testing guidance CVP/SVP
+# 2. cryptography testing guidance
+# 3. cryptography testing guidance LLL/BKZ cryptography testing guidance
+# 4. cryptography testing guidance
 ```

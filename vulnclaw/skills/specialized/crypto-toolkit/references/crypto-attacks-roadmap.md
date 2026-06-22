@@ -1,75 +1,75 @@
-# 密码学攻击分类路由
+# cryptography testing guidance
 
-根据题目给出的已知信息，快速判断应该使用哪种攻击方法。
+cryptography testing guidance，cryptography testing guidance。
 
-## 决策树
+## cryptography testing guidance
 
 ```
-已知条件
-├── 知道明文 + 密文?
-│   ├── 同一密钥加密多次? → XOR/流密码分析
-│   └── 单次加密? → 分析加密模式
-├── 知道密文 + 密钥?
-│   ├── 对称加密 → 直接解密
-│   └── 非对称加密 → RSA/ECC 攻击
-├── 已知 n, e, c (RSA)?
-│   ├── e 很小 → 小指数攻击
-│   ├── 多组共 n → 共模攻击
-│   ├── d 很小 → Wiener 攻击
-│   ├── p-1 光滑 → Pollard p-1
-│   └── 尝试在线分解 (factordb)
-├── 椭圆曲线参数?
-│   ├── 阶光滑 → Pohlig-Hellman
-│   ├── 异常曲线 → Smart 攻击
-│   └── ECDSA nonce 重用 → 私钥恢复
-├── 已知 PRNG 输出序列?
-│   ├── MT19937 → 状态恢复
-│   ├── LCG → 参数恢复
+cryptography testing guidance
+├── cryptography testing guidance + cryptography testing guidance 
+│   ├── cryptography testing guidance  → XOR/cryptography testing guidance
+│   └── cryptography testing guidance  → cryptography testing guidance
+├── cryptography testing guidance + cryptography testing guidance 
+│   ├── cryptography testing guidance → cryptography testing guidance
+│   └── cryptography testing guidance → RSA/ECC cryptography testing guidance
+├── cryptography testing guidance n, e, c (RSA) 
+│   ├── e cryptography testing guidance → cryptography testing guidance
+│   ├── cryptography testing guidance n → cryptography testing guidance
+│   ├── d cryptography testing guidance → Wiener cryptography testing guidance
+│   ├── p-1 cryptography testing guidance → Pollard p-1
+│   └── cryptography testing guidance (factordb)
+├── cryptography testing guidance 
+│   ├── cryptography testing guidance → Pohlig-Hellman
+│   ├── cryptography testing guidance → Smart cryptography testing guidance
+│   └── ECDSA nonce cryptography testing guidance → cryptography testing guidance
+├── cryptography testing guidance PRNG cryptography testing guidance 
+│   ├── MT19937 → cryptography testing guidance
+│   ├── LCG → cryptography testing guidance
 │   └── LFSR → Berlekamp-Massey
-└── 古典密码?
-    ├── 凯撒/ROT13 → 暴力
-    ├── Vigenere → Kasiski + 频率
-    └── One-Time Pad 重用 → 统计攻击
+└── cryptography testing guidance 
+    ├── cryptography testing guidance/ROT13 → cryptography testing guidance
+    ├── Vigenere → Kasiski + cryptography testing guidance
+    └── One-Time Pad cryptography testing guidance → cryptography testing guidance
 ```
 
-## RSA 攻击快速选择
+## RSA cryptography testing guidance
 
-| 已知 | 攻击 |
+| cryptography testing guidance | cryptography testing guidance |
 |------|------|
-| n, e, c, e=3 | 小指数开根 |
-| 多组 (n, c), e 相同, 明文相同 | Håstad 广播 |
-| 多组 (n, c), n 相同, e 不同 | 共模攻击 |
-| n, e, d 很小的近似 | Wiener 攻击 |
-| n 可分解, p≈q | Fermat 分解 |
-| n 可分解, p-1 光滑 | Pollard p-1 |
-| 已知部分明文 | Coppersmith |
-| factordb 可查 | 在线分解 |
+| n, e, c, e=3 | cryptography testing guidance |
+| cryptography testing guidance (n, c), e cryptography testing guidance, cryptography testing guidance | Håstad cryptography testing guidance |
+| cryptography testing guidance (n, c), n cryptography testing guidance, e cryptography testing guidance | cryptography testing guidance |
+| n, e, d cryptography testing guidance | Wiener cryptography testing guidance |
+| n cryptography testing guidance, p≈q | Fermat cryptography testing guidance |
+| n cryptography testing guidance, p-1 cryptography testing guidance | Pollard p-1 |
+| cryptography testing guidance | Coppersmith |
+| factordb cryptography testing guidance | cryptography testing guidance |
 
-## AES/分组密码攻击快速选择
+## AES/cryptography testing guidance
 
-| 场景 | 攻击 |
+| cryptography testing guidance | cryptography testing guidance |
 |------|------|
-| ECB 模式 | 模式分析 + 块重排 |
-| CBC 模式, 可控 IV | IV 翻转攻击 |
-| CBC 模式, Padding Oracle | Padding Oracle 攻击 |
-| CTR/GCM, nonce 重用 | 密钥流恢复 |
-| 已知部分明文 | XOR 恢复密钥流 |
+| ECB cryptography testing guidance | cryptography testing guidance + cryptography testing guidance |
+| CBC cryptography testing guidance, cryptography testing guidance IV | IV cryptography testing guidance |
+| CBC cryptography testing guidance, Padding Oracle | Padding Oracle cryptography testing guidance |
+| CTR/GCM, nonce cryptography testing guidance | cryptography testing guidance |
+| cryptography testing guidance | XOR cryptography testing guidance |
 
-## PRNG 攻击快速选择
+## PRNG cryptography testing guidance
 
-| 场景 | 攻击 |
+| cryptography testing guidance | cryptography testing guidance |
 |------|------|
-| Python random(), 624 个输出 | MT19937 状态恢复 |
-| 连续 3 个 LCG 输出 | 参数恢复 |
-| LFSR 输出序列 | Berlekamp-Massey |
-| RC4 (丢弃前 3072 字节后) | RC4 Drop 攻击 |
+| Python random(), 624 cryptography testing guidance | MT19937 cryptography testing guidance |
+| cryptography testing guidance 3 cryptography testing guidance LCG cryptography testing guidance | cryptography testing guidance |
+| LFSR cryptography testing guidance | Berlekamp-Massey |
+| RC4 (cryptography testing guidance 3072 cryptography testing guidance) | RC4 Drop cryptography testing guidance |
 
-## 古典密码快速选择
+## cryptography testing guidance
 
-| 密文特征 | 攻击 |
+| cryptography testing guidance | cryptography testing guidance |
 |---------|------|
-| 单字符替换 | 频率分析 |
-| 多字符位移 | 凯撒暴力 |
-| 多表替换 | Vigenere Kasiski |
-| 二进制 XOR 多字节 | 频率分析 + 密钥长度估算 |
-| 一次性密码本重用 | XOR 对比攻击 |
+| cryptography testing guidance | cryptography testing guidance |
+| cryptography testing guidance | cryptography testing guidance |
+| cryptography testing guidance | Vigenere Kasiski |
+| cryptography testing guidance XOR cryptography testing guidance | cryptography testing guidance + cryptography testing guidance |
+| cryptography testing guidance | XOR cryptography testing guidance |

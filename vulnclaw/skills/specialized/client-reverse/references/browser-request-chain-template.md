@@ -5,90 +5,90 @@ Use this template for browser-side sign, token, anti-bot, worker, wasm, cookie-h
 ## Template
 
 ```markdown
-# 浏览器请求链记录
+# client reverse engineering guidance
 
-## 基本信息
+## client reverse engineering guidance
 
-- 目标页面：
-- 目标请求：
-- 目标字段：
-- 触发动作：
-- 当前阶段：locate / recover / runtime / validation
-- 当前状态：🟡 进行中 / ✅ 已闭环 / ⛔ 阻塞
-- 目标：
-- 约束：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：locate / recover / runtime / validation
+- client reverse engineering guidance：🟡 client reverse engineering guidance / ✅ client reverse engineering guidance / ⛔ client reverse engineering guidance
+- client reverse engineering guidance：
+- client reverse engineering guidance：
 
-## 样本与现象
+## client reverse engineering guidance
 
-- 正常态样本：
-- 风控态样本：
-- 浏览器现象：
-- 本地现象：
-- 当前差异：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
 
-## 请求链主表
+## client reverse engineering guidance
 
-| 项目 | 内容 |
+| client reverse engineering guidance | client reverse engineering guidance |
 | --- | --- |
 | writer |  |
 | builder |  |
 | entry |  |
 | source |  |
-| 上游依赖 |  |
-| 状态载体 |  |
-| 风控分叉点 |  |
-| 当前结论 |  |
+| client reverse engineering guidance |  |
+| client reverse engineering guidance |  |
+| client reverse engineering guidance |  |
+| client reverse engineering guidance |  |
 
-## 关键证据
+## client reverse engineering guidance
 
-| 证据类型 | 位置/点位 | 内容 | 结论 |
+| client reverse engineering guidance | client reverse engineering guidance/client reverse engineering guidance | client reverse engineering guidance | client reverse engineering guidance |
 | --- | --- | --- | --- |
-| 请求样本 |  |  |  |
-| 调用栈 |  |  |  |
-| 断点/Hook |  |  |  |
-| 中间值 |  |  |  |
+| client reverse engineering guidance |  |  |  |
+| client reverse engineering guidance |  |  |  |
+| client reverse engineering guidance/Hook |  |  |  |
+| client reverse engineering guidance |  |  |  |
 | Cookie/Storage |  |  |  |
 
-## 阶段补充
+## client reverse engineering guidance
 
-### Locate 补充
+### Locate client reverse engineering guidance
 
 - Sink：
-- 真实写入点：
-- 上游请求：
-- 正常态 / 风控态区分：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance / client reverse engineering guidance：
 
-### Recover 补充
+### Recover client reverse engineering guidance
 
-- 遮蔽层类型：
-- 当前恢复级别：A / B / C
-- 已恢复契约：
-- 仍未恢复缺口：
+- client reverse engineering guidance：
+- client reverse engineering guidance：A / B / C
+- client reverse engineering guidance：
+- client reverse engineering guidance：
 
-### Runtime 补充
+### Runtime client reverse engineering guidance
 
-- 缺失对象：
-- 缺失状态：
-- 固定源：
-- 首个分歧点：
-- 风控 / 反调试：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance / client reverse engineering guidance：
 
-### Validation 补充
+### Validation client reverse engineering guidance
 
-| 检查点 | 浏览器侧 | 本地/恢复侧 | 结果 | 证据 | 缺口 |
+| client reverse engineering guidance | client reverse engineering guidance | client reverse engineering guidance/client reverse engineering guidance | client reverse engineering guidance | client reverse engineering guidance | client reverse engineering guidance |
 | --- | --- | --- | --- | --- | --- |
-| 检查点1 |  |  |  |  |  |
+| client reverse engineering guidance1 |  |  |  |  |  |
 
-## Burp 重放基线
+## Burp client reverse engineering guidance
 
 - Method：
 - Path：
 - Query：
 - Headers：
 - Body：
-- 必须保留字段：
-- 可变异字段：
-- 前置状态：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
 
 ## Stage Handoff
 
@@ -99,11 +99,11 @@ Proven:
 Open:
 Invalidated:
 
-## 下一步
+## client reverse engineering guidance
 
-- 下一动作：
-- 预期输出：
-- 阻塞点：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
 ```
 
 ## Minimum Required Fields

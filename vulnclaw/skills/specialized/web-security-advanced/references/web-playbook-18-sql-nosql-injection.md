@@ -1,278 +1,278 @@
-# SQL/NoSQL注入
+# SQL/NoSQLSQL injection testing guidance
 English: SQL/NoSQL Injection
 - Entry Count: 17
 - Use this file to shortlist relevant payloads, then open the linked source markdown for the full workflow and commands.
-## MySQL注入 - 基础探测
+## MySQLSQL injection testing guidance - SQL injection testing guidance
 - ID: sqli-mysql-basic
 - Difficulty: beginner
 - Subcategory: MySQL
 - Tags: sqli, mysql, injection, database
 - Original Extracted Source: original extracted web-security-wiki source/sqli-mysql-basic.md
 Description:
-MySQL数据库注入基础探测与数据提取技术
+MySQLSQL injection testing guidance
 Prerequisites:
-- 目标存在SQL注入点
-- 后端数据库为MySQL
-- 了解基本SQL语法
+- SQL injection testing guidanceSQLSQL injection testing guidance
+- SQL injection testing guidanceMySQL
+- SQL injection testing guidanceSQLSQL injection testing guidance
 Execution Outline:
-1. 1. 探测注入点
-2. 2. 确定列数
-3. 3. 确定显示位置
-4. 4. 获取数据库信息
-## MySQL注入 - 高级技术
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## MySQLSQL injection testing guidance - SQL injection testing guidance
 - ID: sqli-mysql-advanced
 - Difficulty: advanced
 - Subcategory: MySQL
 - Tags: sqli, mysql, advanced, file-read, rce
 - Original Extracted Source: original extracted web-security-wiki source/sqli-mysql-advanced.md
 Description:
-MySQL高级注入技术：文件读写、UDF提权、命令执行
+MySQLSQL injection testing guidance：SQL injection testing guidance、UDFSQL injection testing guidance、SQL injection testing guidance
 Prerequisites:
-- MySQL用户具有FILE权限
-- 知道网站绝对路径
-- secure_file_priv配置允许
+- MySQLSQL injection testing guidanceFILESQL injection testing guidance
+- SQL injection testing guidance
+- secure_file_privSQL injection testing guidance
 Execution Outline:
-1. 1. 检测FILE权限
-2. 2. 获取网站路径
-3. 3. 读取敏感文件
-4. 4. 写入WebShell
-## MSSQL注入 - 基础探测
+1. 1. SQL injection testing guidanceFILESQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidanceWebShell
+## MSSQLSQL injection testing guidance - SQL injection testing guidance
 - ID: sqli-mssql-basic
 - Difficulty: intermediate
 - Subcategory: MSSQL
 - Tags: sqli, mssql, sqlserver, injection
 - Original Extracted Source: original extracted web-security-wiki source/sqli-mssql-basic.md
 Description:
-Microsoft SQL Server数据库注入技术
+Microsoft SQL ServerSQL injection testing guidance
 Prerequisites:
-- 目标存在SQL注入点
-- 后端使用MSSQL数据库
+- SQL injection testing guidanceSQLSQL injection testing guidance
+- SQL injection testing guidanceMSSQLSQL injection testing guidance
 Execution Outline:
-1. 1. 探测注入点
-2. 2. 获取版本信息
-3. 3. 获取用户信息
-4. 4. 获取数据库信息
-## MSSQL注入 - 高级技术
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## MSSQLSQL injection testing guidance - SQL injection testing guidance
 - ID: sqli-mssql-advanced
 - Difficulty: advanced
 - Subcategory: MSSQL
 - Tags: sqli, mssql, xp_cmdshell, rce
 - Original Extracted Source: original extracted web-security-wiki source/sqli-mssql-advanced.md
 Description:
-MSSQL高级注入：xp_cmdshell、SP_OACREATE命令执行
+MSSQLSQL injection testing guidance：xp_cmdshell、SP_OACREATESQL injection testing guidance
 Prerequisites:
-- MSSQL具有高权限
-- xp_cmdshell可用或可开启
+- MSSQLSQL injection testing guidance
+- xp_cmdshellSQL injection testing guidance
 Execution Outline:
-1. 1. 检测xp_cmdshell状态
-2. 2. 开启xp_cmdshell
-3. 3. 执行系统命令
-4. 4. 写入WebShell
-## Oracle注入 - 基础探测
+1. 1. SQL injection testing guidancexp_cmdshellSQL injection testing guidance
+2. 2. SQL injection testing guidancexp_cmdshell
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidanceWebShell
+## OracleSQL injection testing guidance - SQL injection testing guidance
 - ID: sqli-oracle-basic
 - Difficulty: intermediate
 - Subcategory: Oracle
 - Tags: sqli, oracle, injection
 - Original Extracted Source: original extracted web-security-wiki source/sqli-oracle-basic.md
 Description:
-Oracle数据库注入基础技术
+OracleSQL injection testing guidance
 Prerequisites:
-- 目标存在SQL注入点
-- 后端使用Oracle数据库
+- SQL injection testing guidanceSQLSQL injection testing guidance
+- SQL injection testing guidanceOracleSQL injection testing guidance
 Execution Outline:
-1. 1. 探测注入点
-2. 2. 获取版本信息
-3. 3. 获取用户信息
-4. 4. 获取表名
-## Oracle注入 - 高级技术
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## OracleSQL injection testing guidance - SQL injection testing guidance
 - ID: sqli-oracle-advanced
 - Difficulty: advanced
 - Subcategory: Oracle
 - Tags: sqli, oracle, advanced, rce
 - Original Extracted Source: original extracted web-security-wiki source/sqli-oracle-advanced.md
 Description:
-Oracle高级注入技术：Java存储过程、UTL_FILE文件操作
+OracleSQL injection testing guidance：JavaSQL injection testing guidance、UTL_FILESQL injection testing guidance
 Prerequisites:
-- Oracle高权限
-- Java虚拟机可用
+- OracleSQL injection testing guidance
+- JavaSQL injection testing guidance
 Execution Outline:
-1. 1. 检测Java权限
-2. 2. 创建Java执行函数
-3. 3. UTL_FILE读取文件
-## PostgreSQL注入 - 基础探测
+1. 1. SQL injection testing guidanceJavaSQL injection testing guidance
+2. 2. SQL injection testing guidanceJavaSQL injection testing guidance
+3. 3. UTL_FILESQL injection testing guidance
+## PostgreSQLSQL injection testing guidance - SQL injection testing guidance
 - ID: sqli-postgres-basic
 - Difficulty: intermediate
 - Subcategory: PostgreSQL
 - Tags: sqli, postgresql, postgres, injection
 - Original Extracted Source: original extracted web-security-wiki source/sqli-postgres-basic.md
 Description:
-PostgreSQL数据库注入技术
+PostgreSQLSQL injection testing guidance
 Prerequisites:
-- 目标存在SQL注入点
-- 后端使用PostgreSQL
+- SQL injection testing guidanceSQLSQL injection testing guidance
+- SQL injection testing guidancePostgreSQL
 Execution Outline:
-1. 1. 探测注入点
-2. 2. 获取版本信息
-3. 3. 获取表名
-4. 4. 获取列名
-## SQLite注入
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## SQLiteSQL injection testing guidance
 - ID: sqli-sqlite-basic
 - Difficulty: intermediate
 - Subcategory: SQLite
 - Tags: sqli, sqlite
 - Original Extracted Source: original extracted web-security-wiki source/sqli-sqlite-basic.md
 Description:
-SQLite数据库注入攻击
+SQLiteSQL injection testing guidance
 Prerequisites:
-- SQLite数据库
-- 存在注入点
+- SQLiteSQL injection testing guidance
+- SQL injection testing guidance
 Execution Outline:
-1. 1. 探测注入点
-2. 2. 获取版本
-3. 3. 获取表名
-4. 4. 获取表结构
-## MongoDB注入
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## MongoDBSQL injection testing guidance
 - ID: sqli-mongodb-basic
 - Difficulty: intermediate
 - Subcategory: MongoDB
 - Tags: nosql, mongodb, injection
 - Original Extracted Source: original extracted web-security-wiki source/sqli-mongodb-basic.md
 Description:
-NoSQL数据库注入攻击技术
+NoSQLSQL injection testing guidance
 Prerequisites:
-- 目标使用MongoDB
-- 存在用户输入拼接查询
+- SQL injection testing guidanceMongoDB
+- SQL injection testing guidance
 Execution Outline:
-1. 1. 探测注入点
-2. 2. 绕过认证
-3. 3. 逻辑运算注入
-4. 4. 正则注入
-## Redis未授权访问
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## RedisSQL injection testing guidance
 - ID: sqli-redis
 - Difficulty: intermediate
 - Subcategory: Redis
 - Tags: redis, nosql, injection
 - Original Extracted Source: original extracted web-security-wiki source/sqli-redis.md
 Description:
-Redis未授权访问和命令注入
+RedisSQL injection testing guidance
 Prerequisites:
-- Redis服务可访问
-- 未授权或弱密码
+- RedisSQL injection testing guidance
+- SQL injection testing guidance
 Execution Outline:
-1. 1. 探测Redis
-2. 2. 未授权访问
-3. 3. 写入Webshell
-4. 4. 写入SSH公钥
-## 布尔盲注
+1. 1. SQL injection testing guidanceRedis
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidanceWebshell
+4. 4. SQL injection testing guidanceSSHSQL injection testing guidance
+## SQL injection testing guidance
 - ID: sqli-blind
 - Difficulty: intermediate
-- Subcategory: 盲注
+- Subcategory: SQL injection testing guidance
 - Tags: sqli, blind, boolean
 - Original Extracted Source: original extracted web-security-wiki source/sqli-blind.md
 Description:
-基于布尔条件的SQL盲注技术
+SQL injection testing guidanceSQLSQL injection testing guidance
 Prerequisites:
-- 存在SQL注入
-- 页面有真/假两种不同响应
+- SQL injection testing guidanceSQLSQL injection testing guidance
+- SQL injection testing guidance/SQL injection testing guidance
 Execution Outline:
-1. 1. 确认盲注
-2. 2. 获取数据库名长度
-3. 3. 逐字符枚举数据库名
-4. 4. 使用工具自动化
-## 时间盲注
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## SQL injection testing guidance
 - ID: sqli-time-based
 - Difficulty: intermediate
-- Subcategory: 盲注
+- Subcategory: SQL injection testing guidance
 - Tags: sqli, blind, time
 - Original Extracted Source: original extracted web-security-wiki source/sqli-time-based.md
 Description:
-基于时间延迟的SQL盲注技术
+SQL injection testing guidanceSQLSQL injection testing guidance
 Prerequisites:
-- 存在SQL注入
-- 页面响应时间可控
+- SQL injection testing guidanceSQLSQL injection testing guidance
+- SQL injection testing guidance
 Execution Outline:
-1. 1. 确认时间盲注
-2. 2. 获取数据库名长度
-3. 3. 逐字符提取
-4. 4. 不同数据库延时函数
-## 报错注入
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## SQL injection testing guidance
 - ID: sqli-error-based
 - Difficulty: intermediate
-- Subcategory: 报错注入
+- Subcategory: SQL injection testing guidance
 - Tags: sqli, error, extractvalue
 - Original Extracted Source: original extracted web-security-wiki source/sqli-error-based.md
 Description:
-利用错误信息提取数据的SQL注入
+SQL injection testing guidanceSQLSQL injection testing guidance
 Prerequisites:
-- 存在SQL注入
-- 错误信息会显示在页面上
+- SQL injection testing guidanceSQLSQL injection testing guidance
+- SQL injection testing guidance
 Execution Outline:
-1. 1. 确认报错注入
-2. 2. 获取数据库信息
-3. 3. 获取表名
-4. 4. 获取数据
-## 二阶SQL注入
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## SQL injection testing guidanceSQLSQL injection testing guidance
 - ID: sqli-second-order
 - Difficulty: advanced
-- Subcategory: 二阶注入
+- Subcategory: SQL injection testing guidance
 - Tags: sqli, second-order, stored
 - Original Extracted Source: original extracted web-security-wiki source/sqli-second-order.md
 Description:
-存储后触发的SQL注入攻击
+SQL injection testing guidanceSQLSQL injection testing guidance
 Prerequisites:
-- 存在数据存储功能
-- 存储数据被二次使用
+- SQL injection testing guidance
+- SQL injection testing guidance
 Execution Outline:
-1. 1. 探测二阶注入
-2. 2. 用户名注入
-3. 3. 密码重置注入
-4. 4. 订单/评论注入
-## 联合查询注入
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance/SQL injection testing guidance
+## SQL injection testing guidance
 - ID: sqli-union
 - Difficulty: beginner
-- Subcategory: 联合查询
+- Subcategory: SQL injection testing guidance
 - Tags: sqli, union, select
 - Original Extracted Source: original extracted web-security-wiki source/sqli-union.md
 Description:
-使用UNION SELECT提取数据
+SQL injection testing guidanceUNION SELECTSQL injection testing guidance
 Prerequisites:
-- 存在注入点
-- 可显示查询结果
+- SQL injection testing guidance
+- SQL injection testing guidance
 Execution Outline:
-1. 1. 确定列数
-2. 2. 确定显示列
-3. 3. 提取数据
-4. 4. 绕过过滤
-## 堆叠查询注入
+1. 1. SQL injection testing guidance
+2. 2. SQL injection testing guidance
+3. 3. SQL injection testing guidance
+4. 4. SQL injection testing guidance
+## SQL injection testing guidance
 - ID: sqli-stacked
 - Difficulty: intermediate
-- Subcategory: 堆叠查询
+- Subcategory: SQL injection testing guidance
 - Tags: sqli, stacked, queries
 - Original Extracted Source: original extracted web-security-wiki source/sqli-stacked.md
 Description:
-执行多条SQL语句的注入
+SQL injection testing guidanceSQLSQL injection testing guidance
 Prerequisites:
-- 支持多语句执行
+- SQL injection testing guidance
 - MySQL/PostgreSQL/MSSQL
 Execution Outline:
-1. 1. 探测堆叠查询
-2. 2. MySQL堆叠查询
-3. 3. MSSQL堆叠查询
-4. 4. PostgreSQL堆叠查询
-## SQL注入WAF绕过
+1. 1. SQL injection testing guidance
+2. 2. MySQLSQL injection testing guidance
+3. 3. MSSQLSQL injection testing guidance
+4. 4. PostgreSQLSQL injection testing guidance
+## SQLSQL injection testing guidanceWAFSQL injection testing guidance
 - ID: sqli-waf-bypass
 - Difficulty: advanced
-- Subcategory: WAF绕过
+- Subcategory: WAFSQL injection testing guidance
 - Tags: sqli, waf, bypass
 - Original Extracted Source: original extracted web-security-wiki source/sqli-waf-bypass.md
 Description:
-绕过Web应用防火墙的技术
+SQL injection testing guidanceWebSQL injection testing guidance
 Prerequisites:
-- 目标存在SQL注入点
-- 存在WAF防护
+- SQL injection testing guidanceSQLSQL injection testing guidance
+- SQL injection testing guidanceWAFSQL injection testing guidance
 Execution Outline:
-1. 分块传输编码
-2. HTTP参数污染(HPP)
-3. 等价函数替换
-4. 无逗号注入
+1. SQL injection testing guidance
+2. HTTPSQL injection testing guidance(HPP)
+3. SQL injection testing guidance
+4. SQL injection testing guidance
 

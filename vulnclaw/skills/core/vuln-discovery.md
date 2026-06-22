@@ -1,33 +1,33 @@
 ---
 name: vuln-discovery
-description: 漏洞发现流程 — 基于信息收集结果扫描漏洞
+description: vulnerability discovery guidance — vulnerability discovery guidance
 ---
 
-# 漏洞发现 Skill
+# vulnerability discovery guidance Skill
 
-基于信息收集结果，系统性地发现目标存在的安全漏洞。
+vulnerability discovery guidance，vulnerability discovery guidance。
 
-## 执行步骤
+## vulnerability discovery guidance
 
-### 1. 已知 CVE 匹配
-- 根据已识别的服务版本搜索对应 CVE
-- 优先关注 Critical/High 级别
-- 记录 CVE ID、影响版本、利用条件
+### 1. vulnerability discovery guidance CVE vulnerability discovery guidance
+- vulnerability discovery guidance CVE
+- vulnerability discovery guidance Critical/High vulnerability discovery guidance
+- vulnerability discovery guidance CVE ID、vulnerability discovery guidance、vulnerability discovery guidance
 
-### 2. Web 漏洞扫描
-- SQL 注入检测
-- XSS 检测（反射型/存储型/DOM型）
-- SSRF 检测
-- LFI/RFI 检测
-- 命令注入检测
-- 文件上传漏洞检测
+### 2. Web vulnerability discovery guidance
+- SQL vulnerability discovery guidance
+- XSS vulnerability discovery guidance（vulnerability discovery guidance/vulnerability discovery guidance/DOMvulnerability discovery guidance）
+- SSRF vulnerability discovery guidance
+- LFI/RFI vulnerability discovery guidance
+- vulnerability discovery guidance
+- vulnerability discovery guidance
 
-### 3. 配置缺陷检测
-- 默认凭据测试
-- 信息泄露检测
-- 未授权访问检测
-- CORS 配置检测
-- HTTPS 配置检测
+### 3. vulnerability discovery guidance
+- vulnerability discovery guidance
+- vulnerability discovery guidance
+- vulnerability discovery guidance
+- CORS vulnerability discovery guidance
+- HTTPS vulnerability discovery guidance
 
-### 4. 输出
-- 漏洞列表（类型、严重等级、URL、参数、验证方法）
+### 4. vulnerability discovery guidance
+- vulnerability discovery guidance（vulnerability discovery guidance、vulnerability discovery guidance、URL、vulnerability discovery guidance、vulnerability discovery guidance）

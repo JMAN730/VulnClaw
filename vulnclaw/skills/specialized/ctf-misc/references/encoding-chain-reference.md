@@ -1,53 +1,53 @@
-# 编码链识别与解码
+# CTF challenge guidance
 
-## 编码识别特征
+## CTF challenge guidance
 
-| 编码 | 特征 | 示例 |
+| CTF challenge guidance | CTF challenge guidance | CTF challenge guidance |
 |------|------|------|
-| Base64 | `A-Za-z0-9+/=`, 长度 % 4 | `TnNTY1RmLnBocA==` |
-| Base32 | `A-Z2-7=`, 长度 % 8 | `OBZHK5DFN2A====` |
-| Base16 | `0-9A-F`, 偶数长度 | `4E535354662E706870` |
-| URL 编码 | `%XX` | `%2F%61%64%6D%69%6E` |
-| HTML 实体 | `&#xNNN;` 或 `&#NNN;` | `&#x3C;script&#x3E;` |
-| Unicode | `\uXXXX` 或 `\UXXXXXXXX` | `\u003c\u0073\u0063` |
+| Base64 | `A-Za-z0-9+/=`, CTF challenge guidance % 4 | `TnNTY1RmLnBocA==` |
+| Base32 | `A-Z2-7=`, CTF challenge guidance % 8 | `OBZHK5DFN2A====` |
+| Base16 | `0-9A-F`, CTF challenge guidance | `4E535354662E706870` |
+| URL CTF challenge guidance | `%XX` | `%2F%61%64%6D%69%6E` |
+| HTML CTF challenge guidance | `&#xNNN;` CTF challenge guidance `&#NNN;` | `&#x3C;script&#x3E;` |
+| Unicode | `\uXXXX` CTF challenge guidance `\UXXXXXXXX` | `\u003c\u0073\u0063` |
 | Hex (Python) | `\xNN` | `\x4e\x53\x53\x54` |
-| ROT13 | 字母替换，Caesar | `axzc` → `nmp` |
-| Morse | `.` `-` `/` 组合 | `.-/-.../-.-.` |
-| Binary | `01` 数组 | `01001101` |
+| ROT13 | CTF challenge guidance，Caesar | `axzc` → `nmp` |
+| Morse | `.` `-` `/` CTF challenge guidance | `.-/-.../-.-.` |
+| Binary | `01` CTF challenge guidance | `01001101` |
 
-## 常见编码链
+## CTF challenge guidance
 
-### 1. 简单链
+### 1. CTF challenge guidance
 ```
-Hex → Base64 → URL编码
+Hex → Base64 → URLCTF challenge guidance
 ```
 
-### 2. 二进制系
+### 2. CTF challenge guidance
 ```
 Binary → ASCII
 Octal → ASCII
 Hex → ASCII
 ```
 
-### 3. 浏览器系
+### 3. CTF challenge guidance
 ```
-HTML实体 → URL编码 → Base64
+HTMLCTF challenge guidance → URLCTF challenge guidance → Base64
 ```
 
-### 4. 特殊编码
+### 4. CTF challenge guidance
 ```
 Brainfuck (`><+-.,[]`)
-Ook! (`Ook. Ook?`)
+Ook! (`Ook. Ook `)
 Hex → Ook! → Brainfuck
 ```
 
-## 自动解码脚本
+## CTF challenge guidance
 
 ```python
 import base64, binascii, urllib.parse, html
 
 def auto_decode(data, max_iter=10):
-    """自动尝试多层解码"""
+    """CTF challenge guidance"""
     result = data
     for _ in range(max_iter):
         changed = False
@@ -108,31 +108,31 @@ def auto_decode(data, max_iter=10):
     return result
 ```
 
-## 二维码解码
+## CTF challenge guidance
 
 ```python
 from PIL import Image
 import zbarlight
 
 def decode_qr(image_path):
-    """解码 QR 码"""
+    """CTF challenge guidance QR CTF challenge guidance"""
     image = Image.open(image_path)
     codes = zbarlight.scan_codes(['qrcode'], image)
     return codes
 ```
 
-## 音频隐写 (最低有效位)
+## CTF challenge guidance (CTF challenge guidance)
 
 ```python
 def extract_lsb_wav(wav_path):
-    """从 WAV 提取 LSB 隐写数据"""
+    """CTF challenge guidance WAV CTF challenge guidance LSB CTF challenge guidance"""
     import wave, struct
     with wave.open(wav_path, 'rb') as wav:
         frames = wav.readframes(wav.getnframes())
         binary = ''
         for byte in frames:
             binary += str(byte & 1)
-    # 每 8 位一个字符
+    # CTF challenge guidance 8 CTF challenge guidance
     result = ''
     for i in range(0, len(binary), 8):
         byte = binary[i:i+8]
@@ -141,13 +141,13 @@ def extract_lsb_wav(wav_path):
     return result
 ```
 
-## 图片隐写
+## CTF challenge guidance
 
 ```python
 from PIL import Image
 
 def extract_lsb_png(image_path):
-    """从 PNG 提取 LSB 隐写"""
+    """CTF challenge guidance PNG CTF challenge guidance LSB CTF challenge guidance"""
     img = Image.open(image_path)
     pixels = list(img.getdata())
     binary = ''
@@ -157,7 +157,7 @@ def extract_lsb_png(image_path):
                 binary += str(channel & 1)
         else:
             binary += str(pixel & 1)
-    # 每 8 位一个字符
+    # CTF challenge guidance 8 CTF challenge guidance
     result = ''
     for i in range(0, len(binary), 8):
         byte = binary[i:i+8]

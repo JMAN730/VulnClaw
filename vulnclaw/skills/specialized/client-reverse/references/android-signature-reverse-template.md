@@ -5,32 +5,32 @@ Use this template for Android sign, token, encrypt, decrypt, JNI, interceptor, a
 ## Template
 
 ```markdown
-# Android 签名逆向记录
+# Android client reverse engineering guidance
 
-## 基本信息
+## client reverse engineering guidance
 
-- APK / 包名：
-- 目标功能：
-- 目标请求：
-- 目标字段：
-- 当前阶段：static / dynamic / native / replay
-- 当前状态：🟡 进行中 / ✅ 已闭环 / ⛔ 阻塞
-- 目标：
-- 约束：
+- APK / client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：static / dynamic / native / replay
+- client reverse engineering guidance：🟡 client reverse engineering guidance / ✅ client reverse engineering guidance / ⛔ client reverse engineering guidance
+- client reverse engineering guidance：
+- client reverse engineering guidance：
 
-## 静态总览
+## client reverse engineering guidance
 
-| 项目 | 内容 |
+| client reverse engineering guidance | client reverse engineering guidance |
 | --- | --- |
-| Manifest 入口 |  |
+| Manifest client reverse engineering guidance |  |
 | Application |  |
-| 主 Activity / 目标组件 |  |
-| 主要包结构 |  |
-| 网络框架 |  |
-| DI 框架 |  |
-| 当前结论 |  |
+| client reverse engineering guidance Activity / client reverse engineering guidance |  |
+| client reverse engineering guidance |  |
+| client reverse engineering guidance |  |
+| DI client reverse engineering guidance |  |
+| client reverse engineering guidance |  |
 
-## 请求调用链
+## client reverse engineering guidance
 
 ```text
 Activity / Fragment / Service
@@ -40,65 +40,65 @@ Activity / Fragment / Service
 -> Signer / Encryptor / Serializer
 ```
 
-- 真实调用链：
-- 请求 Method / Path：
-- Header 写入点：
-- Body 写入点：
-- Sign 输入汇合点：
-- 序列 / 前置依赖：
+- client reverse engineering guidance：
+- client reverse engineering guidance Method / Path：
+- Header client reverse engineering guidance：
+- Body client reverse engineering guidance：
+- Sign client reverse engineering guidance：
+- client reverse engineering guidance / client reverse engineering guidance：
 
-## Sign / Crypto 定位
+## Sign / Crypto client reverse engineering guidance
 
-| 项目 | 内容 |
+| client reverse engineering guidance | client reverse engineering guidance |
 | --- | --- |
-| Sign 类 / 方法 |  |
-| Encrypt 类 / 方法 |  |
-| 关键常量 |  |
-| 关键 Header |  |
-| 关键 Token / Device 值 |  |
+| Sign client reverse engineering guidance / client reverse engineering guidance |  |
+| Encrypt client reverse engineering guidance / client reverse engineering guidance |  |
+| client reverse engineering guidance |  |
+| client reverse engineering guidance Header |  |
+| client reverse engineering guidance Token / Device client reverse engineering guidance |  |
 | Java-only / Java+JNI / Native-first |  |
 
-## 动态验证
+## client reverse engineering guidance
 
-| Hook 点 | 原因 | 捕获内容 | 结果 |
+| Hook client reverse engineering guidance | client reverse engineering guidance | client reverse engineering guidance | client reverse engineering guidance |
 | --- | --- | --- | --- |
 | Hook1 |  |  |  |
 
 - URL：
 - Headers：
 - Body：
-- Sign 输入：
-- Sign 输出：
-- 代理验证：
+- Sign client reverse engineering guidance：
+- Sign client reverse engineering guidance：
+- client reverse engineering guidance：
 
-## JNI / SO 分析
+## JNI / SO client reverse engineering guidance
 
-| 项目 | 内容 |
+| client reverse engineering guidance | client reverse engineering guidance |
 | --- | --- |
-| Java native 入口 |  |
-| SO 名称 |  |
-| JNI 类型 | static / dynamic |
-| 输入参数 |  |
-| 输出角色 | 最终 sign / 中间 token / 其他 |
-| 是否需要 deeper RE |  |
+| Java native client reverse engineering guidance |  |
+| SO client reverse engineering guidance |  |
+| JNI client reverse engineering guidance | static / dynamic |
+| client reverse engineering guidance |  |
+| client reverse engineering guidance | client reverse engineering guidance sign / client reverse engineering guidance token / client reverse engineering guidance |
+| client reverse engineering guidance deeper RE |  |
 
-## Burp 重放基线
+## Burp client reverse engineering guidance
 
 - Method：
 - Path：
 - Query：
 - Headers：
 - Body：
-- 必须保留字段：
-- 可变异字段：
-- 前置状态：
-- 是否需要设备 / Hook / App 协助：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance / Hook / App client reverse engineering guidance：
 
-## 结论
+## client reverse engineering guidance
 
-- 当前闭环程度：
-- 剩余阻塞：
-- 下一步建议：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
+- client reverse engineering guidance：
 ```
 
 ## Minimum Required Fields

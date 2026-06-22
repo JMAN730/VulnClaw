@@ -1,13 +1,13 @@
-"""流式 tool_calls 组装健壮性测试。
+"""streaming behavior tool_calls streaming behavior。
 
-覆盖：
-- 跨 chunk 分片的 tool_calls 组装（index 对齐、arguments 拼接）
-- function name / arguments 分别在不同 chunk 到达
-- 仅含 id 的首个分片（function 字段为 None）—— provider 差异
-- 空 delta / None tc_delta / 缺失 index 的边界
-- 不完整 tool_call（截断 JSON / 缺失 id / 缺失 name）被丢弃
-- 中途断开时已收 content 的保留
-- reasoning_content 与 content 不混淆
+streaming behavior：
+- streaming behavior chunk streaming behavior tool_calls streaming behavior（index streaming behavior、arguments streaming behavior）
+- function name / arguments streaming behavior chunk streaming behavior
+- streaming behavior id streaming behavior（function streaming behavior None）—— provider streaming behavior
+- streaming behavior delta / None tc_delta / streaming behavior index streaming behavior
+- streaming behavior tool_call（streaming behavior JSON / streaming behavior id / streaming behavior name）streaming behavior
+- streaming behavior content streaming behavior
+- reasoning_content streaming behavior content streaming behavior
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from vulnclaw.agent.llm_client import (
     call_llm_stream,
 )
 
-# === 测试辅助 mock 类型（模拟 OpenAI 流式 delta 结构） ===
+# === streaming behavior mock streaming behavior（streaming behavior OpenAI streaming behavior delta streaming behavior） ===
 
 
 class _Func:
@@ -34,12 +34,12 @@ class _Func:
 
 
 class _TCDelta:
-    """单个 tool_call 分片（delta.tool_calls[i]）。"""
+    """streaming behavior tool_call streaming behavior（delta.tool_calls[i]）。"""
 
     def __init__(self, index=0, id=None, name=None, arguments=None, function="set"):
         self.index = index
         self.id = id
-        # function="none" 模拟仅含 id 的首个分片（某些 provider）
+        # function="none" streaming behavior id streaming behavior（streaming behavior provider）
         if function == "none":
             self.function = None
         else:
@@ -75,7 +75,7 @@ class _SyncStream:
 
 
 class _BreakingStream:
-    """先产出若干 chunk，再抛出异常模拟中途断开。"""
+    """streaming behavior chunk，streaming behavior。"""
 
     def __init__(self, chunks, exc):
         self._chunks = list(chunks)
@@ -127,24 +127,24 @@ def _make_agent():
     return agent, mock_client
 
 
-# === _collect_tool_call_deltas 单元测试 ===
+# === _collect_tool_call_deltas streaming behavior ===
 
 
 class TestCollectToolCallDeltas:
     def test_none_delta_tool_calls(self):
-        """delta.tool_calls 为 None 时不追加。"""
+        """delta.tool_calls streaming behavior None streaming behavior。"""
         chunks: list[dict] = []
         _collect_tool_call_deltas(_Delta(tool_calls=None), chunks)
         assert chunks == []
 
     def test_none_entry_in_tool_calls_skipped(self):
-        """tool_calls 列表中的 None 元素被跳过。"""
+        """tool_calls streaming behavior None streaming behavior。"""
         chunks: list[dict] = []
         _collect_tool_call_deltas(_Delta(tool_calls=[None]), chunks)
         assert chunks == []
 
     def test_id_only_chunk_function_none(self):
-        """仅含 id 的首个分片（function=None）不应崩溃。"""
+        """streaming behavior id streaming behavior（function=None）streaming behavior。"""
         chunks: list[dict] = []
         delta = _Delta(tool_calls=[_TCDelta(index=0, id="call_abc", function="none")])
         _collect_tool_call_deltas(delta, chunks)
@@ -153,14 +153,14 @@ class TestCollectToolCallDeltas:
         ]
 
     def test_missing_index_defaults_zero(self):
-        """index 为 None 时回退到 0。"""
+        """index streaming behavior None streaming behavior 0。"""
         chunks: list[dict] = []
         delta = _Delta(tool_calls=[_TCDelta(index=None, name="t", arguments="{}")])
         _collect_tool_call_deltas(delta, chunks)
         assert chunks[0]["index"] == 0
 
     def test_name_and_args_separate_chunks(self):
-        """name 与 arguments 分别在不同分片到达。"""
+        """name streaming behavior arguments streaming behavior。"""
         chunks: list[dict] = []
         _collect_tool_call_deltas(
             _Delta(tool_calls=[_TCDelta(index=0, id="c1", name="scan", arguments="")]), chunks
@@ -173,7 +173,7 @@ class TestCollectToolCallDeltas:
         assert chunks[1]["function"]["arguments"] == '{"t":1}'
 
 
-# === _validate_tool_call 单元测试 ===
+# === _validate_tool_call streaming behavior ===
 
 
 class TestValidateToolCall:
@@ -205,7 +205,7 @@ class TestValidateToolCall:
         assert _validate_tool_call(tc) is False
 
     def test_truncated_json_rejected(self):
-        """流式中断产生的不完整 JSON 被判定无效。"""
+        """streaming behavior JSON streaming behavior。"""
         tc = MagicMock(id="c1")
         tc.function.name = "scan"
         tc.function.arguments = '{"target": "exam'
@@ -216,7 +216,7 @@ class TestValidateToolCall:
         assert _validate_tool_call(tc) is False
 
 
-# === _assemble_tool_calls 单元测试 ===
+# === _assemble_tool_calls streaming behavior ===
 
 
 class TestAssembleToolCalls:
@@ -224,7 +224,7 @@ class TestAssembleToolCalls:
         assert _assemble_tool_calls([]) == []
 
     def test_cross_chunk_assembly(self):
-        """跨多分片的 id/name/arguments 按 index 拼接为完整调用。"""
+        """streaming behavior id/name/arguments streaming behavior index streaming behavior。"""
         chunks = [
             {"index": 0, "id": "call_", "function": {"name": "nmap", "arguments": ""}},
             {"index": 0, "id": "123", "function": {"name": "", "arguments": '{"target":'}},
@@ -237,7 +237,7 @@ class TestAssembleToolCalls:
         assert result[0].function.arguments == '{"target":"x"}'
 
     def test_multiple_indices(self):
-        """不同 index 的并行 tool_call 各自聚合。"""
+        """streaming behavior index streaming behavior tool_call streaming behavior。"""
         chunks = [
             {"index": 0, "id": "a", "function": {"name": "t0", "arguments": "{}"}},
             {"index": 1, "id": "b", "function": {"name": "t1", "arguments": "{}"}},
@@ -248,7 +248,7 @@ class TestAssembleToolCalls:
         assert names == {"t0", "t1"}
 
     def test_incomplete_json_discarded(self):
-        """arguments JSON 不完整的调用被丢弃。"""
+        """arguments JSON streaming behavior。"""
         chunks = [
             {"index": 0, "id": "ok", "function": {"name": "good", "arguments": "{}"}},
             {"index": 1, "id": "bad", "function": {"name": "broken", "arguments": '{"t":'}},
@@ -258,7 +258,7 @@ class TestAssembleToolCalls:
         assert result[0].function.name == "good"
 
     def test_missing_id_discarded(self):
-        """聚合后仍缺失 id 的调用被丢弃。"""
+        """streaming behavior id streaming behavior。"""
         chunks = [
             {"index": 0, "id": "", "function": {"name": "noid", "arguments": "{}"}},
         ]
@@ -266,7 +266,7 @@ class TestAssembleToolCalls:
         assert result == []
 
     def test_missing_name_discarded(self):
-        """聚合后缺失 name 的调用被丢弃。"""
+        """streaming behavior name streaming behavior。"""
         chunks = [
             {"index": 0, "id": "c1", "function": {"name": "", "arguments": "{}"}},
         ]
@@ -274,23 +274,23 @@ class TestAssembleToolCalls:
         assert result == []
 
 
-# === 端到端流式测试 ===
+# === streaming behavior ===
 
 
 class TestStreamEndToEnd:
     @pytest.mark.asyncio
     async def test_tool_call_id_only_in_first_chunk(self):
-        """provider 仅在首个 chunk 给出 tool_call.id，后续分片只有 arguments。
+        """provider streaming behavior chunk streaming behavior tool_call.id，streaming behavior arguments。
 
-        覆盖任务要求的 provider delta 格式差异。
+        streaming behavior provider delta streaming behavior。
         """
         agent, mock_client = _make_agent()
         spy = SpySink()
 
         chunks = [
-            # 首个分片：id + name，function 存在但 arguments 空
+            # streaming behavior：id + name，function streaming behavior arguments streaming behavior
             _Chunk(tool_calls=[_TCDelta(index=0, id="call_xyz", name="recon", arguments="")]),
-            # 后续分片：无 id，仅 arguments 增量
+            # streaming behavior：streaming behavior id，streaming behavior arguments streaming behavior
             _Chunk(tool_calls=[_TCDelta(index=0, id=None, name=None, arguments='{"host":')]),
             _Chunk(tool_calls=[_TCDelta(index=0, id=None, name=None, arguments='"a.com"}')]),
         ]
@@ -320,7 +320,7 @@ class TestStreamEndToEnd:
 
     @pytest.mark.asyncio
     async def test_incomplete_tool_call_dropped_end_to_end(self):
-        """流式只到达半截 arguments → 聚合后 JSON 不完整 → 不触发工具执行。"""
+        """streaming behavior arguments → streaming behavior JSON streaming behavior → streaming behavior。"""
         agent, mock_client = _make_agent()
         spy = SpySink()
 
@@ -344,16 +344,16 @@ class TestStreamEndToEnd:
         finally:
             mod.handle_tool_calls = orig
 
-        # 不完整调用被丢弃，未执行工具，返回空 full_text
+        # streaming behavior，streaming behavior，streaming behavior full_text
         assert called["handle"] is False
         assert result == ""
 
     @pytest.mark.asyncio
     async def test_partial_content_preserved_on_disconnect(self):
-        """流式中途抛 ConnectionError 时，应回退到非流式（fallback）路径。
+        """streaming behavior ConnectionError streaming behavior，streaming behavior（fallback）streaming behavior。
 
-        断开属于非 streaming-marker 异常，按现有逻辑应重新抛出 —— 验证
-        已收到的 content 不会引发额外的 sink 重复输出。
+        streaming behavior streaming-marker streaming behavior，streaming behavior —— streaming behavior
+        streaming behavior content streaming behavior sink streaming behavior。
         """
         agent, mock_client = _make_agent()
         spy = SpySink()
@@ -362,7 +362,7 @@ class TestStreamEndToEnd:
             [_Chunk(content="partial ")], RuntimeError("connection reset")
         )
 
-        # 第一次（流式）返回会断开的流；fallback 调用返回非流式响应
+        # streaming behavior（streaming behavior）streaming behavior；fallback streaming behavior
         non_stream_msg = MagicMock()
         non_stream_msg.content = "recovered"
         non_stream_msg.tool_calls = None
@@ -372,13 +372,13 @@ class TestStreamEndToEnd:
         with pytest.raises(RuntimeError):
             await call_llm_stream(agent, "sys", stream_sink=spy)
 
-        # 断开前的 content token 已被输出一次
+        # streaming behavior content token streaming behavior
         content_calls = [c for c in spy.calls if c[0] == "content"]
         assert content_calls == [("content", "partial ")]
 
     @pytest.mark.asyncio
     async def test_content_emitted_exactly_once(self):
-        """正文 token 仅通过 on_content_token 输出一次，无重复。"""
+        """streaming behavior token streaming behavior on_content_token streaming behavior，streaming behavior。"""
         agent, mock_client = _make_agent()
         spy = SpySink()
 
@@ -393,7 +393,7 @@ class TestStreamEndToEnd:
 
     @pytest.mark.asyncio
     async def test_reasoning_not_mixed_into_content(self):
-        """reasoning_content 走 thinking 通道，不混入正文 token。"""
+        """reasoning_content streaming behavior thinking streaming behavior，streaming behavior token。"""
         agent, mock_client = _make_agent()
         spy = SpySink()
 
@@ -409,25 +409,25 @@ class TestStreamEndToEnd:
         content = [c for c in spy.calls if c[0] == "content"]
         assert thinking == [("thinking", "let me think")]
         assert content == [("content", "final answer")]
-        # 正文 token 不含 reasoning 文本
+        # streaming behavior token streaming behavior reasoning streaming behavior
         assert "let me think" not in "".join(c[1] for c in content)
-        # full_text 含 <thinking> 包裹 + 正文
+        # full_text streaming behavior <thinking> streaming behavior + streaming behavior
         assert "<thinking>" in result and "final answer" in result
 
 
 class TestAutoStreamRobustness:
     @pytest.mark.asyncio
     async def test_reasoning_buffer_reset_between_rounds(self):
-        """第一轮残留 reasoning 不应泄漏到第二轮总结流（防重复输出）。"""
+        """streaming behavior reasoning streaming behavior（streaming behavior）。"""
         agent, mock_client = _make_agent()
         spy = SpySink()
 
-        # 第一轮：reasoning 残留（无后续 content 触发 flush）+ tool_call
+        # streaming behavior：reasoning streaming behavior（streaming behavior content streaming behavior flush）+ tool_call
         first_round = _SyncStream([
             _Chunk(reasoning="round1 reasoning"),
             _Chunk(tool_calls=[_TCDelta(index=0, id="c1", name="t", arguments="{}")]),
         ])
-        # 第二轮总结：自带新的 reasoning + content
+        # streaming behavior：streaming behavior reasoning + content
         second_round = _SyncStream([
             _Chunk(reasoning="round2 reasoning"),
             _Chunk(content="summary"),
@@ -446,9 +446,9 @@ class TestAutoStreamRobustness:
         finally:
             mod.handle_tool_calls_with_results = orig
 
-        # round1 的 reasoning 不应在最终文本里重复出现
+        # round1 streaming behavior reasoning streaming behavior
         assert result.count("round1 reasoning") <= 1
-        # 最终文本应来自第二轮总结
+        # streaming behavior
         assert "summary" in result
-        # round2 reasoning 仅出现一次
+        # round2 reasoning streaming behavior
         assert result.count("round2 reasoning") == 1

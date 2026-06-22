@@ -1,31 +1,31 @@
 ---
 name: recon
-description: 信息收集流程 — 被动+主动侦察
+description: reconnaissance guidance — reconnaissance guidance+reconnaissance guidance
 ---
 
-# 信息收集 Skill
+# reconnaissance guidance Skill
 
-执行被动和主动信息收集，构建目标画像和攻击面地图。
+reconnaissance guidance，reconnaissance guidance。
 
-## 执行步骤
+## reconnaissance guidance
 
-### 1. 被动侦察
-- 通过 fetch 工具访问目标，收集 HTTP 响应头
-- 识别服务器类型、版本、WAF
-- 分析 HTML 源码中的技术栈标识
+### 1. reconnaissance guidance
+- reconnaissance guidance fetch reconnaissance guidance，reconnaissance guidance HTTP reconnaissance guidance
+- reconnaissance guidance、reconnaissance guidance、WAF
+- reconnaissance guidance HTML reconnaissance guidance
 
-### 2. 主动侦察
-- 探测常见 Web 端口
-- 枚举目录和路径
-- 检查敏感文件（robots.txt, .env, .git）
-- 发现 API 端点
+### 2. reconnaissance guidance
+- reconnaissance guidance Web reconnaissance guidance
+- reconnaissance guidance
+- reconnaissance guidance（robots.txt, .env, .git）
+- reconnaissance guidance API reconnaissance guidance
 
-### 3. 技术栈识别
-- 前端框架（React/Vue/Angular/jQuery）
-- 后端框架（Express/Django/Flask/Spring）
-- CMS 系统（WordPress/Joomla/自定义）
-- 数据库类型
+### 3. reconnaissance guidance
+- reconnaissance guidance（React/Vue/Angular/jQuery）
+- reconnaissance guidance（Express/Django/Flask/Spring）
+- CMS reconnaissance guidance（WordPress/Joomla/reconnaissance guidance）
+- reconnaissance guidance
 
-### 4. 输出
-- 目标画像（IP/域名/端口/服务/技术栈）
-- 攻击面地图（可访问路径、API、管理入口）
+### 4. reconnaissance guidance
+- reconnaissance guidance（IP/reconnaissance guidance/reconnaissance guidance/reconnaissance guidance/reconnaissance guidance）
+- reconnaissance guidance（reconnaissance guidance、API、reconnaissance guidance）

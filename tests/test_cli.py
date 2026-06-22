@@ -3,6 +3,9 @@
 import io
 
 import pytest
+
+pytest.importorskip("typer")
+
 from typer.testing import CliRunner
 
 # CLI smoke tests
@@ -483,7 +486,7 @@ class TestCLI:
 
         result_list = runner.invoke(app, ["target-state", "list", "https://example.com"])
         assert result_list.exit_code == 0
-        assert "snapshot" in result_list.output.lower() or "蹇収" in result_list.output
+        assert "snapshot" in result_list.output.lower()
 
         result_clear = runner.invoke(app, ["target-state", "clear", "https://example.com"])
         assert result_clear.exit_code == 0

@@ -1,16 +1,16 @@
-# 网站信息收集参考
+# web security testing guidance
 
-## 1. 网站架构识别
+## 1. web security testing guidance
 
-### 技术栈推断方法
-1. **HTTP 响应头** — Server、X-Powered-By、Set-Cookie 特征
-2. **HTML 源码特征** — meta generator、特定 class/id 命名
-3. **JS 文件路径** — /static/js/app.js、/wp-content/、/assets/
-4. **Cookie 名称** — PHPSESSID(php)、JSESSIONID(Java)、_rails_session(Rails)
-5. **URL 路径** — ?id= (PHP)、/api/ (REST)、/wp-admin/ (WordPress)
+### web security testing guidance
+1. **HTTP web security testing guidance** — Server、X-Powered-By、Set-Cookie web security testing guidance
+2. **HTML web security testing guidance** — meta generator、web security testing guidance class/id web security testing guidance
+3. **JS web security testing guidance** — /static/js/app.js、/wp-content/、/assets/
+4. **Cookie web security testing guidance** — PHPSESSID(php)、JSESSIONID(Java)、_rails_session(Rails)
+5. **URL web security testing guidance** —  id= (PHP)、/api/ (REST)、/wp-admin/ (WordPress)
 
-### 常见架构组合
-| 语言 | 框架 | 数据库 | 服务器 | 特征 |
+### web security testing guidance
+| web security testing guidance | web security testing guidance | web security testing guidance | web security testing guidance | web security testing guidance |
 |------|------|--------|--------|------|
 | PHP | Laravel | MySQL | Apache/Nginx | Set-Cookie: laravel_session |
 | PHP | WordPress | MySQL | Apache | /wp-content/, /wp-admin/ |
@@ -20,46 +20,46 @@
 | Node.js | Express | MongoDB | Nginx | X-Powered-By: Express |
 | Ruby | Rails | PostgreSQL | Nginx+Puma | _rails_session |
 
-### python_execute 架构探测
+### python_execute web security testing guidance
 ```python
 import requests
 
 url = "https://target.com"
 r = requests.get(url, timeout=10)
 
-# 1. 响应头分析
+# 1. web security testing guidance
 headers = r.headers
 print(f"Server: {headers.get('Server', 'N/A')}")
 print(f"X-Powered-By: {headers.get('X-Powered-By', 'N/A')}")
 
-# 2. Cookie 分析
+# 2. Cookie web security testing guidance
 cookies = r.cookies
 for cookie in cookies:
     print(f"Cookie: {cookie.name} = {cookie.value[:20]}...")
 
-# 3. HTML 特征分析
+# 3. HTML web security testing guidance
 html = r.text
 # WordPress
 if 'wp-content' in html or 'wp-includes' in html:
-    print("[+] WordPress 检测")
+    print("[+] WordPress web security testing guidance")
 # Laravel
 if 'laravel_session' in str(cookies):
-    print("[+] Laravel 检测")
+    print("[+] Laravel web security testing guidance")
 # Django
 if 'csrftoken' in str(cookies) or 'csrfmiddlewaretoken' in html:
-    print("[+] Django 检测")
+    print("[+] Django web security testing guidance")
 # Hexo
 if 'hexo' in html.lower():
-    print("[+] Hexo 博客检测")
+    print("[+] Hexo web security testing guidance")
 # Hugo
 if 'hugo' in html.lower():
-    print("[+] Hugo 博客检测")
+    print("[+] Hugo web security testing guidance")
 ```
 
-## 2. Web 指纹识别
+## 2. Web web security testing guidance
 
-### CMS 指纹特征
-| CMS | 特征路径 | 特征字符串 |
+### CMS web security testing guidance
+| CMS | web security testing guidance | web security testing guidance |
 |-----|---------|-----------|
 | WordPress | /wp-login.php, /wp-content/ | wp-content, xmlrpc.php |
 | Joomla | /administrator/ | /media/jui/ |
@@ -69,8 +69,8 @@ if 'hugo' in html.lower():
 | Hexo | /archives/ | hexo |
 | Ghost | /ghost/ | ghost-frontend |
 
-### 前端框架特征
-| 框架 | 特征 |
+### web security testing guidance
+| web security testing guidance | web security testing guidance |
 |------|------|
 | React | data-reactroot, __NEXT_DATA__ |
 | Vue.js | data-v-xxx, __vue__ |
@@ -78,7 +78,7 @@ if 'hugo' in html.lower():
 | jQuery | jQuery in scripts |
 | Bootstrap | bootstrap.css/js |
 
-### python_execute 指纹识别
+### python_execute web security testing guidance
 ```python
 import requests, re
 
@@ -86,7 +86,7 @@ url = "https://target.com"
 r = requests.get(url, timeout=10)
 html = r.text
 
-# CMS 检测
+# CMS web security testing guidance
 cms_signatures = {
     "WordPress": ["wp-content", "wp-includes", "wp-admin"],
     "Joomla": ["/administrator/", "media/jui"],
@@ -100,7 +100,7 @@ for cms, sigs in cms_signatures.items():
     if any(sig in html for sig in sigs):
         print(f"[+] CMS: {cms}")
 
-# 前端框架检测
+# web security testing guidance
 fw_signatures = {
     "React": ["data-reactroot", "__NEXT_DATA__", "react"],
     "Vue.js": ["data-v-", "__vue__", "vue"],
@@ -111,67 +111,67 @@ fw_signatures = {
 
 for fw, sigs in fw_signatures.items():
     if any(sig.lower() in html.lower() for sig in sigs):
-        print(f"[+] 前端框架: {fw}")
+        print(f"[+] web security testing guidance: {fw}")
 
-# JS 文件提取
+# JS web security testing guidance
 js_files = re.findall(r'src=["\']([^"\']*\.js[^"\']*)["\']', html)
-print(f"JS 文件: {js_files[:10]}")
+print(f"JS web security testing guidance: {js_files[:10]}")
 ```
 
-## 3. WAF 检测
+## 3. WAF web security testing guidance
 
-### 常见 WAF 特征
-| WAF | 拦截特征 |
+### web security testing guidance WAF web security testing guidance
+| WAF | web security testing guidance |
 |-----|---------|
 | Cloudflare | Server: cloudflare, CF-Ray header |
 | AWS WAF | Server: AmazonS3, x-amz-request-id |
-| 阿里云 WAF | Set-Cookie 包含 acw_tc |
-| 腾讯云 WAF | 特定拦截页面 |
-| 宝塔 WAF | 拦截页面含 "宝塔" |
-| 安全狗 | 拦截页面含 "safedog" |
-| ModSecurity | 特定 403 响应 |
+| web security testing guidance WAF | Set-Cookie web security testing guidance acw_tc |
+| web security testing guidance WAF | web security testing guidance |
+| web security testing guidance WAF | web security testing guidance "web security testing guidance" |
+| web security testing guidance | web security testing guidance "safedog" |
+| ModSecurity | web security testing guidance 403 web security testing guidance |
 
-### python_execute WAF 检测
+### python_execute WAF web security testing guidance
 ```python
 import requests
 
 url = "https://target.com"
 
-# 1. 正常请求
+# 1. web security testing guidance
 r1 = requests.get(url)
 
-# 2. 触发 WAF 的请求
+# 2. web security testing guidance WAF web security testing guidance
 waf_payloads = [
-    "/?id=1' OR 1=1--",
-    "/?search=<script>alert(1)</script>",
+    "/ id=1' OR 1=1--",
+    "/ search=<script>alert(1)</script>",
     "/../../../etc/passwd",
-    "/?file=php://filter/convert.base64-encode/resource=index",
+    "/ file=php://filter/convert.base64-encode/resource=index",
 ]
 
 for payload in waf_payloads:
     r2 = requests.get(url + payload, allow_redirects=False)
-    # 状态码变化
+    # web security testing guidance
     if r2.status_code in [403, 406, 429, 501]:
-        print(f"[!] WAF 检测: {payload} → {r2.status_code}")
-    # 响应长度显著变化
+        print(f"[!] WAF web security testing guidance: {payload} → {r2.status_code}")
+    # web security testing guidance
     if abs(len(r2.text) - len(r1.text)) > 500:
-        print(f"[!] 响应长度变化: 正常={len(r1.text)}, 攻击={len(r2.text)}")
+        print(f"[!] web security testing guidance: web security testing guidance={len(r1.text)}, web security testing guidance={len(r2.text)}")
 
-# 3. 检查特定 WAF 响应头
+# 3. web security testing guidance WAF web security testing guidance
 waf_headers = {
     "cloudflare": ["cf-ray", "server: cloudflare"],
     "aws": ["x-amz-request-id", "x-amz-cf-id"],
-    "阿里云": ["acw_tc"],
+    "web security testing guidance": ["acw_tc"],
 }
 for waf_name, sigs in waf_headers.items():
     for sig in sigs:
         if sig in str(r1.headers).lower():
-            print(f"[+] WAF 检测: {waf_name}")
+            print(f"[+] WAF web security testing guidance: {waf_name}")
 ```
 
-## 4. 敏感目录 & 敏感文件
+## 4. web security testing guidance & web security testing guidance
 
-### 常见敏感路径列表
+### web security testing guidance
 ```
 /robots.txt
 /sitemap.xml
@@ -196,7 +196,7 @@ for waf_name, sigs in waf_headers.items():
 /.well-known/
 ```
 
-### python_execute 目录扫描
+### python_execute web security testing guidance
 ```python
 import requests
 
@@ -217,82 +217,82 @@ for path in paths:
         pass
 ```
 
-## 5. 源码泄露检查
+## 5. web security testing guidance
 
-### 常见源码泄露类型
-| 类型 | 路径 | 检测方法 |
+### web security testing guidance
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |------|------|---------|
-| Git 仓库 | /.git/config, /.git/HEAD | 200 且含 git 内容 |
-| SVN 仓库 | /.svn/entries | 200 且含 svn 内容 |
-| .DS_Store | /.DS_Store | 下载后解析 |
-| .env 文件 | /.env | 含 DB_PASSWORD 等 |
-| web.config | /web.config | IIS 配置 |
-| 备份文件 | /.bak, /.swp, /.old, /~ | 直接下载 |
-| Docker | /Dockerfile, /docker-compose.yml | 容器配置 |
-| package.json | /package.json | Node.js 依赖 |
-| composer.json | /composer.json | PHP 依赖 |
+| Git web security testing guidance | /.git/config, /.git/HEAD | 200 web security testing guidance git web security testing guidance |
+| SVN web security testing guidance | /.svn/entries | 200 web security testing guidance svn web security testing guidance |
+| .DS_Store | /.DS_Store | web security testing guidance |
+| .env web security testing guidance | /.env | web security testing guidance DB_PASSWORD web security testing guidance |
+| web.config | /web.config | IIS web security testing guidance |
+| web security testing guidance | /.bak, /.swp, /.old, /~ | web security testing guidance |
+| Docker | /Dockerfile, /docker-compose.yml | web security testing guidance |
+| package.json | /package.json | Node.js web security testing guidance |
+| composer.json | /composer.json | PHP web security testing guidance |
 
-### Git 仓库泄露利用
+### Git web security testing guidance
 ```python
 import requests
 
 target = "https://target.com"
 
-# 1. 检查 .git/HEAD
+# 1. web security testing guidance .git/HEAD
 r = requests.get(f"{target}/.git/HEAD")
 if r.status_code == 200 and "ref:" in r.text:
-    print("[!] Git 仓库泄露!")
-    # 2. 尝试获取 ref
+    print("[!] Git web security testing guidance!")
+    # 2. web security testing guidance ref
     ref_path = r.text.strip().split("ref: ")[1] if "ref: " in r.text else ""
     if ref_path:
         r2 = requests.get(f"{target}/.git/{ref_path}")
         if r2.status_code == 200:
             print(f"[+] Git ref: {r2.text.strip()}")
 
-# 3. 尝试获取 config
+# 3. web security testing guidance config
 r3 = requests.get(f"{target}/.git/config")
 if r3.status_code == 200:
     print(f"[+] Git config:\n{r3.text}")
 ```
 
-## 6. 旁站查询（同 IP 反查域名）
+## 6. web security testing guidance（web security testing guidance IP web security testing guidance）
 
-### 查询方法
-1. **站长工具** — https://stool.chinaz.com/same
-2. **微步在线** — https://x.threatbook.cn
-3. **crt.sh** — 用 IP 查询证书关联域名
+### web security testing guidance
+1. **web security testing guidance** — https://stool.chinaz.com/same
+2. **web security testing guidance** — https://x.threatbook.cn
+3. **crt.sh** — web security testing guidance IP web security testing guidance
 4. **Censys** — https://search.censys.io
 
-### python_execute 旁站查询
+### python_execute web security testing guidance
 ```python
 import requests, json
 
 ip = "1.2.3.4"
 
-# 方法1: crt.sh 查询同 IP 证书
-r = requests.get(f"https://crt.sh/?q={ip}&output=json", timeout=15)
+# web security testing guidance1: crt.sh web security testing guidance IP web security testing guidance
+r = requests.get(f"https://crt.sh/ q={ip}&output=json", timeout=15)
 if r.status_code == 200:
     domains = set()
     for entry in r.json():
         for name in entry.get('name_value', '').split('\n'):
             if name.strip() and '*' not in name:
                 domains.add(name.strip())
-    print(f"[+] 同 IP 域名 ({len(domains)}):")
+    print(f"[+] web security testing guidance IP web security testing guidance ({len(domains)}):")
     for d in sorted(domains):
         print(f"  - {d}")
 ```
 
-## 7. C 段查询（同网段存活主机）
+## 7. C web security testing guidance（web security testing guidance）
 
-### python_execute C 段扫描
+### python_execute C web security testing guidance
 ```python
 import requests, socket
 from concurrent.futures import ThreadPoolExecutor
 
-# 从域名获取 IP
+# web security testing guidance IP
 domain = "target.com"
 ip = socket.gethostbyname(domain)
-# 提取 C 段
+# web security testing guidance C web security testing guidance
 c_segment = ".".join(ip.split(".")[:3])
 
 def check_host(ip, timeout=1):
@@ -307,12 +307,12 @@ def check_host(ip, timeout=1):
         pass
     return None
 
-# 扫描 C 段（1-254）
+# web security testing guidance C web security testing guidance（1-254）
 alive_hosts = []
 with ThreadPoolExecutor(max_workers=50) as executor:
     ips = [f"{c_segment}.{i}" for i in range(1, 255)]
     results = executor.map(check_host, ips)
     alive_hosts = [ip for ip in results if ip]
 
-print(f"[+] C 段存活主机: {alive_hosts}")
+print(f"[+] C web security testing guidance: {alive_hosts}")
 ```

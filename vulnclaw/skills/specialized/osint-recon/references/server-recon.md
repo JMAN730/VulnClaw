@@ -1,23 +1,23 @@
-# 服务器信息收集参考
+# reconnaissance guidance
 
-## 1. 开放端口 & 服务版本识别
+## 1. reconnaissance guidance & reconnaissance guidance
 
-### nmap 常用命令
+### nmap reconnaissance guidance
 ```bash
-# 全端口扫描（慢但全面）
+# reconnaissance guidance（reconnaissance guidance）
 nmap -p- -sV <target>
 
-# 常见端口快速扫描
+# reconnaissance guidance
 nmap -sV -top-ports 1000 <target>
 
-# UDP 端口扫描
+# UDP reconnaissance guidance
 nmap -sU --top-ports 100 <target>
 
-# 服务版本识别 + OS 检测
+# reconnaissance guidance + OS reconnaissance guidance
 nmap -sV -O <target>
 ```
 
-### python_execute 方式（无 nmap 时）
+### python_execute reconnaissance guidance（reconnaissance guidance nmap reconnaissance guidance）
 ```python
 import socket
 
@@ -34,10 +34,10 @@ def scan_port(host, port, timeout=2):
 host = "target.com"
 common_ports = [21,22,23,25,53,80,110,143,443,445,993,995,1433,1521,3306,3389,5432,6379,8080,8443,9200,27017]
 open_ports = [p for p in common_ports if scan_port(host, p)]
-print(f"开放端口: {open_ports}")
+print(f"reconnaissance guidance: {open_ports}")
 ```
 
-### 服务版本识别（Banner Grabbing）
+### reconnaissance guidance（Banner Grabbing）
 ```python
 import socket
 
@@ -46,7 +46,7 @@ def grab_banner(host, port, timeout=3):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
         s.connect((host, port))
-        # HTTP 服务发送请求获取 banner
+        # HTTP reconnaissance guidance banner
         if port in [80, 443, 8080, 8443]:
             s.send(b"HEAD / HTTP/1.1\r\nHost: " + host.encode() + b"\r\n\r\n")
         else:
@@ -58,85 +58,85 @@ def grab_banner(host, port, timeout=3):
         return None
 ```
 
-## 2. 真实 IP 探测（CDN 后的源站 IP）
+## 2. reconnaissance guidance IP reconnaissance guidance（CDN reconnaissance guidance IP）
 
-### 方法一：DNS 历史记录
+### reconnaissance guidance：DNS reconnaissance guidance
 - SecurityTrails (https://securitytrails.com/dns-trials)
 - DNSHistory (https://dnshistory.org)
 - ViewDNS (https://viewdns.info/iphistory/)
 - Netcraft Site Report (https://sitereport.netcraft.com/)
 
-### 方法二：全局 Ping
+### reconnaissance guidance：reconnaissance guidance Ping
 ```python
 import requests
-# 使用多地 Ping 服务
+# reconnaissance guidance Ping reconnaissance guidance
 urls = [
     f"https://www.whatsmydns.net/#A/{domain}",
     f"https://ping.pe/{domain}",
-    f"https://tools.keycdn.com/curl?url={domain}",
+    f"https://tools.keycdn.com/curl url={domain}",
 ]
-# 如果不同地区解析到不同 IP，说明使用了 CDN
-# 如果多地解析到同一 IP，该 IP 可能是真实源站
+# reconnaissance guidance IP，reconnaissance guidance CDN
+# reconnaissance guidance IP，reconnaissance guidance IP reconnaissance guidance
 ```
 
-### 方法三：邮件头提取
-- 注册/登录目标网站，收取邮件
-- 查看邮件头中的 `Received:` 字段
-- 可能暴露邮件服务器的真实 IP
+### reconnaissance guidance：reconnaissance guidance
+- reconnaissance guidance/reconnaissance guidance，reconnaissance guidance
+- reconnaissance guidance `Received:` reconnaissance guidance
+- reconnaissance guidance IP
 
-### 方法四：子域名解析
-- CDN 通常只为主域名服务
-- 子域名（如 mail.ftp.dev.staging）可能直接解析到源站 IP
-- 检查所有子域名的 A 记录，排除 CDN IP
+### reconnaissance guidance：reconnaissance guidance
+- CDN reconnaissance guidance
+- reconnaissance guidance（reconnaissance guidance mail.ftp.dev.staging）reconnaissance guidance IP
+- reconnaissance guidance A reconnaissance guidance，reconnaissance guidance CDN IP
 
-### 方法五：SSL 证书搜索
+### reconnaissance guidance：SSL reconnaissance guidance
 ```python
 import requests
 domain = "target.com"
-r = requests.get(f"https://crt.sh/?q=%.{domain}&output=json")
+r = requests.get(f"https://crt.sh/ q=%.{domain}&output=json")
 if r.status_code == 200:
-    # 查找不同子域名的证书关联的 IP
+    # reconnaissance guidance IP
     for entry in r.json():
         print(entry.get('name_value', ''))
 ```
 
-## 3. 操作系统指纹
+## 3. reconnaissance guidance
 
-### TTL 推断
-| TTL 值 | 可能的操作系统 |
+### TTL reconnaissance guidance
+| TTL reconnaissance guidance | reconnaissance guidance |
 |--------|-------------|
 | ≈ 64 | Linux / Unix / macOS |
 | ≈ 128 | Windows |
-| ≈ 255 | 网络设备 / 老式 Unix |
+| ≈ 255 | reconnaissance guidance / reconnaissance guidance Unix |
 
 ```python
 import subprocess
-# Ping 获取 TTL
+# Ping reconnaissance guidance TTL
 result = subprocess.run(['ping', '-c', '1', host], capture_output=True, text=True)
 # Windows: ping -n 1 host
-# 从输出中提取 TTL
+# reconnaissance guidance TTL
 import re
 ttl_match = re.search(r'TTL[=:]\s*(\d+)', result.output, re.I)
 if ttl_match:
     ttl = int(ttl_match.group(1))
     if ttl <= 64:
-        print("推测: Linux/Unix")
+        print("reconnaissance guidance: Linux/Unix")
     elif ttl <= 128:
-        print("推测: Windows")
+        print("reconnaissance guidance: Windows")
     else:
-        print("推测: 网络设备")
+        print("reconnaissance guidance: reconnaissance guidance")
 ```
 
-### nmap OS 检测
+### nmap OS reconnaissance guidance
 ```bash
 nmap -O <target>
-# 更激进（需要 root）
+# reconnaissance guidance（reconnaissance guidance root）
 sudo nmap -O --osscan-guess <target>
 ```
 
-## 4. 中间件版本识别
+## 4. reconnaissance guidance
 
-### HTTP 响应头分析
+### HTTP reconnaissance guidance
 ```
 Server: Apache/2.4.49 (Ubuntu)
 Server: nginx/1.18.0
@@ -146,47 +146,47 @@ X-Powered-By: Express
 X-AspNet-Version: 4.0.30319
 ```
 
-### 错误页面特征
-- Apache: 默认 404 页面含 "Apache" 字样
-- Nginx: 默认 404 页面含 "nginx" 字样
-- IIS: 默认错误页含 IIS 版本信息
-- Tomcat: 默认 404 页面含 Apache Tomcat 版本
+### reconnaissance guidance
+- Apache: reconnaissance guidance 404 reconnaissance guidance "Apache" reconnaissance guidance
+- Nginx: reconnaissance guidance 404 reconnaissance guidance "nginx" reconnaissance guidance
+- IIS: reconnaissance guidance IIS reconnaissance guidance
+- Tomcat: reconnaissance guidance 404 reconnaissance guidance Apache Tomcat reconnaissance guidance
 
-### 特征文件探测
+### reconnaissance guidance
 ```python
 import requests
 target = "https://target.com"
 # Apache
-r = requests.get(f"{target}/server-status")  # 403 = 存在
-r = requests.get(f"{target}/server-info")    # 403 = 存在
+r = requests.get(f"{target}/server-status")  # 403 = reconnaissance guidance
+r = requests.get(f"{target}/server-info")    # 403 = reconnaissance guidance
 # Nginx
-r = requests.get(f"{target}/nginx_status")   # 可能暴露状态
+r = requests.get(f"{target}/nginx_status")   # reconnaissance guidance
 # Tomcat
-r = requests.get(f"{target}/manager/html")   # 管理界面
+r = requests.get(f"{target}/manager/html")   # reconnaissance guidance
 # IIS
-r = requests.get(f"{target}/aspnet_client/") # ASP.NET 特征
+r = requests.get(f"{target}/aspnet_client/") # ASP.NET reconnaissance guidance
 ```
 
-## 5. 数据库识别
+## 5. reconnaissance guidance
 
-### 端口探测
-| 数据库 | 默认端口 | 说明 |
+### reconnaissance guidance
+| reconnaissance guidance | reconnaissance guidance | reconnaissance guidance |
 |--------|---------|------|
-| MySQL | 3306 | 最常见 |
-| PostgreSQL | 5432 | 常见于 Rails/Django |
-| MSSQL | 1433 | Windows 环境 |
+| MySQL | 3306 | reconnaissance guidance |
+| PostgreSQL | 5432 | reconnaissance guidance Rails/Django |
+| MSSQL | 1433 | Windows reconnaissance guidance |
 | MongoDB | 27017 | NoSQL |
-| Redis | 6379 | 缓存/消息队列 |
-| Oracle | 1521 | 企业级 |
-| Memcached | 11211 | 缓存 |
+| Redis | 6379 | reconnaissance guidance/reconnaissance guidance |
+| Oracle | 1521 | reconnaissance guidance |
+| Memcached | 11211 | reconnaissance guidance |
 
-### 错误信息特征
+### reconnaissance guidance
 - MySQL: `You have an error in your SQL syntax`
 - PostgreSQL: `ERROR: syntax error at or near`
 - MSSQL: `Microsoft SQL Server`
 - Oracle: `ORA-01756`
 
-### python_execute 检测
+### python_execute reconnaissance guidance
 ```python
 import socket
 
@@ -195,7 +195,7 @@ def check_db(host, port, timeout=2):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
         s.connect((host, port))
-        # 尝试读取 banner
+        # reconnaissance guidance banner
         s.send(b"\r\n")
         banner = s.recv(1024)
         s.close()

@@ -1,153 +1,153 @@
-# 侦察报告模板
+# reconnaissance guidance
 
-## 使用说明
+## reconnaissance guidance
 
-在信息收集任务完成时，使用 `python_execute` 工具将以下模板填充为完整报告，
-保存到用户指定路径或桌面。
+reconnaissance guidance，reconnaissance guidance `python_execute` reconnaissance guidance，
+reconnaissance guidance。
 
-## Markdown 报告模板
+## Markdown reconnaissance guidance
 
 ```markdown
-# 🦞 {目标} 侦察报告
+# 🦞 {reconnaissance guidance} reconnaissance guidance
 
-> 生成时间：{日期时间}
-> 工具：VulnClaw v0.3.1
+> reconnaissance guidance：{reconnaissance guidance}
+> reconnaissance guidance：VulnClaw v0.3.1
 
 ---
 
-## 1. 目标概览
+## 1. reconnaissance guidance
 
-| 项目 | 内容 |
+| reconnaissance guidance | reconnaissance guidance |
 |------|------|
-| 目标 URL | {url} |
-| IP 地址 | {ip} |
-| 服务器 | {server} |
-| 框架/CMS | {framework} |
+| reconnaissance guidance URL | {url} |
+| IP reconnaissance guidance | {ip} |
+| reconnaissance guidance | {server} |
+| reconnaissance guidance/CMS | {framework} |
 | CDN | {cdn} |
-| SSL 证书 | {ssl_info} |
+| SSL reconnaissance guidance | {ssl_info} |
 
 ---
 
-## 2. 技术侦察
+## 2. reconnaissance guidance
 
-### 2.1 HTTP 响应头
-| 响应头 | 值 | 安全提示 |
+### 2.1 HTTP reconnaissance guidance
+| reconnaissance guidance | reconnaissance guidance | reconnaissance guidance |
 |--------|---|---------|
-| Server | {value} | {注意点} |
-| X-Powered-By | {value} | 泄露技术栈 |
+| Server | {value} | {reconnaissance guidance} |
+| X-Powered-By | {value} | reconnaissance guidance |
 | ... | ... | ... |
 
-### 2.2 DNS 记录
-| 类型 | 值 |
+### 2.2 DNS reconnaissance guidance
+| reconnaissance guidance | reconnaissance guidance |
 |------|---|
 | A | {ip} |
 | CNAME | {cname} |
 | MX | {mx} |
 | TXT | {txt} |
 
-### 2.3 子域名
-| 子域名 | IP | 说明 |
+### 2.3 reconnaissance guidance
+| reconnaissance guidance | IP | reconnaissance guidance |
 |--------|---|------|
 | {sub} | {ip} | {note} |
 
-### 2.4 开放端口
-| 端口 | 服务 | 版本 |
+### 2.4 reconnaissance guidance
+| reconnaissance guidance | reconnaissance guidance | reconnaissance guidance |
 |------|------|------|
 | 80 | HTTP | nginx/1.18 |
 | 443 | HTTPS | nginx/1.18 |
 
-### 2.5 目录与文件
-| 路径 | 状态码 | 说明 |
+### 2.5 reconnaissance guidance
+| reconnaissance guidance | reconnaissance guidance | reconnaissance guidance |
 |------|--------|------|
-| /robots.txt | 200 | {内容摘要} |
-| /sitemap.xml | 200 | {内容摘要} |
-| /.git/HEAD | 403/200 | {是否泄露} |
+| /robots.txt | 200 | {reconnaissance guidance} |
+| /sitemap.xml | 200 | {reconnaissance guidance} |
+| /.git/HEAD | 403/200 | {reconnaissance guidance} |
 
 ---
 
-## 3. 内容侦察
+## 3. reconnaissance guidance
 
-### 3.1 页面元数据
+### 3.1 reconnaissance guidance
 - **Title**：{title}
 - **Description**：{desc}
 - **Keywords**：{keywords}
 - **Author**：{author}
 
-### 3.2 外部链接
-| 链接 | 类型 | 说明 |
+### 3.2 reconnaissance guidance
+| reconnaissance guidance | reconnaissance guidance | reconnaissance guidance |
 |------|------|------|
-| {url} | GitHub | 个人主页 |
-| {url} | B站 | 视频空间 |
-| {url} | CDN | 资源加载 |
+| {url} | GitHub | reconnaissance guidance |
+| {url} | Breconnaissance guidance | reconnaissance guidance |
+| {url} | CDN | reconnaissance guidance |
 
-### 3.3 JavaScript 文件
-| 文件 | 关键发现 |
+### 3.3 JavaScript reconnaissance guidance
+| reconnaissance guidance | reconnaissance guidance |
 |------|---------|
 | {path} | {api_endpoint/config/key} |
 
-### 3.4 隐藏信息
-- HTML 注释：{comments}
-- 隐藏字段：{hidden_fields}
-- 邮箱/联系方式：{contacts}
+### 3.4 reconnaissance guidance
+- HTML reconnaissance guidance：{comments}
+- reconnaissance guidance：{hidden_fields}
+- reconnaissance guidance/reconnaissance guidance：{contacts}
 
 ---
 
-## 4. 人物追踪
+## 4. reconnaissance guidance
 
-### 4.1 作者信息
-| 项目 | 内容 | 来源 | 置信度 |
+### 4.1 reconnaissance guidance
+| reconnaissance guidance | reconnaissance guidance | reconnaissance guidance | reconnaissance guidance |
 |------|------|------|--------|
-| 昵称 | {name} | {source} | 🟢/🟡/🔴 |
+| reconnaissance guidance | {name} | {source} | 🟢/🟡/🔴 |
 | GitHub | {url} | {source} | 🟢 |
-| B站 | {url} | {source} | 🟢 |
-| 邮箱 | {email} | {source} | 🟡 |
-| 位置 | {location} | {source} | 🟡 |
+| Breconnaissance guidance | {url} | {source} | 🟢 |
+| reconnaissance guidance | {email} | {source} | 🟡 |
+| reconnaissance guidance | {location} | {source} | 🟡 |
 
-### 4.2 技术画像
-- **主力语言**：{languages}
-- **技术栈**：{stack}
-- **开源项目**：{repos}
-- **关注领域**：{interests}
+### 4.2 reconnaissance guidance
+- **reconnaissance guidance**：{languages}
+- **reconnaissance guidance**：{stack}
+- **reconnaissance guidance**：{repos}
+- **reconnaissance guidance**：{interests}
 
-### 4.3 跨平台关联
-| 平台 | 用户名/ID | 匹配度 | 说明 |
+### 4.3 reconnaissance guidance
+| reconnaissance guidance | reconnaissance guidance/ID | reconnaissance guidance | reconnaissance guidance |
 |------|----------|--------|------|
-| {platform} | {id} | 高/中/低 | {note} |
+| {platform} | {id} | reconnaissance guidance/reconnaissance guidance/reconnaissance guidance | {note} |
 
 ---
 
-## 5. 关键发现
+## 5. reconnaissance guidance
 
-| # | 发现 | 风险等级 | 说明 |
+| # | reconnaissance guidance | reconnaissance guidance | reconnaissance guidance |
 |---|------|---------|------|
-| 1 | {finding} | 🔴高/🟡中/🟢低 | {detail} |
+| 1 | {finding} | 🔴reconnaissance guidance/🟡reconnaissance guidance/🟢reconnaissance guidance | {detail} |
 
 ---
 
-## 6. 建议
+## 6. reconnaissance guidance
 
 1. {suggestion_1}
 2. {suggestion_2}
 
 ---
 
-*本报告由 VulnClaw 自动生成，所有信息来源于公开渠道。*
+*reconnaissance guidance VulnClaw reconnaissance guidance，reconnaissance guidance。*
 ```
 
-## Python 保存代码
+## Python reconnaissance guidance
 
 ```python
 import os
 from datetime import datetime
 
 def save_recon_report(target, report_content, output_path=None):
-    """保存侦察报告到文件"""
+    """reconnaissance guidance"""
     if not output_path:
-        # 默认保存到桌面
+        # reconnaissance guidance
         desktop = os.path.join(os.path.expanduser('~'), 'Desktop')
         safe_name = re.sub(r'[^\w]', '_', target)[:30]
         date_str = datetime.now().strftime('%Y%m%d_%H%M')
-        output_path = os.path.join(desktop, f'{safe_name}_侦察报告_{date_str}.md')
+        output_path = os.path.join(desktop, f'{safe_name}_reconnaissance guidance_{date_str}.md')
     
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:

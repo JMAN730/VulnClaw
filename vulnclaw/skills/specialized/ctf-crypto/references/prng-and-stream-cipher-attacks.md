@@ -1,9 +1,9 @@
-# PRNG 与流密码攻击
+# PRNG cryptography testing guidance
 
-## MT19937 ( Mersenne Twister ) 攻击
+## MT19937 ( Mersenne Twister ) cryptography testing guidance
 
 ```python
-# MT19937 状态恢复（给定 624 个输出）
+# MT19937 cryptography testing guidance（cryptography testing guidance 624 cryptography testing guidance）
 from ctypes import *
 
 def untemper(y):
@@ -17,7 +17,7 @@ def untemper(y):
     return y
 
 def recover_mt(outputs):
-    """从 624 个连续 MT19937 输出恢复内部状态"""
+    """cryptography testing guidance 624 cryptography testing guidance MT19937 cryptography testing guidance"""
     state = [untemper(y) for y in outputs[:624]]
     MT = c_ulong * 624
     mt = MT(*state)
@@ -33,80 +33,80 @@ def recover_mt(outputs):
     return mt, twist, index
 ```
 
-## LCG (线性同余生成器) 攻击
+## LCG (cryptography testing guidance) cryptography testing guidance
 
 ```python
 """
 LCG: s_{n+1} = a * s_n + c (mod m)
-已知参数时：直接递推
-未知参数时：已知 3 组 (s, s_next) 可求 a, c, m
+cryptography testing guidance：cryptography testing guidance
+cryptography testing guidance：cryptography testing guidance 3 cryptography testing guidance (s, s_next) cryptography testing guidance a, c, m
 """
 
 def lcg_attack(states):
-    """从 3 个连续状态恢复 LCG 参数 (a, c, m)"""
+    """cryptography testing guidance 3 cryptography testing guidance LCG cryptography testing guidance (a, c, m)"""
     s0, s1, s2 = states[0], states[1], states[2]
     # s1 = a*s0 + c (mod m)
     # s2 = a*s1 + c (mod m)
     # s2 - s1 = a*(s1 - s0) (mod m)
-    # 扩展欧几里得求 a, m
+    # cryptography testing guidance a, m
 ```
 
-## LFSR (线性反馈移位寄存器) 攻击
+## LFSR (cryptography testing guidance) cryptography testing guidance
 
 ```python
 """
-Berlekamp-Massey 算法：从输出序列恢复 LFSR 反馈多项式
+Berlekamp-Massey cryptography testing guidance：cryptography testing guidance LFSR cryptography testing guidance
 """
 
 def berlekamp_massey(s):
-    """从二进制序列恢复 LFSR 最短反馈多项式"""
-    # Sage 实现
+    """cryptography testing guidance LFSR cryptography testing guidance"""
+    # Sage cryptography testing guidance
     # F.<x> = GF(2)[]
     # s_seq = sequence(s)
     # return list(lfsr_sequence(f, [1]+[0]*15, len(s)))
 ```
 
-## 已知明文攻击 (XOR 流密码)
+## cryptography testing guidance (XOR cryptography testing guidance)
 
 ```python
 """
-流密码: C = P XOR keystream
-如果知道部分明文 P，可以恢复 keystream = C XOR P
-keystream 可用于解密其他密文
+cryptography testing guidance: C = P XOR keystream
+cryptography testing guidance P，cryptography testing guidance keystream = C XOR P
+keystream cryptography testing guidance
 """
 
 def xor_attack(ciphertext, known_plaintext):
-    """XOR 流密码已知明文攻击"""
+    """XOR cryptography testing guidance"""
     key = bytes(a ^ b for a, b in zip(ciphertext, known_plaintext))
     return key
 
 def xor_decrypt(key, ciphertext):
-    """用恢复的密钥流解密"""
+    """cryptography testing guidance"""
     return bytes(a ^ b for a, b in zip(key, ciphertext))
 ```
 
-## RC4 攻击
+## RC4 cryptography testing guidance
 
 ```python
 """
-RC4 已知弱点：
-1. RC4 Drop (丢弃前 N 字节后，密钥流接近随机)
-2. 某些密钥初始化有偏差
+RC4 cryptography testing guidance：
+1. RC4 Drop (cryptography testing guidance N cryptography testing guidance，cryptography testing guidance)
+2. cryptography testing guidance
 """
 
 def rc4_drop(ciphertext, drop=3072):
-    """RC4 Drop N 字节后解密"""
+    """RC4 Drop N cryptography testing guidance"""
 ```
 
-## Python random 模块预测
+## Python random cryptography testing guidance
 
 ```python
 import random
 
-# 如果能访问 Python random 状态，可以预测未来随机数
-# 已知 624 * 4 = 2496 字节的状态
+# cryptography testing guidance Python random cryptography testing guidance，cryptography testing guidance
+# cryptography testing guidance 624 * 4 = 2496 cryptography testing guidance
 state = random.getstate()
-# 推进随机数
+# cryptography testing guidance
 random.setstate(state)
 next_val = random.randint(0, 2**31)
 ```

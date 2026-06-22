@@ -1,139 +1,139 @@
-# XXE实体注入
+# XXEXXE testing guidance
 English: XXE Entity Injection
 - Entry Count: 9
 - Use this file to shortlist relevant payloads, then open the linked source markdown for the full workflow and commands.
-## XXE基础攻击
+## XXEXXE testing guidance
 - ID: xxe-basic
 - Difficulty: intermediate
-- Subcategory: 基础攻击
+- Subcategory: XXE testing guidance
 - Tags: xxe, xml, external, entity
 - Original Extracted Source: original extracted web-security-wiki source/xxe-basic.md
 Description:
-XML外部实体注入基础攻击技术
+XMLXXE testing guidance
 Prerequisites:
-- 存在XML解析功能
-- 外部实体未被禁用
+- XXE testing guidanceXMLXXE testing guidance
+- XXE testing guidance
 Execution Outline:
-1. 1. 探测XXE
-2. 2. 读取文件
-3. 3. 读取PHP源码
-4. 4. SSRF攻击
-## 盲注XXE攻击
+1. 1. XXE testing guidanceXXE
+2. 2. XXE testing guidance
+3. 3. XXE testing guidancePHPXXE testing guidance
+4. 4. SSRFXXE testing guidance
+## XXE testing guidanceXXEXXE testing guidance
 - ID: xxe-blind
 - Difficulty: intermediate
-- Subcategory: 盲注XXE
+- Subcategory: XXE testing guidanceXXE
 - Tags: xxe, blind, oob, xml
 - Original Extracted Source: original extracted web-security-wiki source/xxe-blind.md
 Description:
-无回显的XXE攻击技术
+XXE testing guidanceXXEXXE testing guidance
 Prerequisites:
-- 存在XML解析
-- 无直接回显
+- XXE testing guidanceXMLXXE testing guidance
+- XXE testing guidance
 Execution Outline:
-1. 1. 外部实体探测
-2. 2. 参数实体
-3. 3. OOB外带数据
-## XXE OOB外带攻击
+1. 1. XXE testing guidance
+2. 2. XXE testing guidance
+3. 3. OOBXXE testing guidance
+## XXE OOBXXE testing guidance
 - ID: xxe-oob
 - Difficulty: intermediate
-- Subcategory: OOB外带
+- Subcategory: OOBXXE testing guidance
 - Tags: xxe, oob, exfiltration, xml
 - Original Extracted Source: original extracted web-security-wiki source/xxe-oob.md
 Description:
-利用OOB技术外带XXE数据
+XXE testing guidanceOOBXXE testing guidanceXXEXXE testing guidance
 Prerequisites:
-- 存在XXE漏洞
-- 可发起外部请求
+- XXE testing guidanceXXEXXE testing guidance
+- XXE testing guidance
 Execution Outline:
-1. 1. HTTP外带
-2. 2. FTP外带
-3. 3. DNS外带
-## XXE+SSRF组合攻击
+1. 1. HTTPXXE testing guidance
+2. 2. FTPXXE testing guidance
+3. 3. DNSXXE testing guidance
+## XXE+SSRFXXE testing guidance
 - ID: xxe-ssrf
 - Difficulty: intermediate
 - Subcategory: XXE+SSRF
 - Tags: xxe, ssrf, combination, xml
 - Original Extracted Source: original extracted web-security-wiki source/xxe-ssrf.md
 Description:
-利用XXE实现SSRF攻击
+XXE testing guidanceXXEXXE testing guidanceSSRFXXE testing guidance
 Prerequisites:
-- 存在XXE漏洞
-- 内网可访问
+- XXE testing guidanceXXEXXE testing guidance
+- XXE testing guidance
 Execution Outline:
-1. 1. 扫描内网端口
-2. 2. 访问内网服务
-## XXE到RCE
+1. 1. XXE testing guidance
+2. 2. XXE testing guidance
+## XXEXXE testing guidanceRCE
 - ID: xxe-rce
 - Difficulty: advanced
-- Subcategory: XXE到RCE
+- Subcategory: XXEXXE testing guidanceRCE
 - Tags: xxe, rce, php, expect
 - Original Extracted Source: original extracted web-security-wiki source/xxe-rce.md
 Description:
-利用XXE实现远程代码执行
+XXE testing guidanceXXEXXE testing guidance
 Prerequisites:
-- 存在XXE漏洞
-- PHP expect扩展加载
+- XXE testing guidanceXXEXXE testing guidance
+- PHP expectXXE testing guidance
 Execution Outline:
-1. 1. Expect扩展RCE
-2. 2. 写入WebShell
-## XXE文件读取
+1. 1. ExpectXXE testing guidanceRCE
+2. 2. XXE testing guidanceWebShell
+## XXEXXE testing guidance
 - ID: xxe-file-read
 - Difficulty: beginner
-- Subcategory: 文件读取
+- Subcategory: XXE testing guidance
 - Tags: xxe, file, read, lfi
 - Original Extracted Source: original extracted web-security-wiki source/xxe-file-read.md
 Description:
-利用XXE读取服务器文件
+XXE testing guidanceXXEXXE testing guidance
 Prerequisites:
-- 存在XXE漏洞
-- 有文件读取权限
+- XXE testing guidanceXXEXXE testing guidance
+- XXE testing guidance
 Execution Outline:
-1. 1. 读取Linux文件
-2. 2. 读取Windows文件
-3. 3. 读取Web配置
-4. 4. 读取源代码
-## XXE外部DTD利用
+1. 1. XXE testing guidanceLinuxXXE testing guidance
+2. 2. XXE testing guidanceWindowsXXE testing guidance
+3. 3. XXE testing guidanceWebXXE testing guidance
+4. 4. XXE testing guidance
+## XXEXXE testing guidanceDTDXXE testing guidance
 - ID: xxe-dtd
 - Difficulty: intermediate
-- Subcategory: 外部DTD
+- Subcategory: XXE testing guidanceDTD
 - Tags: xxe, dtd, external, xml
 - Original Extracted Source: original extracted web-security-wiki source/xxe-dtd.md
 Description:
-利用外部DTD文件进行XXE攻击
+XXE testing guidanceDTDXXE testing guidanceXXEXXE testing guidance
 Prerequisites:
-- 存在XXE漏洞
-- 可访问外部DTD
+- XXE testing guidanceXXEXXE testing guidance
+- XXE testing guidanceDTD
 Execution Outline:
-1. 1. 托管恶意DTD
-2. 2. 引用外部DTD
-3. 3. 多步骤外带
-4. 4. 错误消息泄露
-## XLSX文件XXE
+1. 1. XXE testing guidanceDTD
+2. 2. XXE testing guidanceDTD
+3. 3. XXE testing guidance
+4. 4. XXE testing guidance
+## XLSXXXE testing guidanceXXE
 - ID: xxe-xlsx
 - Difficulty: intermediate
-- Subcategory: XLSX文件XXE
+- Subcategory: XLSXXXE testing guidanceXXE
 - Tags: xxe, xlsx, excel, office
 - Original Extracted Source: original extracted web-security-wiki source/xxe-xlsx.md
 Description:
-利用XLSX文件进行XXE攻击
+XXE testing guidanceXLSXXXE testing guidanceXXEXXE testing guidance
 Prerequisites:
-- 应用解析XLSX文件
-- 存在XXE漏洞
+- XXE testing guidanceXLSXXXE testing guidance
+- XXE testing guidanceXXEXXE testing guidance
 Execution Outline:
-1. 1. 解压XLSX文件
-2. 2. 注入XXE Payload
-## DOCX文件XXE
+1. 1. XXE testing guidanceXLSXXXE testing guidance
+2. 2. XXE testing guidanceXXE Payload
+## DOCXXXE testing guidanceXXE
 - ID: xxe-docx
 - Difficulty: intermediate
-- Subcategory: DOCX文件XXE
+- Subcategory: DOCXXXE testing guidanceXXE
 - Tags: xxe, docx, word, office
 - Original Extracted Source: original extracted web-security-wiki source/xxe-docx.md
 Description:
-利用DOCX文件进行XXE攻击
+XXE testing guidanceDOCXXXE testing guidanceXXEXXE testing guidance
 Prerequisites:
-- 应用解析DOCX文件
-- 存在XXE漏洞
+- XXE testing guidanceDOCXXXE testing guidance
+- XXE testing guidanceXXEXXE testing guidance
 Execution Outline:
-1. 1. 解压DOCX文件
-2. 2. 注入XXE Payload
+1. 1. XXE testing guidanceDOCXXXE testing guidance
+2. 2. XXE testing guidanceXXE Payload
 

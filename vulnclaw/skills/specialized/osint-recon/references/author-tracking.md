@@ -1,19 +1,19 @@
-# 作者追踪方法
+# reconnaissance guidance
 
-## 核心流程
+## reconnaissance guidance
 
 ```
-页面提取作者标识 → 确定唯一标识符(用户名/邮箱) → 跨平台搜索 → 信息汇总
+reconnaissance guidance → reconnaissance guidance(reconnaissance guidance/reconnaissance guidance) → reconnaissance guidance → reconnaissance guidance
 ```
 
-## Step 1: 从页面提取作者标识
+## Step 1: reconnaissance guidance
 
-### HTML Meta 标签
+### HTML Meta reconnaissance guidance
 ```python
 import re
 
 def extract_author_from_meta(html):
-    """从 HTML meta 标签提取作者信息"""
+    """reconnaissance guidance HTML meta reconnaissance guidance"""
     authors = []
     
     # <meta name="author" content="XXX">
@@ -24,18 +24,18 @@ def extract_author_from_meta(html):
     m = re.findall(r'<meta\s+name=["\']copyright["\']\s+content=["\']([^"\']+)["\']', html)
     authors.extend(m)
     
-    # OG 标签
+    # OG reconnaissance guidance
     m = re.findall(r'<meta\s+property=["\']article:author["\']\s+content=["\']([^"\']+)["\']', html)
     authors.extend(m)
     
     return list(set(authors))
 ```
 
-### 页面链接提取
+### reconnaissance guidance
 ```python
 def extract_social_links(html):
-    """从页面提取社交媒体链接"""
-    links = re.findall(r'href=["\'](https?://[^"\']+)["\']', html)
+    """reconnaissance guidance"""
+    links = re.findall(r'href=["\'](https ://[^"\']+)["\']', html)
     
     social = {}
     for link in links:
@@ -59,14 +59,14 @@ def extract_social_links(html):
     return social
 ```
 
-## Step 2: GitHub 追踪
+## Step 2: GitHub reconnaissance guidance
 
-### 用户信息 API
+### reconnaissance guidance API
 ```python
 import requests
 
 def get_github_profile(username):
-    """获取 GitHub 用户公开信息"""
+    """reconnaissance guidance GitHub reconnaissance guidance"""
     r = requests.get(f"https://api.github.com/users/{username}")
     if r.status_code != 200:
         return None
@@ -87,8 +87,8 @@ def get_github_profile(username):
     }
 
 def get_github_repos(username):
-    """获取用户公开仓库（推断技术栈）"""
-    r = requests.get(f"https://api.github.com/users/{username}/repos?per_page=100")
+    """reconnaissance guidance（reconnaissance guidance）"""
+    r = requests.get(f"https://api.github.com/users/{username}/repos per_page=100")
     if r.status_code != 200:
         return []
     
@@ -106,11 +106,11 @@ def get_github_repos(username):
     }
 ```
 
-### 从 GitHub 提交记录提取邮箱
+### reconnaissance guidance GitHub reconnaissance guidance
 ```python
 def get_github_commit_email(username, repo):
-    """从 GitHub 提交记录提取作者邮箱"""
-    r = requests.get(f"https://api.github.com/repos/{username}/{repo}/commits?per_page=10")
+    """reconnaissance guidance GitHub reconnaissance guidance"""
+    r = requests.get(f"https://api.github.com/repos/{username}/{repo}/commits per_page=10")
     if r.status_code != 200:
         return []
     
@@ -123,63 +123,63 @@ def get_github_commit_email(username, repo):
     return list(emails)
 ```
 
-## Step 3: 跨平台关联
+## Step 3: reconnaissance guidance
 
-### 用用户名搜索其他平台
+### reconnaissance guidance
 ```python
-# 常见平台检测
+# reconnaissance guidance
 PLATFORMS = {
     'GitHub': 'https://github.com/{username}',
-    'B站': 'https://space.bilibili.com/search?keyword={username}',
-    '知乎': 'https://www.zhihu.com/search?type=content&q={username}',
+    'Breconnaissance guidance': 'https://space.bilibili.com/search keyword={username}',
+    'reconnaissance guidance': 'https://www.zhihu.com/search type=content&q={username}',
     'CSDN': 'https://blog.csdn.net/{username}',
-    '掘金': 'https://juejin.cn/user/{username}',
+    'reconnaissance guidance': 'https://juejin.cn/user/{username}',
     'Twitter': 'https://twitter.com/{username}',
     'LinkedIn': 'https://www.linkedin.com/in/{username}',
 }
 
 async def cross_platform_search(username, fetch_tool):
-    """用用户名在多个平台搜索"""
+    """reconnaissance guidance"""
     results = {}
     for platform, url_template in PLATFORMS.items():
         url = url_template.format(username=username)
         try:
             resp = await fetch_tool(url=url)
             if resp.get('status') == 200:
-                results[platform] = f"✅ 找到 ({url})"
+                results[platform] = f"✅ reconnaissance guidance ({url})"
             else:
-                results[platform] = f"❌ 未找到"
+                results[platform] = f"❌ reconnaissance guidance"
         except:
-            results[platform] = f"⚠️ 检测失败"
+            results[platform] = f"⚠️ reconnaissance guidance"
     return results
 ```
 
-## Step 4: 信息汇总模板
+## Step 4: reconnaissance guidance
 
 ```markdown
-## 人物画像：{昵称}
+## reconnaissance guidance：{reconnaissance guidance}
 
-### 基础信息
-- **昵称**：xxx
-- **真实姓名**：xxx（如有）
-- **邮箱**：xxx
-- **位置**：xxx
-- **职业/公司**：xxx
+### reconnaissance guidance
+- **reconnaissance guidance**：xxx
+- **reconnaissance guidance**：xxx（reconnaissance guidance）
+- **reconnaissance guidance**：xxx
+- **reconnaissance guidance**：xxx
+- **reconnaissance guidance/reconnaissance guidance**：xxx
 
-### 技术画像
-- **主力语言**：Python / JavaScript / ...
-- **技术栈偏好**：...
-- **开源贡献**：N 个仓库，M 颗星
-- **感兴趣领域**：...
+### reconnaissance guidance
+- **reconnaissance guidance**：Python / JavaScript / ...
+- **reconnaissance guidance**：...
+- **reconnaissance guidance**：N reconnaissance guidance，M reconnaissance guidance
+- **reconnaissance guidance**：...
 
-### 社交媒体
+### reconnaissance guidance
 - GitHub: xxx
-- B站: xxx
-- 知乎: xxx
+- Breconnaissance guidance: xxx
+- reconnaissance guidance: xxx
 - ...
 
-### 关联信息
-- 跨平台相同 ID：xxx
-- 已知项目：xxx
-- 历史泄露：xxx
+### reconnaissance guidance
+- reconnaissance guidance ID：xxx
+- reconnaissance guidance：xxx
+- reconnaissance guidance：xxx
 ```

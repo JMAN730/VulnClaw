@@ -1,6 +1,6 @@
-# CTFd 平台操作指南
+# CTFd CTF challenge guidance
 
-## CTFd API 基础
+## CTFd API CTF challenge guidance
 
 ```python
 import requests
@@ -9,7 +9,7 @@ CTFD_URL = "https://ctf.example.com"
 session = requests.Session()
 
 def login(username, password):
-    """登录 CTFd"""
+    """CTF challenge guidance CTFd"""
     r = session.post(f"{CTFD_URL}/login", data={
         "name": username,
         "password": password,
@@ -17,27 +17,27 @@ def login(username, password):
     return r
 
 def get_challenges():
-    """获取所有题目"""
+    """CTF challenge guidance"""
     r = session.get(f"{CTFD_URL}/api/v1/challenges")
     return r.json()
 
 def get_challenge_detail(chal_id):
-    """获取单个题目详情"""
+    """CTF challenge guidance"""
     r = session.get(f"{CTFD_URL}/api/v1/challenges/{chal_id}")
     return r.json()
 
 def get_challenge_files(chal_id):
-    """获取题目附件"""
+    """CTF challenge guidance"""
     r = session.get(f"{CTFD_URL}/api/v1/challenges/{chal_id}/files")
     return r.json()
 
 def download_file(file_id):
-    """下载题目文件"""
+    """CTF challenge guidance"""
     r = session.get(f"{CTFD_URL}/api/v1/files/{file_id}")
     return r.content
 
 def submit_flag(flag):
-    """提交 flag"""
+    """CTF challenge guidance flag"""
     r = session.post(f"{CTFD_URL}/api/v1/challenges/attempt", json={
         "challenge_id": chal_id,
         "submission": flag,
@@ -45,21 +45,21 @@ def submit_flag(flag):
     return r.json()
 
 def get_scoreboard():
-    """获取排行榜"""
+    """CTF challenge guidance"""
     r = session.get(f"{CTFD_URL}/api/v1/scoreboard")
     return r.json()
 
 def get_user_info():
-    """获取当前用户信息"""
+    """CTF challenge guidance"""
     r = session.get(f"{CTFD_URL}/api/v1/users/me")
     return r.json()
 ```
 
-## 检测平台类型
+## CTF challenge guidance
 
 ```python
 def detect_platform(url):
-    """检测 CTF 平台类型"""
+    """CTF challenge guidance CTF CTF challenge guidance"""
     # CTFd
     r = requests.get(f"{url}/login")
     if 'ctfd' in r.text.lower() or 'csrf_token' in r.text:
@@ -73,23 +73,23 @@ def detect_platform(url):
     return "Unknown"
 ```
 
-## 常见 CTFd API
+## CTF challenge guidance CTFd API
 
 ```
-GET  /api/v1/challenges          # 所有题目
-GET  /api/v1/challenges/{id}     # 题目详情
-GET  /api/v1/challenges/{id}/files # 题目文件
-POST /api/v1/challenges/attempt  # 提交 flag
-GET  /api/v1/scoreboard          # 排行榜
-GET  /api/v1/users/me            # 当前用户
-GET  /api/v1/notifications       # 公告
+GET  /api/v1/challenges          # CTF challenge guidance
+GET  /api/v1/challenges/{id}     # CTF challenge guidance
+GET  /api/v1/challenges/{id}/files # CTF challenge guidance
+POST /api/v1/challenges/attempt  # CTF challenge guidance flag
+GET  /api/v1/scoreboard          # CTF challenge guidance
+GET  /api/v1/users/me            # CTF challenge guidance
+GET  /api/v1/notifications       # CTF challenge guidance
 ```
 
-## 批量下载附件
+## CTF challenge guidance
 
 ```python
 def download_all_files(url, output_dir):
-    """批量下载所有题目附件"""
+    """CTF challenge guidance"""
     import os
     os.makedirs(output_dir, exist_ok=True)
 
@@ -108,11 +108,11 @@ def download_all_files(url, output_dir):
             print(f"Failed to download challenge {chal_id}: {e}")
 ```
 
-## 自动解题模板
+## CTF challenge guidance
 
 ```python
 def auto_solve(url, username, password, solve_func):
-    """自动解题模板
+    """CTF challenge guidance
 
     solve_func(challenge_data) -> flag
     """

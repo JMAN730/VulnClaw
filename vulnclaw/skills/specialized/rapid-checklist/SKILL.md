@@ -1,72 +1,72 @@
 ---
 name: rapid-checklist
-description: 渗透速查与Payload — 快速Payload家族、绕过提醒、验证顺序、常见测试卡片，适用于已知测试方向后快速查找
+description: rapid validation checklist guidancePayload — rapid validation checklist guidancePayloadrapid validation checklist guidance、rapid validation checklist guidance、rapid validation checklist guidance、rapid validation checklist guidance，rapid validation checklist guidance
 ---
 
-# 渗透速查与 Payload Skill
+# rapid validation checklist guidance Payload Skill
 
-**仅在路由已明确后使用**。本 Skill 用于快速查找，不替代方法论或工作流选择。
+**rapid validation checklist guidance**。rapid validation checklist guidance Skill rapid validation checklist guidance，rapid validation checklist guidance。
 
-## 使用场景
+## rapid validation checklist guidance
 
-- 快速回忆某类漏洞或阻塞点应该先看什么
-- 快速筛选 Payload 家族、绕过方向和验证顺序
-- 快速确认 AI、MCP、容器、WebSocket、JWT、文件、认证、SSRF 等常见测试卡片
-- 从"我知道要测什么"进入"我先从哪一类验证开始"
+- rapid validation checklist guidance
+- rapid validation checklist guidance Payload rapid validation checklist guidance、rapid validation checklist guidance
+- rapid validation checklist guidance AI、MCP、rapid validation checklist guidance、WebSocket、JWT、rapid validation checklist guidance、rapid validation checklist guidance、SSRF rapid validation checklist guidance
+- rapid validation checklist guidance"rapid validation checklist guidance"rapid validation checklist guidance"rapid validation checklist guidance"
 
-## 不适用场景
+## rapid validation checklist guidance
 
-- 替代场景分流 → 用 `pentest-flow`
-- 替代方法论决策 → 用对应专项 Skill
-- 请求未抓到、重放未稳定时盲测 → 先用 `client-reverse`
+- rapid validation checklist guidance → rapid validation checklist guidance `pentest-flow`
+- rapid validation checklist guidance → rapid validation checklist guidance Skill
+- rapid validation checklist guidance、rapid validation checklist guidance → rapid validation checklist guidance `client-reverse`
 
-## CTF 专项速查
+## CTF rapid validation checklist guidance
 
-> CTF 题目优先用 `ctf-web` / `ctf-crypto` / `ctf-misc` Skill，以下为快速卡片：
+> CTF rapid validation checklist guidance `ctf-web` / `ctf-crypto` / `ctf-misc` Skill，rapid validation checklist guidance：
 
-| 场景 | 快速定位 |
+| rapid validation checklist guidance | rapid validation checklist guidance |
 |------|---------|
-| PHP 弱比较 → 0e 开头 MD5 值 | `ctf-web` → `php-bypass-cheatsheet.md` |
-| 命令注入空格绕过 → ${IFS}/$IFS$9/< | `ctf-web` → `command-injection-bypass.md` |
-| eval 无回显 → 写文件/DNS 外带 | `ctf-web` → `eval-and-rce-techniques.md` |
-| RSA 小指数 → 立方根/Coppersmith | `ctf-crypto` → `rsa-attacks-cheatsheet.md` |
+| PHP rapid validation checklist guidance → 0e rapid validation checklist guidance MD5 rapid validation checklist guidance | `ctf-web` → `php-bypass-cheatsheet.md` |
+| rapid validation checklist guidance → ${IFS}/$IFS$9/< | `ctf-web` → `command-injection-bypass.md` |
+| eval rapid validation checklist guidance → rapid validation checklist guidance/DNS rapid validation checklist guidance | `ctf-web` → `eval-and-rce-techniques.md` |
+| RSA rapid validation checklist guidance → rapid validation checklist guidance/Coppersmith | `ctf-crypto` → `rsa-attacks-cheatsheet.md` |
 | Python Jail → `__import__`/func_globals | `ctf-misc` → `python-jail-escape.md` |
-| 编码链 → base64→hex→ROT13 多层 | `ctf-misc` → `encoding-chain-reference.md` |
+| rapid validation checklist guidance → base64→hex→ROT13 rapid validation checklist guidance | `ctf-misc` → `encoding-chain-reference.md` |
 
-## 快速路由卡片
+## rapid validation checklist guidance
 
-### Web 注入 / 输出执行
-- SQLi → `'`, `"`, `)`, 布尔差异, 时间差异, 报错差异
+### Web rapid validation checklist guidance / rapid validation checklist guidance
+- SQLi → `'`, `"`, `)`, rapid validation checklist guidance, rapid validation checklist guidance, rapid validation checklist guidance
 - XSS → `<script>`, `<img onerror>`, `javascript:`, DOM sink
-- 命令注入 → `;id`, `|id`, `` `id` ``, `$(id)`
-- SSTI → `{{7*7}}`, `${7*7}`, `<%= 7*7 %>`, 模板引擎指纹
-- XXE → `<!ENTITY>`, 参数实体, OOB 外带
+- rapid validation checklist guidance → `;id`, `|id`, `` `id` ``, `$(id)`
+- SSTI → `{{7*7}}`, `${7*7}`, `<%= 7*7 %>`, rapid validation checklist guidance
+- XXE → `<!ENTITY>`, rapid validation checklist guidance, OOB rapid validation checklist guidance
 
-### 认证 / 逻辑 / Token
-- JWT → none算法, 算法篡改, 密钥爆破, jku/x5u 注入
-- CSRF → 缺少 Token, Token 可预测, Referer 校验缺陷
-- IDOR → 修改 ID 参数, 批量遍历
-- 支付逻辑 → 金额篡改, 负数, 竞态
+### rapid validation checklist guidance / rapid validation checklist guidance / Token
+- JWT → nonerapid validation checklist guidance, rapid validation checklist guidance, rapid validation checklist guidance, jku/x5u rapid validation checklist guidance
+- CSRF → rapid validation checklist guidance Token, Token rapid validation checklist guidance, Referer rapid validation checklist guidance
+- IDOR → rapid validation checklist guidance ID rapid validation checklist guidance, rapid validation checklist guidance
+- rapid validation checklist guidance → rapid validation checklist guidance, rapid validation checklist guidance, rapid validation checklist guidance
 
-### 浏览器签名 / 反爬
-- 先用 `client-reverse` 稳定重放
-- 阶段: locate → recover → runtime → validation
+### rapid validation checklist guidance / rapid validation checklist guidance
+- rapid validation checklist guidance `client-reverse` rapid validation checklist guidance
+- rapid validation checklist guidance: locate → recover → runtime → validation
 
-### 安卓运行态 / 签名恢复
-- 先用 `client-reverse` runtime-first 路径
-- 只有抓不到包/加密/无法重放时再逆向
+### rapid validation checklist guidance / rapid validation checklist guidance
+- rapid validation checklist guidance `client-reverse` runtime-first rapid validation checklist guidance
+- rapid validation checklist guidance/rapid validation checklist guidance/rapid validation checklist guidance
 
 ### AI / MCP
-- Prompt 注入 → 直接/间接/CoT 干扰
-- 工具滥用 → MCP 投毒/指令覆盖
-- 身份逃逸 → 角色越界/权限漂移
+- Prompt rapid validation checklist guidance → rapid validation checklist guidance/rapid validation checklist guidance/CoT rapid validation checklist guidance
+- rapid validation checklist guidance → MCP rapid validation checklist guidance/rapid validation checklist guidance
+- rapid validation checklist guidance → rapid validation checklist guidance/rapid validation checklist guidance
 
-### 内网 / AD
-- 先用 `intranet-pentest-advanced`
-- 工具不确定时补看 `pentest-tools`
+### rapid validation checklist guidance / AD
+- rapid validation checklist guidance `intranet-pentest-advanced`
+- rapid validation checklist guidance `pentest-tools`
 
-## 参考文档
+## rapid validation checklist guidance
 
-- `references/08-rapid-checklists-and-payloads.md` — 速查与 Payload 整合参考
-- `references/payloads.md` — Payload 详细集合
-- `references/testing-methodology.md` — 测试方法论
+- `references/08-rapid-checklists-and-payloads.md` — rapid validation checklist guidance Payload rapid validation checklist guidance
+- `references/payloads.md` — Payload rapid validation checklist guidance
+- `references/testing-methodology.md` — rapid validation checklist guidance

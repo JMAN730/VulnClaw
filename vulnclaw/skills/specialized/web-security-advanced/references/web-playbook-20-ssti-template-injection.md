@@ -1,166 +1,166 @@
-# SSTI模板注入
+# SSTISSTI testing guidance
 English: SSTI Template Injection
 - Entry Count: 10
 - Use this file to shortlist relevant payloads, then open the linked source markdown for the full workflow and commands.
-## Jinja2模板注入
+## Jinja2SSTI testing guidance
 - ID: ssti-jinja2
 - Difficulty: advanced
 - Subcategory: Jinja2
 - Tags: ssti, jinja2, twig, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-jinja2.md
 Description:
-Jinja2/Twig模板注入攻击技术
+Jinja2/TwigSSTI testing guidance
 Prerequisites:
-- 使用Jinja2/Twig模板引擎
-- 用户输入直接渲染到模板
+- SSTI testing guidanceJinja2/TwigSSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行
-4. 4. 反弹Shell
-## FreeMarker模板注入
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance
+4. 4. SSTI testing guidanceShell
+## FreeMarkerSSTI testing guidance
 - ID: ssti-freemarker
 - Difficulty: intermediate
 - Subcategory: FreeMarker
 - Tags: ssti, freemarker, java, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-freemarker.md
 Description:
-FreeMarker模板引擎注入攻击技术
+FreeMarkerSSTI testing guidance
 Prerequisites:
-- 使用FreeMarker模板引擎
-- 用户输入直接渲染到模板
+- SSTI testing guidanceFreeMarkerSSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行 - new
-4. 4. 命令执行 - api
-## Velocity模板注入
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance - new
+4. 4. SSTI testing guidance - api
+## VelocitySSTI testing guidance
 - ID: ssti-velocity
 - Difficulty: advanced
 - Subcategory: Velocity
 - Tags: ssti, velocity, java, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-velocity.md
 Description:
-Velocity模板引擎注入攻击技术
+VelocitySSTI testing guidance
 Prerequisites:
-- 使用Velocity模板引擎
-- 用户输入直接渲染到模板
+- SSTI testing guidanceVelocitySSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行 - ClassTool
-4. 4. 命令执行 - 反射
-## Thymeleaf模板注入
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance - ClassTool
+4. 4. SSTI testing guidance - SSTI testing guidance
+## ThymeleafSSTI testing guidance
 - ID: ssti-thymeleaf
 - Difficulty: intermediate
 - Subcategory: Thymeleaf
 - Tags: ssti, thymeleaf, java, spring, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-thymeleaf.md
 Description:
-Thymeleaf模板引擎注入攻击技术
+ThymeleafSSTI testing guidance
 Prerequisites:
-- 使用Thymeleaf模板引擎
-- Spring框架
-- 用户输入直接渲染到模板
+- SSTI testing guidanceThymeleafSSTI testing guidance
+- SpringSSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行 - Spring表达式
-4. 4. 命令执行 - ProcessBuilder
-## Smarty模板注入
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance - SpringSSTI testing guidance
+4. 4. SSTI testing guidance - ProcessBuilder
+## SmartySSTI testing guidance
 - ID: ssti-smarty
 - Difficulty: intermediate
 - Subcategory: Smarty
 - Tags: ssti, smarty, php, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-smarty.md
 Description:
-Smarty模板引擎注入攻击技术
+SmartySSTI testing guidance
 Prerequisites:
-- 使用Smarty模板引擎
-- 用户输入直接渲染到模板
+- SSTI testing guidanceSmartySSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行 - system
-4. 4. 命令执行 - passthru
-## Mako模板注入
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance - system
+4. 4. SSTI testing guidance - passthru
+## MakoSSTI testing guidance
 - ID: ssti-mako
 - Difficulty: intermediate
 - Subcategory: Mako
 - Tags: ssti, mako, python, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-mako.md
 Description:
-Mako模板引擎注入攻击技术
+MakoSSTI testing guidance
 Prerequisites:
-- 使用Mako模板引擎
-- 用户输入直接渲染到模板
+- SSTI testing guidanceMakoSSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行 - os模块
-4. 4. 命令执行 - subprocess
-## Tornado模板注入
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance - osSSTI testing guidance
+4. 4. SSTI testing guidance - subprocess
+## TornadoSSTI testing guidance
 - ID: ssti-tornado
 - Difficulty: intermediate
 - Subcategory: Tornado
 - Tags: ssti, tornado, python, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-tornado.md
 Description:
-Tornado模板引擎注入攻击技术
+TornadoSSTI testing guidance
 Prerequisites:
-- 使用Tornado模板引擎
-- 用户输入直接渲染到模板
+- SSTI testing guidanceTornadoSSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行 - os
-4. 4. 命令执行 - subprocess
-## Django模板注入
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance - os
+4. 4. SSTI testing guidance - subprocess
+## DjangoSSTI testing guidance
 - ID: ssti-django
 - Difficulty: intermediate
 - Subcategory: Django
 - Tags: ssti, django, python, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-django.md
 Description:
-Django模板引擎注入攻击技术
+DjangoSSTI testing guidance
 Prerequisites:
-- 使用Django模板引擎
-- 用户输入直接渲染到模板
+- SSTI testing guidanceDjangoSSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行 - 通过settings
-4. 4. 命令执行 - 对象链
-## ERB模板注入
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance - SSTI testing guidancesettings
+4. 4. SSTI testing guidance - SSTI testing guidance
+## ERBSSTI testing guidance
 - ID: ssti-erb
 - Difficulty: intermediate
 - Subcategory: ERB
 - Tags: ssti, erb, ruby, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-erb.md
 Description:
-ERB(Ruby)模板引擎注入攻击技术
+ERB(Ruby)SSTI testing guidance
 Prerequisites:
-- 使用ERB模板引擎
-- 用户输入直接渲染到模板
+- SSTI testing guidanceERBSSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行 - 反引号
-4. 4. 命令执行 - system
-## Pug/Jade模板注入
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance - SSTI testing guidance
+4. 4. SSTI testing guidance - system
+## Pug/JadeSSTI testing guidance
 - ID: ssti-pug
 - Difficulty: intermediate
 - Subcategory: Pug
 - Tags: ssti, pug, jade, nodejs, template
 - Original Extracted Source: original extracted web-security-wiki source/ssti-pug.md
 Description:
-Pug/Jade模板引擎注入攻击技术
+Pug/JadeSSTI testing guidance
 Prerequisites:
-- 使用Pug/Jade模板引擎
-- 用户输入直接渲染到模板
+- SSTI testing guidancePug/JadeSSTI testing guidance
+- SSTI testing guidance
 Execution Outline:
-1. 1. 探测SSTI
-2. 2. 信息收集
-3. 3. 命令执行 - child_process
-4. 4. 命令执行 - execSync
+1. 1. SSTI testing guidanceSSTI
+2. 2. SSTI testing guidance
+3. 3. SSTI testing guidance - child_process
+4. 4. SSTI testing guidance - execSync
 

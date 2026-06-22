@@ -1,9 +1,9 @@
-# 游戏与自定义 VM 逆向
+# CTF challenge guidance VM CTF challenge guidance
 
 ## Brainfuck
 
 ```python
-# Brainfuck 解释器
+# Brainfuck CTF challenge guidance
 import sys
 
 def brainfuck(code, input_data=''):
@@ -58,39 +58,39 @@ def brainfuck(code, input_data=''):
 ## Ook!
 
 ```python
-# Ook! 到 Brainfuck 转换
+# Ook! CTF challenge guidance Brainfuck CTF challenge guidance
 ook_to_bf = {
-    'Ook. Ook?': '>',
-    'Ook? Ook.': '<',
+    'Ook. Ook ': '>',
+    'Ook  Ook.': '<',
     'Ook. Ook.': '+',
     'Ook! Ook!': '-',
     'Ook! Ook.': '.',
     'Ook. Ook!': ',',
-    'Ook! Ook?': '[',
-    'Ook? Ook!': ']',
+    'Ook! Ook ': '[',
+    'Ook  Ook!': ']',
 }
 ```
 
-## 自定义 VM逆向流程
+## CTF challenge guidance VMCTF challenge guidance
 
 ```python
-# 分析自定义 VM 的步骤：
-# 1. 找到 opcode 定义表
-# 2. 找到 VM 初始化代码（寄存器、内存初始化）
-# 3. 跟踪 main loop，找到指令分发
-# 4. 分析每个 opcode 的功能
-# 5. 提取 bytecode 文件
-# 6. 写反汇编器或直接模拟执行
+# CTF challenge guidance VM CTF challenge guidance：
+# 1. CTF challenge guidance opcode CTF challenge guidance
+# 2. CTF challenge guidance VM CTF challenge guidance（CTF challenge guidance、CTF challenge guidance）
+# 3. CTF challenge guidance main loop，CTF challenge guidance
+# 4. CTF challenge guidance opcode CTF challenge guidance
+# 5. CTF challenge guidance bytecode CTF challenge guidance
+# 6. CTF challenge guidance
 
 """
-常见 opcode 模式：
+CTF challenge guidance opcode CTF challenge guidance：
 0x00 = NOP
-0x01 = LOAD  (加载数据)
-0x02 = STORE (存储数据)
+0x01 = LOAD  (CTF challenge guidance)
+0x02 = STORE (CTF challenge guidance)
 0x03 = ADD
 0x04 = SUB
 0x05 = JMP
-0x06 = JZ    (条件跳转)
+0x06 = JZ    (CTF challenge guidance)
 0x07 = HALT
 """
 
@@ -98,7 +98,7 @@ class SimpleVM:
     def __init__(self, bytecode):
         self.bytecode = bytecode
         self.regs = [0] * 8
-        self.memory = bytecode[256:]  # 假设代码后是数据
+        self.memory = bytecode[256:]  # CTF challenge guidance
         self.pc = 0
         self.running = True
 
@@ -122,13 +122,13 @@ class SimpleVM:
             self.step()
 ```
 
-## Z3 约束求解
+## Z3 CTF challenge guidance
 
 ```python
 from z3 import *
 
 def solve_with_z3(constraints, variables):
-    """使用 Z3 求解约束"""
+    """CTF challenge guidance Z3 CTF challenge guidance"""
     s = Solver()
     for constraint in constraints:
         s.add(constraint)
@@ -138,24 +138,24 @@ def solve_with_z3(constraints, variables):
     return None
 ```
 
-## WASM 分析
+## WASM CTF challenge guidance
 
 ```python
-# 常用 wasm 分析命令
+# CTF challenge guidance wasm CTF challenge guidance
 """
-# 提取 wasm 字符串
+# CTF challenge guidance wasm CTF challenge guidance
 strings game.wasm | grep -i flag
 
-# 查看导出函数
+# CTF challenge guidance
 wasm-objdump -h game.wasm
 
-# 反编译为 wasm 文本格式
+# CTF challenge guidance wasm CTF challenge guidance
 wasm2wat game.wasm -o game.wat
 
-# 查看函数
+# CTF challenge guidance
 wasm-objdump -d game.wasm
 
-# 用 wasmer 或 wasmtime 执行
+# CTF challenge guidance wasmer CTF challenge guidance wasmtime CTF challenge guidance
 wasmer game.wasm
 """
 ```
