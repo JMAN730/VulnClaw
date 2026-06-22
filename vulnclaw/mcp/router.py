@@ -1,41 +1,40 @@
-"""VulnClaw MCP Router — route natural language intents to MCP tool calls."""
+"""VulnClaw MCP Router - route natural language intents to MCP tool calls."""
 
 from __future__ import annotations
 
 import re
 from typing import Any, Optional
 
-# ── Intent → Tool mapping ───────────────────────────────────────────
 
 INTENT_TOOL_MAP: dict[str, list[dict[str, Any]]] = {
     # Browser automation
-    "打开网页|访问url|访问页面|navigate": [
+    "open page|open url|visit url|visit page|navigate|browse": [
         {"tool": "new_page", "server": "chrome-devtools"},
         {"tool": "navigate", "server": "chrome-devtools"},
     ],
-    "截图|screenshot|截屏": [
+    "screenshot|capture screen|screen capture": [
         {"tool": "screenshot", "server": "chrome-devtools"},
     ],
-    "执行js|eval js|运行javascript": [
+    "execute js|eval js|run javascript|evaluate javascript": [
         {"tool": "evaluate_js", "server": "chrome-devtools"},
     ],
     # HTTP requests
-    "发请求|http请求|fetch|访问接口|调用api": [
+    "send request|http request|fetch|call api|request endpoint": [
         {"tool": "fetch", "server": "fetch"},
         {"tool": "send_http1_request", "server": "burp"},
     ],
     # Burp Suite
-    "抓包|查看请求|拦截请求|proxy": [
+    "proxy history|inspect request|intercept request|proxy": [
         {"tool": "get_proxy_history", "server": "burp"},
     ],
-    "修改数据包|重放|replay|篡改": [
+    "modify request|replay|tamper|resend request": [
         {"tool": "send_http1_request", "server": "burp"},
     ],
     # Memory
-    "记住|记录|save memory": [
+    "remember|record|save memory": [
         {"tool": "save", "server": "memory"},
     ],
-    "回忆|查询记录|retrieve memory": [
+    "recall|retrieve memory|lookup memory": [
         {"tool": "retrieve", "server": "memory"},
     ],
 }
@@ -45,10 +44,7 @@ class MCPRouter:
     """Routes natural language intents to MCP tool calls."""
 
     def route(self, user_input: str) -> list[dict[str, Any]]:
-        """Analyze user input and return suggested tool calls.
-
-        Returns a list of dicts with keys: tool, server, confidence.
-        """
+        """Analyze user input and return suggested tool calls."""
         input_lower = user_input.lower()
         results = []
 
@@ -78,21 +74,27 @@ class MCPRouter:
 
     def suggest_tools_for_phase(self, phase: str) -> list[dict[str, Any]]:
         """Suggest tools based on pentest phase."""
+        phase_key = phase.strip().lower().replace("_", " ")
         phase_tools = {
-            "信息收集": [
-                {"tool": "fetch", "server": "fetch", "reason": "HTTP 请求探测目标"},
-                {"tool": "new_page", "server": "chrome-devtools", "reason": "浏览器访问目标"},
-                {"tool": "screenshot", "server": "chrome-devtools", "reason": "截图记录目标页面"},
+            "recon": [
+                {"tool": "fetch", "server": "fetch", "reason": "Probe the target over HTTP"},
+                {"tool": "new_page", "server": "chrome-devtools", "reason": "Open the target in a browser"},
+                {"tool": "screenshot", "server": "chrome-devtools", "reason": "Capture evidence from the target page"},
             ],
-            "漏洞发现": [
-                {"tool": "fetch", "server": "fetch", "reason": "发送漏洞探测请求"},
-                {"tool": "send_http1_request", "server": "burp", "reason": "通过代理构造检测请求"},
+            "reconnaissance": [
+                {"tool": "fetch", "server": "fetch", "reason": "Probe the target over HTTP"},
+                {"tool": "new_page", "server": "chrome-devtools", "reason": "Open the target in a browser"},
+                {"tool": "screenshot", "server": "chrome-devtools", "reason": "Capture evidence from the target page"},
             ],
-            "漏洞利用": [
-                {"tool": "send_http1_request", "server": "burp", "reason": "构造利用请求"},
-                {"tool": "fetch", "server": "fetch", "reason": "发送利用 payload"},
-                {"tool": "evaluate_js", "server": "chrome-devtools", "reason": "浏览器内利用"},
+            "vulnerability discovery": [
+                {"tool": "fetch", "server": "fetch", "reason": "Send vulnerability probe requests"},
+                {"tool": "send_http1_request", "server": "burp", "reason": "Build detection requests through the proxy"},
+            ],
+            "exploitation": [
+                {"tool": "send_http1_request", "server": "burp", "reason": "Build exploit requests"},
+                {"tool": "fetch", "server": "fetch", "reason": "Send exploit payloads"},
+                {"tool": "evaluate_js", "server": "chrome-devtools", "reason": "Validate browser-side exploit behavior"},
             ],
         }
 
-        return phase_tools.get(phase, [])
+        return phase_tools.get(phase_key, [])

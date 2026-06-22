@@ -1,4 +1,4 @@
-"""VulnClaw PoC Builder — auto-generate runnable PoC scripts for findings."""
+"""VulnClaw PoC Builder - auto-generate runnable PoC scripts for findings."""
 
 from __future__ import annotations
 

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "vulnclaw"
 version = "0.3.1"
-description = "🦞 AI-powered penetration testing CLI tool for cybersecurity professionals"
+description = "AI-powered penetration testing CLI tool for cybersecurity professionals"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
@@ -36,8 +36,8 @@ dependencies = [
     "toml>=0.10.0",
     "jinja2>=3.1.0",
     "textual>=0.40.0",
-    # ── 沙箱依赖（python_execute 运行时）──────────────────────────────
-    # LLM 在 python_execute 中可直接 import 以下库
+    # Sandbox runtime dependencies for python_execute
+    # Libraries available to LLM-generated code inside python_execute
     "beautifulsoup4>=4.12.0",
     "lxml>=4.9.0",
     "pycryptodome>=3.19.0",

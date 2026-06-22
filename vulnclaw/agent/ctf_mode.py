@@ -26,27 +26,19 @@ def update_ctf_state(agent, response_text: str, result_should_continue: bool) ->
     """Update flag claim/verification state and return should_continue."""
     if agent.runtime.claimed_flag and not agent.runtime.flag_verified:
         verification_markers = [
-            "验证成功",
-            "验证通过",
-            "已验证",
-            "复现成功",
-            "确认flag",
             "verified",
             "confirmed",
-            "flag正确",
-            "提交成功",
-            "flag 获取成功",
-            "flag获取成功",
-            "获取成功",
-            "找到flag",
+            "reproduced",
+            "flag confirmed",
+            "flag correct",
+            "submission accepted",
+            "flag retrieved",
+            "flag obtained",
             "flag found",
-            "成功获取",
-            "获取了flag",
-            "拿到了flag",
-            "成功拿到",
-            "成功找到",
-            "解题完成",
-            "解题成功",
+            "challenge solved",
+            "solve complete",
+            "successfully retrieved",
+            "successfully found",
         ]
         if any(marker in response_text.lower() for marker in verification_markers):
             agent.runtime.flag_verified = True

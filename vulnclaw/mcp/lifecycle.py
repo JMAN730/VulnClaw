@@ -1,4 +1,4 @@
-"""VulnClaw MCP Lifecycle Manager — start/stop MCP servers and manage their lifetime."""
+"""VulnClaw MCP Lifecycle Manager - start/stop MCP servers and manage their lifetime."""
 
 from __future__ import annotations
 
@@ -569,7 +569,7 @@ class MCPLifecycleManager:
     async def health_check(self, server_name: str) -> HealthStatus:
         """Evaluate and update a server's health from its recent success rate.
 
-        >90% success → healthy, 50-90% → degraded, <50% → unavailable.
+        >90% success -> healthy, 50-90% -> degraded, <50% -> unavailable.
         Servers with no recorded calls keep their current lifecycle status
         (starting/healthy/degraded) rather than being forced to a verdict.
         """
@@ -744,7 +744,7 @@ class MCPLifecycleManager:
             pass
 
     async def _terminate_process(self, proc: subprocess.Popen) -> None:
-        """Async wrapper: terminate, wait up to grace, then kill — without blocking the loop."""
+        """Async wrapper: terminate, wait up to grace, then kill - without blocking the loop."""
         if proc.poll() is not None:
             return
         try:
@@ -1003,9 +1003,9 @@ class MCPLifecycleManager:
             return result
 
         except ImportError:
-            return "[!] httpx 未安装，无法执行 fetch 请求"
+            return "[!] httpx is not installed; cannot execute fetch request"
         except Exception as e:
-            return f"[!] fetch 请求失败: {e}"
+            return f"[!] fetch request failed: {e}"
 
     async def _call_memory(self, tool_name: str, args: dict) -> str:
         """Execute a memory tool call (local implementation)."""
@@ -1015,11 +1015,11 @@ class MCPLifecycleManager:
 
         if tool_name == "save":
             store.save(args.get("key", ""), args.get("value", ""))
-            return f"[+] 已保存: {args.get('key', '')}"
+            return f"[+] Saved: {args.get('key', '')}"
         elif tool_name == "retrieve":
             value = store.retrieve(args.get("key", ""))
-            return str(value) if value else "[-] 未找到"
-        return "[!] 未知 memory 工具"
+            return str(value) if value else "[-] Not found"
+        return "[!] Unknown memory tool"
 
     async def _call_chrome(self, tool_name: str, args: dict) -> tuple[str, dict[str, Any] | None]:
         """Execute a Chrome DevTools tool call."""

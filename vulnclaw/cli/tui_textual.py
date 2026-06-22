@@ -1,13 +1,5 @@
 """Textual-powered TUI workbench for VulnClaw."""
 
-# [新增] 2026-06-10
-# 目的: 用 Textual 框架构建现代化全屏 TUI 工作台, 替代旧的 Rich 数字菜单循环
-# 实现:
-#   - CommandPalette: slash 命令模糊搜索 + 键盘导航面板
-#   - SecondaryPopup: 辅助信息弹窗(历史快照/诊断报告)
-#   - DashboardScreen: 主导航仪表盘, 集成命令输入行与状态栏
-#   - VulnClawApp: Textual App 入口, CSS 主题化样式
-#   - run_tui_textual(): 事件循环入口, 支持 launch 动作后自动重新加载配置
 
 from __future__ import annotations
 
@@ -24,7 +16,6 @@ from textual.widgets import Input, ListItem, ListView, RichLog, Static
 
 import vulnclaw.cli.tui as _tui
 
-# [新增] 2026-06-10 Nyaecho - 自然语言驱动 / 响应式侧边栏: 新增颜色常量和动作辅助函数导入
 from vulnclaw.cli.tui import (
     C_ACCENT,
     C_ERROR,
@@ -55,7 +46,7 @@ from vulnclaw.config.settings import (
 from vulnclaw.i18n import _, init_i18n
 from vulnclaw.target_state.store import get_target_state_preview, list_target_snapshots
 
-# ── Slash dispatch ──
+# -- Slash dispatch --
 
 _SLASH_HANDLERS: dict[str, Any] = {}
 
@@ -69,7 +60,6 @@ def _register_handler(cmd: str):
 
 def _dispatch(session: dict[str, Any], text: str) -> str | None:
     """Dispatch slash command. Returns 'quit', 'launch', or None."""
-    # [修改] 2026-06-10 Nyaecho - 修复空 parts 导致 IndexError 的问题
     parts = text.lstrip("/").strip().split(maxsplit=1)
     if not parts:
         return None
@@ -93,7 +83,7 @@ def _cancel_prompt(session: dict[str, Any]) -> None:
         prompt[3]()
 
 
-# ── Command palette widget ──
+# -- Command palette widget --
 
 class CommandPalette(ListView):
     """Dropdown slash-command palette shown on '/' input."""
@@ -131,7 +121,7 @@ class CommandPalette(ListView):
         return None
 
 
-# ── Secondary popup widget ──
+# -- Secondary popup widget --
 
 class SecondaryPopup(Vertical):
     """Secondary popup for parameter input when a slash command needs arguments.
@@ -326,7 +316,7 @@ class SecondaryPopup(Vertical):
         Completes the loading prompt, triggers the callback, then shows
         the next prompt (model choice or fallback input).
         """
-        # Complete the loading — this calls on_models_loaded(models)
+        # Complete the loading - this calls on_models_loaded(models)
         # and then _on_done (which is _post_popup_refresh)
         self.complete_loading(models)
 
@@ -395,7 +385,7 @@ class SecondaryPopup(Vertical):
             on_done = self._on_done
             self._on_done = None
             # Defer on_done so that async Widget.remove() triggered by
-            # _dismiss() → _clear_dynamic() can complete the actual DOM
+            # _dismiss() -> _clear_dynamic() can complete the actual DOM
             # removal before we try to mount a new widget with the same ID.
             # Without this, Textual raises DuplicateIds because the old
             # widget is still in _nodes_by_id when mount() runs.
@@ -459,14 +449,14 @@ class SecondaryPopup(Vertical):
                 event.stop()
                 self._cancel()
         elif self._ptype == "loading":
-            # Loading cannot be cancelled by user — ignore all keys
+            # Loading cannot be cancelled by user - ignore all keys
             event.stop()
         elif event.key == "escape":
             event.stop()
             self._cancel()
 
 
-# ── Handlers ──
+# -- Handlers --
 
 @_register_handler("quit")
 @_register_handler("exit")
@@ -502,7 +492,6 @@ def _h_mode(session: dict[str, Any], args: str) -> str | None:
 @_register_handler("scope")
 @_register_handler("s")
 def _h_scope(session: dict[str, Any], args: str) -> str | None:
-    # [修改] 2026-06-10 Nyaecho - 修复 /scope port 验证问题，添加端口验证防止 ValueError
     state = session["state"]
     if args:
         for pair in args.split():
@@ -554,7 +543,6 @@ def _h_start(session: dict[str, Any], args: str) -> str | None:
     mode = _tui.MODES[state.mode]
     if args in ("-f", "--force"):
         return "launch"
-    # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: /run <text> 将 text 作为 NL prompt 直接 launch
     if args:
         session["_nl_text"] = args
         session["_nl_history"] = args
@@ -611,7 +599,6 @@ def _h_diag(session: dict[str, Any], args: str) -> str | None:
 @_register_handler("config")
 @_register_handler("cfg")
 def _h_config(session: dict[str, Any], args: str) -> str | None:
-    # [修改] 重构 config 流程: 选择提供商 → 输入 API Key → 获取模型列表 → 选择/输入模型
     config = session["config"]
     providers = [item["provider"] for item in list_providers()]
     cur = config.llm.provider
@@ -621,7 +608,6 @@ def _h_config(session: dict[str, Any], args: str) -> str | None:
         if v and v != cur:
             config = apply_provider_preset(config, v)
             session["config"] = config
-        # 流程变更：选择提供商后先输入 API Key
         ks = _("tui.api_key_configured") if session["config"].llm.api_key else _("tui.api_key_not_configured")
         _set_prompt(session, "input", _("tui.prompt_enter_apikey", status=ks), on_apikey)
 
@@ -630,11 +616,9 @@ def _h_config(session: dict[str, Any], args: str) -> str | None:
             session["config"].llm.api_key = v.strip()
         base_url = session["config"].llm.base_url
         api_key = session["config"].llm.api_key
-        # custom 提供商或缺少 base_url 时跳过获取，直接手动输入
         if not base_url or not api_key:
             _set_prompt(session, "input", _("tui.prompt_enter_model_fallback", model=session["config"].llm.model), on_model_input, session["config"].llm.model)
             return
-        # 显示 loading，后台获取模型列表
         session["_fetch_models_args"] = (base_url, api_key)
         _set_prompt(session, "loading", _("tui.fetching_models"), on_models_loaded)
 
@@ -660,7 +644,7 @@ def _h_config(session: dict[str, Any], args: str) -> str | None:
     return None
 
 
-# ── Language switch handler ──
+# -- Language switch handler --
 
 _SUPPORTED_LANGUAGES = ["auto", "zh", "en"]
 
@@ -684,20 +668,20 @@ def _apply_language_textual(session: dict[str, Any], lang: str) -> None:
 @_register_handler("language")
 @_register_handler("lang")
 def _h_language(session: dict[str, Any], args: str) -> str | None:
-    """Handle /language command — switch UI language at runtime.
+    """Handle /language command - switch UI language at runtime.
 
-    /language         → popup with three choices (auto/zh/en)
-    /language zh      → direct switch to Chinese
-    /lang en          → direct switch to English
+    /language         -> popup with three choices (auto/zh/en)
+    /language zh      -> direct switch to Chinese
+    /lang en          -> direct switch to English
     """
     lang = args.strip().lower() if args else ""
     if lang in _SUPPORTED_LANGUAGES:
         _apply_language_textual(session, lang)
         return None
-    # No valid direct arg → show choice popup
+    # No valid direct arg -> show choice popup
     labels = _get_language_labels_textual()
     choice_labels = [labels[c] for c in _SUPPORTED_LANGUAGES]
-    # Build reverse lookup dict for robust label → lang_key resolution
+    # Build reverse lookup dict for robust label -> lang_key resolution
     label_to_lang = dict(zip(choice_labels, _SUPPORTED_LANGUAGES))
 
     def _on_choice(value: str) -> None:
@@ -711,7 +695,6 @@ def _h_language(session: dict[str, Any], args: str) -> str | None:
 @_register_handler("cont")
 def _h_continue(session: dict[str, Any], args: str) -> str | None:
     if session.get("_last_draft") is not None:
-        # [修改] 2026-06-10 Nyaecho - 方案A累积拼接: /continue [text] 追加到 _nl_history, 无参则复用
         history = session.get("_nl_history", "")
         if args:
             history = f"{history}; {args}" if history else args
@@ -723,7 +706,7 @@ def _h_continue(session: dict[str, Any], args: str) -> str | None:
     return None
 
 
-# ── Dashboard screen ──
+# -- Dashboard screen --
 
 class DashboardScreen(Screen):
 
@@ -741,11 +724,9 @@ class DashboardScreen(Screen):
         self._worker_running = False
         self._output_queue: Queue = Queue()
         self._output_lines: list[str] = []
-        # [新增] 2026-06-10 Nyaecho - 状态栏消息自动消失: 用递增计数器区分新旧消息定时器
         self._bar_msg_id: int = 0
 
     def compose(self) -> ComposeResult:
-        # [修改] 2026-06-10 Nyaecho - 响应式分栏布局: #output-log 移入 Horizontal #exec-row 与 #exec-sidebar 并排
         with Vertical(id="body"):
             yield Static(id="dashboard")
             with Horizontal(id="exec-row"):
@@ -775,7 +756,6 @@ class DashboardScreen(Screen):
         self.query_one("#dashboard").update(dash)
 
     def _set_bar(self, text: str = "", style: str = "") -> None:
-        # [修改] 2026-06-10 Nyaecho - 状态栏消息4秒自动消失: msg_id 计数器防止旧定时器错误清除新消息
         self._bar_msg_id += 1
         msg_id = self._bar_msg_id
         bar = self.query_one("#status-bar")
@@ -787,11 +767,10 @@ class DashboardScreen(Screen):
             bar.remove_class("-active")
 
     def _dismiss_bar(self, msg_id: int) -> None:
-        # [新增] 2026-06-10 Nyaecho - 仅当前消息ID匹配时才关闭状态栏, 防止旧定时器覆盖新消息
         if self._bar_msg_id == msg_id:
             self.query_one("#status-bar").remove_class("-active")
 
-    # ── Input events ──
+    # -- Input events --
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if self._completing:
@@ -832,7 +811,6 @@ class DashboardScreen(Screen):
                 self._s["_launch"] = False
                 draft = self._s.get("_last_draft")
                 continuing = self._s.pop("_continuing", False)
-                # [修改] 2026-06-10 Nyaecho - 携带 NL 文本传递给子进程, /continue 时携带累积的历史 NL
                 nl_text = self._s.pop("_nl_text", None)
                 self._start_execution(draft, continuing=continuing, nl_text=nl_text)
                 return
@@ -850,7 +828,6 @@ class DashboardScreen(Screen):
                     self.app.recompose()
                     return
         elif text:
-            # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: 无斜杠前缀的纯文本直接作为NL prompt启动
             state = self._s["state"]
             if not state.target.strip():
                 self._set_bar(_("tui.please_set_target"), C_WARNING)
@@ -864,7 +841,7 @@ class DashboardScreen(Screen):
         self._refresh_dash()
         self.query_one("#cmd-input").clear()
 
-    # ── Palette actions (bound to keys) ──
+    # -- Palette actions (bound to keys) --
 
     def action_palette_tab(self) -> None:
         p = self.query_one(CommandPalette)
@@ -921,7 +898,6 @@ class DashboardScreen(Screen):
             pass
 
     def _start_execution(self, draft: Any = None, *, continuing: bool = False, nl_text: str | None = None) -> None:
-        # [修改] 2026-06-10 Nyaecho - 响应式分栏布局: 隐藏仪表盘, 显示 exec-row, 根据终端宽度动态显隐侧边栏
         self.query_one("#dashboard").add_class("-hidden")
         log = self.query_one("#output-log", RichLog)
         if not continuing:
@@ -941,7 +917,6 @@ class DashboardScreen(Screen):
             draft = _draft_from_state(self._s["state"])
         self._s["_last_draft"] = draft
         self._proc = None
-        # [新增] 2026-06-10 Nyaecho - 根据终端宽度决定是否显示侧边栏 (宽度>=100列时显示)
         self._apply_responsive_layout()
         threading.Thread(
             target=self._run_subprocess, args=(draft, nl_text), daemon=True
@@ -950,7 +925,6 @@ class DashboardScreen(Screen):
         self._tick_spinner()
 
     def _run_subprocess(self, draft: Any, nl_text: str | None = None) -> None:
-        # [修改] 2026-06-10 Nyaecho - 将 NL 文本通过 --prompt 传递给 CLI 子进程
         import subprocess
         import sys
 
@@ -1005,7 +979,6 @@ class DashboardScreen(Screen):
         self.set_timer(0.12, self._tick_spinner)
 
     def _apply_responsive_layout(self) -> None:
-        # [新增] 2026-06-10 Nyaecho - 响应式分栏: 终端宽度>=100列时显示侧边栏摘要, 否则仅显示输出日志
         threshold = 100
         show_sidebar = self.app.size.width >= threshold
         sidebar = self.query_one("#exec-sidebar")
@@ -1017,7 +990,6 @@ class DashboardScreen(Screen):
             sidebar.remove_class("-active")
 
     def _check_responsive_resize(self) -> None:
-        # [新增] 2026-06-10 Nyaecho - 执行期间每0.3秒检测终端宽度变化, 动态切换分栏模式
         if not self._worker_running:
             return
         self._apply_responsive_layout()
@@ -1035,7 +1007,6 @@ class DashboardScreen(Screen):
 
     def _start_polling(self) -> None:
         self._poll_output()
-        # [新增] 2026-06-10 Nyaecho - 轮询同时检测终端宽度变化, 实现响应式分栏
         self._check_responsive_resize()
         if self._worker_running:
             self.set_timer(0.3, self._start_polling)
@@ -1067,7 +1038,7 @@ class DashboardScreen(Screen):
             p.action_cursor_down()
             event.stop()
 
-    # ── Prompt state machine ──
+    # -- Prompt state machine --
 
     def _handle_prompt(self, text: str) -> None:
         p = self._s.get("_prompt")
@@ -1144,7 +1115,6 @@ class DashboardScreen(Screen):
         self._set_bar("")
 
     def _build_exec_sidebar(self) -> str:
-        # [新增] 2026-06-10 Nyaecho - 构建执行时侧边栏摘要: Target/Mode/Scope/Allow-Block/Resume/LLM 信息
         state = self._s["state"]
         mode = _tui.MODES[state.mode]
 
@@ -1211,9 +1181,8 @@ class DashboardScreen(Screen):
             popup.show_for_prompt(self._s, on_done=self._post_popup_refresh)
 
 
-# ── CSS ──
+# -- CSS --
 
-# [修改] 2026-06-10 Nyaecho - 新增 #exec-row 分栏容器 + #exec-sidebar 30列侧边栏, 支持终端宽度>=100列时分栏显示
 CSS = """
 #body {
     height: 1fr;
@@ -1362,7 +1331,7 @@ CSS = """
 """
 
 
-# ── Application ──
+# -- Application --
 
 class VulnClawApp(App):
     CSS = CSS
@@ -1375,7 +1344,7 @@ class VulnClawApp(App):
         self.push_screen(DashboardScreen(self._s))
 
 
-# ── Entry point ──
+# -- Entry point --
 
 def run_tui_textual(*, launcher=None, once=False, initial_state=None) -> None:
     """Run the Textual-powered TUI workbench."""

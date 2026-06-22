@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-# Approximate average characters per token for mixed English/Chinese text.
+# Approximate average characters per token for mixed-language text.
 _CHARS_PER_TOKEN = 4.0
 # Per-message structural overhead (role tokens, message framing).
 _MESSAGE_OVERHEAD = 4
@@ -18,8 +18,8 @@ _MESSAGE_OVERHEAD = 4
 _TOOL_CALL_OVERHEAD = 8
 
 _TRUNCATION_NOTICE = (
-    "[上下文截断] 为控制 token 用量，部分较早的历史消息已被移除，"
-    "仅保留系统提示和最近的对话。"
+    "[Context truncated] Older history was removed to control token usage; "
+    "only the system prompt and recent conversation were kept."
 )
 
 

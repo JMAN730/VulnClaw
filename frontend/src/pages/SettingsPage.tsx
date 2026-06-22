@@ -211,9 +211,8 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
             <div className="form-grid">
               <label className="field">
                 <span>{t("settings.language")}</span>
-                <select value={language} onChange={(event) => setLanguage(event.target.value as UiPreferences["language"])}>
+                <select value={language} onChange={() => setLanguage("en-US")}>
                   <option value="en-US">{t("settings.english")}</option>
-                  <option value="zh-CN">{t("settings.chinese")}</option>
                 </select>
               </label>
               <label className="field">

@@ -9,10 +9,10 @@ from typing import Any, Optional
 
 
 class I18nLoader:
-    """Load and manage translations."""
+    """Load and manage English UI text."""
 
-    def __init__(self, lang: str = "zh") -> None:
-        self.lang = lang
+    def __init__(self, lang: str = "en") -> None:
+        self.lang = "en" if lang != "en" else lang
         self.translations: dict[str, str] = {}
         self.logger = logging.getLogger(__name__)
         self._load_translations()
@@ -66,22 +66,18 @@ class I18nLoader:
         Priority:
         1. VULNCLAW_LANG environment variable
         2. LANG environment variable
-        3. Default to 'zh'
+        3. Default to 'en'
         """
-        # Check VulnClaw specific env var
+        # VulnClaw is English-only; accept legacy values but normalize to English.
         lang_env = os.environ.get("VULNCLAW_LANG", "").lower()
         if lang_env in ("zh", "en"):
-            return lang_env
-
-        # Check system LANG
-        system_lang = os.environ.get("LANG", "").lower()
-        if system_lang.startswith("zh"):
-            return "zh"
-        elif system_lang.startswith("en"):
             return "en"
 
-        # Default to Chinese for this project
-        return "zh"
+        system_lang = os.environ.get("LANG", "").lower()
+        if system_lang.startswith("en"):
+            return "en"
+
+        return "en"
 
 
 # Global translator instance
@@ -92,7 +88,7 @@ def init_i18n(lang: Optional[str] = None, config: Any = None) -> I18nLoader:
     """Initialize the global translator.
 
     Args:
-        lang: Explicit language override (zh/en)
+        lang: Explicit language override. Only English is currently supported.
         config: VulnClaw config object with session.language setting
     """
     global _translator

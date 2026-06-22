@@ -70,7 +70,6 @@ from vulnclaw.target_state.store import (
 )
 
 # === Stream Output Renderer ===
-# 放在文件顶部 imports 之后，app 定义之前
 
 
 class TerminalStreamSink:
@@ -106,14 +105,14 @@ class TerminalStreamSink:
         """Receive content token."""
         # If we printed status and now getting content, move to new line
         if self._status_printed and not self._in_thinking:
-            self._console.print()  # 换行到新行
+            self._console.print()
             self._status_printed = False
         self._console.print(token, end="", soft_wrap=True)
 
     def on_tool_call(self, tool_name: str, args: str) -> None:
         """Display tool call notification."""
         self._console.print()
-        self._console.print(f"[bold cyan]→ 调用工具: {tool_name}[/] {args[:100]}")
+        self._console.print(f"[bold cyan]-> Tool call: {tool_name}[/] {args[:100]}")
         self._status_printed = False
 
     def on_tool_result(self, result_summary: str) -> None:
@@ -121,7 +120,7 @@ class TerminalStreamSink:
         self._console.print()
         if len(result_summary) > 200:
             result_summary = result_summary[:200] + "..."
-        self._console.print(f"[dim]→ 工具结果: {result_summary}[/]")
+        self._console.print(f"[dim]-> Tool result: {result_summary}[/]")
 
     def on_stream_end(self) -> None:
         """Handle stream end."""
@@ -140,7 +139,6 @@ console = Console()
 err_console = Console(stderr=True)
 
 
-# 鈹€鈹€ Banner 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 ASCII_LOGO = (
     " _    __      __      ________\n"
@@ -178,7 +176,6 @@ def _print_agent_output(output: str, config) -> None:
             console.print("[dim](LLM returned only hidden reasoning and no visible answer.)[/dim]")
 
 
-# 鈹€鈹€ REPL 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 
 def _prepare_repl_target(
@@ -368,7 +365,6 @@ def _run_repl() -> None:
 
                 def _on_persistent_step(round_num: int, cycle_num: int, result) -> None:
                     console.print(f"[dim]-- Cycle {cycle_num} | Round {round_num} --[/]")
-                    # TerminalStreamSink 已实时流式显示，回调不重复打印
                     console.print()
                     nonlocal current_target, current_phase
                     if result.target:
@@ -457,7 +453,7 @@ def _run_repl() -> None:
 
             # Handle auto mode persistence: exit auto mode on explicit commands
             if auto_mode_active and user_input.lower().strip() in (
-                "chat", "manual", "exit auto", "单轮", "手动",
+                "chat", "manual", "exit auto", "single turn",
             ):
                 auto_mode_active = False
                 last_auto_input = ""
@@ -529,10 +525,10 @@ def _run_repl() -> None:
                                 if any(
                                     token in user_input.lower()
                                     for token in (
-                                        "输出",
-                                        "保存",
-                                        "写到",
-                                        "导出",
+                                        "output",
+                                        "save",
+                                        "write to",
+                                        "export",
                                         "save",
                                         "write",
                                         "export",
@@ -560,7 +556,6 @@ def _run_repl() -> None:
                                     current_target = result.target
                                 if result.phase:
                                     current_phase = result.phase
-                                # 注释掉: 流式输出已通过 TerminalStreamSink 实时显示，无需重复打印
                                 # if result.output:
                                 #     _print_agent_output(result.output, config)
 
@@ -593,7 +588,7 @@ def _run_repl() -> None:
         except EOFError:
             break
 
-    # Cleanup — suppress SIGINT to prevent re-trigger during threading shutdown
+    # Cleanup - suppress SIGINT to prevent re-trigger during threading shutdown
     import signal
 
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -777,7 +772,6 @@ async def _run_cli_orchestrated_task(
         mcp_manager.stop_all()
 
 
-# 鈹€鈹€ Sub-commands 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 
 @app.command()
@@ -785,7 +779,6 @@ def run(
     target: str = typer.Argument(..., help="Target host/IP/URL"),
     scope: str = typer.Option("full", help="Test scope: full, web, api, mobile"),
     output: Optional[str] = typer.Option(None, help="Output report file path"),
-    # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: 允许通过 --prompt 传入自定义提示词覆盖自动生成的prompt
     prompt: Optional[str] = typer.Option(
         None, "--prompt", help="Custom natural language prompt (overrides auto-generated prompt)"
     ),
@@ -875,7 +868,6 @@ def persistent(
     no_report: bool = typer.Option(
         False, "--no-report", help="Disable auto report after each cycle"
     ),
-    # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: 允许通过 --prompt 传入自定义提示词覆盖自动生成的prompt
     prompt: Optional[str] = typer.Option(
         None, "--prompt", help="Custom natural language prompt (overrides auto-generated prompt)"
     ),
@@ -950,7 +942,6 @@ def persistent(
     def _on_cycle_step(round_num: int, cycle_num: int, result) -> None:
         """Real-time output for each step within a cycle."""
         console.print(f"[dim]-- Cycle {cycle_num} | Round {round_num} --[/]")
-        # TerminalStreamSink 已实时流式显示，回调不重复打印
         console.print()
 
     def _on_cycle_complete(cycle_num: int, cycle_result: PersistentCycleResult) -> None:
@@ -1032,7 +1023,6 @@ def persistent(
 @app.command()
 def recon(
     target: str = typer.Argument(..., help="Target host/IP/URL"),
-    # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: 允许通过 --prompt 传入自定义提示词覆盖自动生成的prompt
     prompt: Optional[str] = typer.Option(
         None, "--prompt", help="Custom natural language prompt (overrides auto-generated prompt)"
     ),
@@ -1076,7 +1066,6 @@ def recon(
     async def _run():
         async def runner(agent, _config):
             sink = TerminalStreamSink(console, _config.session.show_thinking)
-            # TerminalStreamSink 已实时流式显示，不重复 console.print
             return await agent.chat(task_prompt, target=target, stream_sink=sink)
 
         await _run_cli_orchestrated_task(
@@ -1094,7 +1083,6 @@ def recon(
 def scan(
     target: str = typer.Argument(..., help="Target host/IP/URL"),
     ports: Optional[str] = typer.Option(None, help="Port range, e.g. 80,443,8080"),
-    # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: 允许通过 --prompt 传入自定义提示词覆盖自动生成的prompt
     prompt: Optional[str] = typer.Option(
         None, "--prompt", help="Custom natural language prompt (overrides auto-generated prompt)"
     ),
@@ -1139,7 +1127,6 @@ def scan(
     async def _run():
         async def runner(agent, _config):
             sink = TerminalStreamSink(console, _config.session.show_thinking)
-            # TerminalStreamSink 已实时流式显示，不重复 console.print
             return await agent.chat(task_prompt, target=target, stream_sink=sink)
 
         await _run_cli_orchestrated_task(
@@ -1158,7 +1145,6 @@ def exploit(
     target: str = typer.Argument(..., help="Target host/IP/URL"),
     cve: Optional[str] = typer.Option(None, help="Specific CVE to exploit"),
     cmd: str = typer.Option("id", help="Command to execute for verification"),
-    # [新增] 2026-06-10 Nyaecho - TUI自然语言驱动: 允许通过 --prompt 传入自定义提示词覆盖自动生成的prompt
     prompt: Optional[str] = typer.Option(
         None, "--prompt", help="Custom natural language prompt (overrides auto-generated prompt)"
     ),
@@ -1205,7 +1191,6 @@ def exploit(
     async def _run():
         async def runner(agent, _config):
             sink = TerminalStreamSink(console, _config.session.show_thinking)
-            # TerminalStreamSink 已实时流式显示，不重复 console.print
             return await agent.chat(task_prompt, target=target, stream_sink=sink)
 
         await _run_cli_orchestrated_task(
@@ -1244,7 +1229,6 @@ def report(
     console.print("[+] Report generated")
 
 
-# 鈹€鈹€ Config sub-command group 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 config_app = typer.Typer(help="Manage configuration")
 app.add_typer(config_app, name="config")
@@ -1343,7 +1327,6 @@ def config_provider(
         )
 
 
-# 鈹€鈹€ Init command 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 
 @app.command()
@@ -1368,7 +1351,6 @@ def init() -> None:
     console.print(_("cli.init.step_tui"))
 
 
-# 鈹€鈹€ Doctor command 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 
 @app.command()
@@ -1467,7 +1449,6 @@ def doctor() -> None:
         )
 
 
-# 鈹€鈹€ KB command 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 kb_app = typer.Typer(help="Security knowledge base commands")
 app.add_typer(kb_app, name="kb")
@@ -1512,11 +1493,11 @@ def kb_status() -> None:
     category_summary = ", ".join(f"{cat}={count}" for cat, count in sorted(stats.items()))
 
     if status == RetrieverStatus.CHROMADB_ACTIVE:
-        line = "[green]✓ 知识库已启用 (ChromaDB 语义检索)[/green]"
+        line = "[green]+ Knowledge base enabled (ChromaDB semantic retrieval)[/green]"
     elif status == RetrieverStatus.KEYWORD_FALLBACK:
-        line = "[yellow]⚠ 知识库已降级为关键词模式 (chromadb 未安装)[/yellow]"
+        line = "[yellow]! Knowledge base using keyword fallback (chromadb not installed)[/yellow]"
     else:
-        line = "[red]✗ 知识库已禁用 (无可用数据)[/red]"
+        line = "[red]x Knowledge base disabled (no available data)[/red]"
 
     console.print(
         Panel(
@@ -1524,7 +1505,7 @@ def kb_status() -> None:
             f"Backend: [bold]{status.value}[/]\n"
             f"Detail: {detail or 'n/a'}\n"
             f"Entries: [bold]{total}[/] ({category_summary or 'empty'})\n"
-            f"语义搜索: 运行 [bold]pip install vulnclaw\\[kb][/] 启用 ChromaDB",
+            f"Semantic search: run [bold]pip install vulnclaw\\[kb][/] to enable ChromaDB",
             title="KB Status",
             border_style="cyan",
         )
@@ -1659,116 +1640,73 @@ def target_state_clear_cmd(
 
 # Default command (no sub-command -> REPL)
 
-# 鈹€鈹€ Auto-pentest detection 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 
 def _should_auto_pentest(user_input: str, current_target: Optional[str]) -> bool:
-    """Determine if user input should trigger autonomous pentest loop.
-
-    Triggers when:
-    - User explicitly asks for a full pentest with a target
-    - User mentions a target plus action keywords like "渗透测试" or "打一下"
-    - User asks to solve a CTF / find a flag with a target
-    - User asks for information gathering / recon / OSINT with a target
-    - A target is present + multi-step intent indicators
-    """
+    """Determine if user input should trigger the autonomous pentest loop."""
     input_lower = user_input.lower()
 
-    # Explicit auto-mode triggers
     auto_keywords = [
-        "渗透测试",
-        "进行渗透",
-        "做渗透",
-        "打一下",
-        "全面测试",
         "pentest",
+        "penetration test",
+        "security test",
         "full test",
         "auto",
-        "自主渗透模式",
-        "自主模式",
-        "找出flag",
-        "找到flag",
-        "拿flag",
+        "autonomous",
         "get flag",
         "find flag",
-        "解题",
-        "做题",
-        "挑战",
         "challenge",
         "ctf",
-        "弱口令",
-        "爆破",
-        "绕过",
         "bypass",
         "brute",
-        "搜集",
-        "收集",
-        "信息收集",
-        "侦察",
+        "bruteforce",
         "recon",
         "reconnaissance",
-        "社工",
         "osint",
-        "情报",
         "intelligence",
-        "分析目标",
-        "目标分析",
-        "资产发现",
-        "目录扫描",
-        "探测",
-        "探索",
-        "调查",
+        "analyze target",
+        "target analysis",
+        "asset discovery",
+        "directory scan",
+        "probe",
+        "explore",
         "investigate",
         "enumerate",
-        "全面分析",
-        "深度分析",
-        "详细分析",
-        "全面扫描",
-        "子域名",
+        "comprehensive analysis",
+        "deep analysis",
+        "detailed analysis",
+        "full scan",
         "subdomain",
     ]
 
-    # Single-step queries should NOT trigger auto mode
-    single_step_keywords = [
-        "生成报告",
-        "report",
-        "help",
-        "帮助",
-    ]
+    single_step_keywords = ["generate report", "report", "help"]
 
-    # If it's clearly a single-step query, don't auto-loop
-    # But if it also has auto keywords, still go auto (e.g. "收集信息并生成报告")
     if any(kw in input_lower for kw in single_step_keywords) and not any(
         kw in input_lower for kw in auto_keywords
     ):
         return False
 
-    # If it has auto-mode keywords, trigger auto loop
     if any(kw in input_lower for kw in auto_keywords):
-        # Must have a target (either in input or already set)
         has_target = bool(current_target) or bool(_extract_target_from_input(user_input))
         return has_target
 
-    # Fallback: has target + multi-step intent -> auto
     has_target = bool(current_target) or bool(_extract_target_from_input(user_input))
     if has_target:
         multi_step_indicators = [
-            "并",
-            "然后",
-            "输出",
-            "保存",
-            "写到",
-            "导出",
-            "所有",
-            "全部",
-            "完整",
-            "详细",
+            "and then",
+            "then",
+            "output",
+            "save",
+            "write to",
+            "export",
+            "all",
+            "complete",
+            "detailed",
         ]
         if any(ind in input_lower for ind in multi_step_indicators):
             return True
 
     return False
-
 
 def _extract_target_from_input(user_input: str) -> Optional[str]:
     """Extract target from user input string."""
@@ -1808,7 +1746,7 @@ def _auto_save_recon_report(agent, user_input: str, config) -> None:
         # Determine output path
         # Check if user specified a path
         path_match = re.search(
-            r"(?:保存到|写到|输出到|导出到|save to|write to|output to|export to)\s*([^\s,，]+)",
+            r"(?:save to|write to|output to|export to)\s+([^\s,]+)",
             user_input,
             re.IGNORECASE,
         )

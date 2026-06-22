@@ -1,4 +1,4 @@
-"""VulnClaw Knowledge Retriever — retrieve relevant knowledge for the agent.
+"""VulnClaw Knowledge Retriever - retrieve relevant knowledge for the agent.
 
 Retrieval degrades gracefully across three backends:
 
@@ -28,7 +28,7 @@ from vulnclaw.kb.store import KnowledgeStore
 logger = logging.getLogger(__name__)
 
 
-# ── ChromaDB availability probe ─────────────────────────────────────
+# -- ChromaDB availability probe -------------------------------------
 
 CHROMADB_AVAILABLE = False
 CHROMADB_IMPORT_ERROR = ""
@@ -205,14 +205,14 @@ class KnowledgeRetriever:
                 if backend.has_data():
                     self._backend = backend
                     self._status = RetrieverStatus.CHROMADB_ACTIVE
-                    self._status_detail = "ChromaDB 语义检索已启用"
+                    self._status_detail = "ChromaDB semantic retrieval is enabled"
                     return
-                # ChromaDB present but no data → nothing to disable yet,
+                # ChromaDB present but no data -> nothing to disable yet,
                 # keep probing the keyword backend below.
                 logger.info("ChromaDB available but KB corpus is empty")
             except Exception as exc:  # pragma: no cover - defensive
                 logger.warning("ChromaDB backend init failed, falling back: %s", exc)
-                self._status_detail = f"ChromaDB 初始化失败: {exc}"
+                self._status_detail = f"ChromaDB initialization failed: {exc}"
 
         try:
             keyword = KeywordRetriever(self.store)
@@ -220,7 +220,7 @@ class KnowledgeRetriever:
             logger.warning("Keyword retriever init failed: %s", exc)
             self._backend = None
             self._status = RetrieverStatus.DISABLED
-            self._status_detail = f"关键词检索初始化失败: {exc}"
+            self._status_detail = f"Keyword retrieval initialization failed: {exc}"
             return
 
         self._backend = keyword
@@ -228,16 +228,16 @@ class KnowledgeRetriever:
             self._status = RetrieverStatus.KEYWORD_FALLBACK
             if not CHROMADB_AVAILABLE:
                 self._status_detail = (
-                    f"chromadb 未安装 ({CHROMADB_IMPORT_ERROR or 'not installed'})，"
-                    "已降级为关键词检索"
+                    f"chromadb is not installed ({CHROMADB_IMPORT_ERROR or 'not installed'}); "
+                    "using keyword retrieval fallback"
                 )
             elif not self._status_detail:
-                self._status_detail = "已降级为关键词检索"
+                self._status_detail = "using keyword retrieval fallback"
         else:
             self._status = RetrieverStatus.DISABLED
-            self._status_detail = "知识库为空，无可用数据"
+            self._status_detail = "Knowledge base is empty; no data is available"
 
-    # ── Status reporting ─────────────────────────────────────────────
+    # -- Status reporting ---------------------------------------------
 
     def get_status(self) -> RetrieverStatus:
         """Return the current retriever backend status."""
@@ -247,7 +247,7 @@ class KnowledgeRetriever:
         """Return a human-readable explanation of the current status."""
         return self._status_detail
 
-    # ── Generic retrieval ────────────────────────────────────────────
+    # -- Generic retrieval --------------------------------------------
 
     def retrieve(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         """Generic relevance retrieval across the whole KB.

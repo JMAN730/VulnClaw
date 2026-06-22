@@ -1,4 +1,4 @@
-"""VulnClaw configuration management — load, save, and access settings."""
+"""VulnClaw configuration management - load, save, and access settings."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from .schema import (
     VulnClawConfig,
 )
 
-# ── Paths ──────────────────────────────────────────────────────────
+# Paths
 
 CONFIG_DIR = Path(os.environ.get("VULNCLAW_CONFIG_DIR", str(Path.home() / ".vulnclaw")))
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
@@ -38,7 +38,7 @@ def ensure_dirs() -> None:
         d.mkdir(parents=True, exist_ok=True)
 
 
-# ── Load / Save ────────────────────────────────────────────────────
+# Load / Save
 
 
 def load_config() -> VulnClawConfig:
@@ -109,7 +109,7 @@ def set_config_value(key: str, value: str) -> None:
     save_config(config)
 
 
-# ── Helpers ─────────────────────────────────────────────────────────
+# Helpers
 
 
 def _parse_mcp_server(name: str, raw: dict[str, Any]) -> MCPServerConfig:
@@ -165,7 +165,7 @@ def _overlay_env(config: VulnClawConfig) -> VulnClawConfig:
                     PYTHON_EXECUTE_MAX_LINES, PYTHON_EXECUTE_SHOW_WARNING,
                     PYTHON_EXECUTE_MAX_OUTPUT_CHARS, PYTHON_EXECUTE_AUDIT_ENABLED
     """
-    # ── LLM ──────────────────────────────────────────────────────────
+    # LLM
     if v := os.environ.get("VULNCLAW_LLM_API_KEY"):
         config.llm.api_key = v
     if v := os.environ.get("VULNCLAW_LLM_BASE_URL"):
@@ -184,7 +184,7 @@ def _overlay_env(config: VulnClawConfig) -> VulnClawConfig:
         with suppress(ValueError):
             config.llm.temperature = float(v)
 
-    # ── Session ──────────────────────────────────────────────────────
+    # Session
     if v := os.environ.get("VULNCLAW_SESSION_OUTPUT_DIR"):
         config.session.output_dir = Path(v)
     if v := os.environ.get("VULNCLAW_SESSION_AUTO_SAVE"):
@@ -197,7 +197,7 @@ def _overlay_env(config: VulnClawConfig) -> VulnClawConfig:
     if v := os.environ.get("VULNCLAW_SESSION_SHOW_THINKING"):
         config.session.show_thinking = v.lower() in ("1", "true", "yes", "on")
 
-    # ── Safety ───────────────────────────────────────────────────────
+    # Safety
     if v := os.environ.get("VULNCLAW_SAFETY_PYTHON_EXECUTE_ENABLED"):
         config.safety.enable_python_execute = v.lower() in ("1", "true", "yes", "on")
     if v := os.environ.get("VULNCLAW_SAFETY_PYTHON_EXECUTE_RESTRICTED"):
@@ -220,10 +220,10 @@ def _overlay_env(config: VulnClawConfig) -> VulnClawConfig:
 
 def _strip_defaults(raw: dict) -> None:
     """Remove fields that match defaults to keep config file clean."""
-    # Keep it simple — just strip known default values
+    # Keep it simple; just strip known default values.
     if raw.get("llm", {}).get("api_key") == "":
         raw["llm"].pop("api_key", None)
-    # Don't strip base_url/model if provider is set — they may be provider-specific
+    # Do not strip base_url/model if provider is set; they may be provider-specific.
     # Only strip if still at OpenAI defaults
     if raw.get("llm", {}).get("provider") == "openai":
         if raw.get("llm", {}).get("base_url") == "https://api.openai.com/v1":
@@ -232,7 +232,7 @@ def _strip_defaults(raw: dict) -> None:
             raw["llm"].pop("model", None)
 
 
-# ── Provider Management ─────────────────────────────────────────────
+# Provider Management
 
 
 def apply_provider_preset(config: VulnClawConfig, provider_name: str) -> VulnClawConfig:
@@ -246,7 +246,7 @@ def apply_provider_preset(config: VulnClawConfig, provider_name: str) -> VulnCla
     try:
         provider = LLMProvider(provider_name.lower())
     except ValueError:
-        # Unknown provider — treat as custom, don't auto-fill
+        # Unknown provider; treat as custom and do not auto-fill.
         config.llm.provider = provider_name
         return config
 
@@ -322,7 +322,7 @@ def fetch_provider_models_async(
     Calls ``fetch_provider_models()`` in a daemon thread.  When the
     fetch completes, *on_result* (if provided) is called with the
     model list on the **calling** thread via ``app.call_later()``-style
-    scheduling — the caller is responsible for arranging thread-safe
+    scheduling; the caller is responsible for arranging thread-safe
     delivery (e.g. by passing a lambda that uses ``call_later``).
 
     Returns the ``Thread`` object so callers can track or join it.

@@ -1,4 +1,4 @@
-"""VulnClaw configuration schema — Pydantic models for type-safe config."""
+﻿"""VulnClaw configuration schema - Pydantic models for type-safe config."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# ── LLM Provider Presets ────────────────────────────────────────────
+# LLM provider presets
 
 
 class LLMProvider(str, Enum):
@@ -49,17 +49,17 @@ PROVIDER_PRESETS: dict[LLMProvider, dict[str, str]] = {
     LLMProvider.ZHIPU: {
         "base_url": "https://open.bigmodel.cn/api/paas/v4",
         "default_model": "glm-4.7",
-        "label": "智谱 GLM",
+        "label": "Zhipu GLM",
     },
     LLMProvider.MOONSHOT: {
         "base_url": "https://api.moonshot.cn/v1",
         "default_model": "kimi-k2.6",
-        "label": "Kimi (月之暗面)",
+        "label": "Kimi (Moonshot)",
     },
     LLMProvider.QWEN: {
         "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "default_model": "qwen3-max",
-        "label": "通义千问",
+        "label": "Tongyi Qianwen",
     },
     LLMProvider.SILICONFLOW: {
         "base_url": "https://api.siliconflow.cn/v1",
@@ -69,32 +69,32 @@ PROVIDER_PRESETS: dict[LLMProvider, dict[str, str]] = {
     LLMProvider.DOUBAO: {
         "base_url": "https://ark.cn-beijing.volces.com/api/v3",
         "default_model": "Doubao-Seed-2.0-Pro",
-        "label": "豆包 (字节跳动)",
+        "label": "Doubao (ByteDance)",
     },
     LLMProvider.BAICHUAN: {
         "base_url": "https://api.baichuan-ai.com/v1",
         "default_model": "Baichuan4-Turbo",
-        "label": "百川",
+        "label": "Baichuan",
     },
     LLMProvider.STEPFUN: {
         "base_url": "https://api.stepfun.com/v1",
         "default_model": "step-3.5-flash",
-        "label": "阶跃星辰",
+        "label": "StepFun",
     },
     LLMProvider.SENSETIME: {
         "base_url": "https://api.sensenova.cn/v1",
         "default_model": "SenseNova-6.7-Flash-Lite",
-        "label": "商汤 (日日新)",
+        "label": "SenseTime (SenseNova)",
     },
     LLMProvider.YI: {
         "base_url": "https://api.lingyiwanwu.com/v1",
         "default_model": "yi-lightning",
-        "label": "零一万物 (Yi)",
+        "label": "01.AI (Yi)",
     },
     LLMProvider.CUSTOM: {
         "base_url": "",
         "default_model": "",
-        "label": "自定义",
+        "label": "Custom",
     },
 }
 
@@ -220,9 +220,7 @@ class SessionConfig(BaseModel):
         default=True, description="Auto-generate report after each cycle"
     )
     # Language configuration
-    language: str = Field(
-        default="auto", description="UI language: auto, zh, en"
-    )
+    language: str = Field(default="en", description="UI language: en")
 
 
 class VulnClawConfig(BaseModel):
@@ -239,7 +237,7 @@ class VulnClawConfig(BaseModel):
     )
 
 
-# ── Built-in MCP server definitions (MVP) ──────────────────────────
+# Built-in MCP server definitions
 
 BUILTIN_MCP_SERVERS: dict[str, dict[str, Any]] = {
     "fetch": {

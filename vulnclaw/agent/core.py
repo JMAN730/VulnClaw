@@ -1,4 +1,4 @@
-"""VulnClaw Agent Core — the main AI agent loop with tool calling."""
+"""VulnClaw Agent Core - the main AI agent loop with tool calling."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ from vulnclaw.agent.tool_call_manager import safe_parse_tool_args
 from vulnclaw.config.schema import VulnClawConfig
 from vulnclaw.target_state.store import save_target_state
 
-# Optional KB integration — gracefully degrade if KB data is unavailable
+# Optional KB integration; gracefully degrade if KB data is unavailable.
 try:
     from vulnclaw.kb.retriever import KnowledgeRetriever, RetrieverStatus
 except Exception:
@@ -63,7 +63,7 @@ class AgentCore:
         self._client = None
         self.runtime = RuntimeState()
         self._reset_runtime_state()
-        # Optional KB retriever — lazily initialized on first use
+        # Optional KB retriever; lazily initialized on first use.
         self._kb_retriever: Any = None
         self._kb_context_cache: dict[Any, str] = {}
         self._finding_parser = FindingParser(self.context, self.runtime)
@@ -89,14 +89,14 @@ class AgentCore:
         if RetrieverStatus is None:
             return
         if status == RetrieverStatus.CHROMADB_ACTIVE:
-            console.print("[green]✓ 知识库已启用 (ChromaDB)[/green]")
+            console.print("[green][+] Knowledge base enabled (ChromaDB)[/green]")
         elif status == RetrieverStatus.KEYWORD_FALLBACK:
             console.print(
-                "[yellow]⚠ 知识库已降级为关键词模式 "
-                "(chromadb 未安装，运行 pip install vulnclaw[kb] 启用语义搜索)[/yellow]"
+                "[yellow][!] Knowledge base degraded to keyword mode "
+                "(chromadb is not installed; run pip install vulnclaw[kb] to enable semantic search)[/yellow]"
             )
         else:
-            console.print("[red]✗ 知识库已禁用 (无可用数据)[/red]")
+            console.print("[red][-] Knowledge base disabled (no available data)[/red]")
 
     def _maybe_auto_save_session(self) -> None:
         """Persist session state when auto-save is enabled."""
@@ -153,7 +153,7 @@ class AgentCore:
             task_constraints=parsed_constraints,
             is_recon_phase=detected_phase == PentestPhase.RECON,
             is_ctf_mode=any(
-                kw in user_lower for kw in ["ctf", "flag", "夺旗", "解题", "找flag", "找出flag"]
+                kw in user_lower for kw in ["ctf", "flag", "capture the flag", "solve challenge"]
             ),
         )
         self.runtime.user_vuln_hint_rounds = 3 if self.runtime.user_vuln_hint else 0
@@ -168,16 +168,16 @@ class AgentCore:
             "personnel": False,
         }
         social_engineering_keywords = [
-            "社会工程",
-            "社工",
-            "人员信息",
-            "作者追踪",
-            "人物追踪",
-            "人物画像",
+            "social engineering",
+            "social-engineering",
+            "personnel information",
+            "author tracking",
+            "person tracking",
+            "person profile",
             "osint",
-            "情报",
-            "作者",
-            "调查",
+            "intelligence",
+            "author",
+            "investigate",
         ]
         self.context.state.recon_dimension4_active = self.runtime.is_recon_phase and any(
             kw in user_lower for kw in social_engineering_keywords
@@ -196,7 +196,7 @@ class AgentCore:
                     base_url=self.config.llm.base_url,
                 )
             except ImportError:
-                raise RuntimeError("请安装 openai 包: pip install openai")
+                raise RuntimeError("Please install the openai package: pip install openai")
         return self._client
 
     @staticmethod
@@ -218,7 +218,7 @@ class AgentCore:
         if self.mcp_manager:
             mcp_tools = self.mcp_manager.get_tool_schemas()
 
-        # Collect skill context — dynamically dispatch based on user input
+        # Collect skill context; dynamically dispatch based on user input.
         skill_context = self._get_active_skill_context(user_input=user_input)
 
         phase = (
@@ -227,16 +227,15 @@ class AgentCore:
             else None
         )
         personnel_keywords = [
-            "社会工程",
-            "社工",
-            "人员信息",
-            "作者追踪",
-            "人物追踪",
-            "人物画像",
+            "social engineering",
+            "personnel information",
+            "author tracking",
+            "person tracking",
+            "person profile",
             "osint",
-            "情报",
-            "调查",
-            "作者",
+            "intelligence",
+            "investigate",
+            "author",
         ]
         enable_personnel = any(kw in (user_input or "").lower() for kw in personnel_keywords)
         if (
@@ -271,8 +270,9 @@ class AgentCore:
     def _extract_user_vuln_hint(self, user_input: str) -> str:
         """Extract explicit vulnerability hints from user input.
 
-        When the user says "这个点有SQL注入，测试一下" or "帮我测一下XSS"，
-        returns a directive telling LLM to test that specific vuln immediately.
+        When the user explicitly mentions SQL injection, XSS, RCE, or another
+        vulnerability class, return a directive telling the LLM to test that
+        specific vulnerability immediately.
         Returns "" if no explicit hint found.
         """
         return extract_user_vuln_hint(user_input)
@@ -286,7 +286,7 @@ class AgentCore:
         """Extract target from user input."""
         return detect_target(user_input)
 
-    # ── Single-turn chat (for manual REPL interaction) ──────────────
+    # -- Single-turn chat (for manual REPL interaction) --------------
 
     async def chat(
         self,
@@ -302,7 +302,7 @@ class AgentCore:
         """
         result = AgentResult()
 
-        # Chat mode is free-form — don't inherit constraints from previous sessions
+        # Chat mode is free-form; do not inherit constraints from previous sessions.
         self.context.state.task_constraints = TaskConstraints()
 
         # Detect target and phase from input
@@ -321,7 +321,7 @@ class AgentCore:
         # Add user message to context
         self.context.add_user_message(user_input)
 
-        # Build system prompt — pass user_input for dynamic Skill dispatch
+        # Build system prompt and pass user_input for dynamic Skill dispatch.
         system_prompt = self._build_system_prompt(
             detected_target, auto_mode=False, user_input=user_input
         )
@@ -341,11 +341,11 @@ class AgentCore:
             self._maybe_auto_save_session()
 
         except Exception as e:
-            result.output = f"[!] Agent 错误: {e}"
+            result.output = f"[!] Agent error: {e}"
 
         return result
 
-    # ── Autonomous pentest loop ─────────────────────────────────────
+    # -- Autonomous pentest loop -------------------------------------
 
     async def auto_pentest(
         self,
@@ -363,7 +363,7 @@ class AgentCore:
         """Build context string for the current round in auto loop."""
         return build_round_context(self, round_num, max_rounds)
 
-    # ── Persistent pentest loop ──────────────────────────────────────
+    # -- Persistent pentest loop --------------------------------------
 
     async def persistent_pentest(
         self,
@@ -375,10 +375,10 @@ class AgentCore:
         on_cycle_step: Optional[Callable[[int, int, AgentResult], None]] = None,
         on_cycle_complete: Optional[Callable[[int, "PersistentCycleResult"], None]] = None,
         *,
-        # stream_sink 由 main.py 传入，逐级透传到 call_llm_auto_stream 实现流式输出
+        # stream_sink is passed from main.py down to the streaming LLM implementation.
         stream_sink: Optional["StreamSink"] = None,
     ) -> list["PersistentCycleResult"]:
-        """Persistent penetration test — runs cycles of auto_pentest until stopped."""
+        """Persistent penetration test - runs cycles of auto_pentest until stopped."""
         return await run_persistent_pentest(
             self,
             user_input,
@@ -402,7 +402,7 @@ class AgentCore:
     def _detect_flag_claim(self, output: str) -> Optional[str]:
         """Detect if the LLM claims to have found a flag, return the claimed flag or None.
 
-        This is used to trigger automatic verification — if the LLM claims
+        This is used to trigger automatic verification; if the LLM claims
         a flag but we can't verify it independently, we should NOT stop.
         """
         return detect_flag_claim(output)
@@ -418,9 +418,9 @@ class AgentCore:
         """Check if a step represents meaningful progress (not just a failed retry).
 
         Only steps with actual discoveries or confirmations count as progress.
-        A step is considered NOT meaningful only when it is a PURE failure —
+        A step is considered NOT meaningful only when it is a pure failure:
         i.e., it mentions failure indicators AND has no progress indicators at all.
-        If a step has BOTH failure and progress keywords (e.g. "XSS测试超时但发现新路径"),
+        If a step has both failure and progress keywords,
         it is still meaningful because progress was made.
         """
         return is_meaningful_step(step)
@@ -454,14 +454,14 @@ class AgentCore:
         """Build OpenAI function calling schema from MCP tools + built-in tools."""
         return build_openai_tools(self.mcp_manager)
 
-    # ── Python code executor ─────────────────────────────────────────
+    # -- Python code executor -----------------------------------------
 
     _BLOCKED_PATTERNS = BLOCKED_PATTERNS
 
     async def _execute_nmap(self, args: dict) -> str:
         return await execute_nmap(self, args)
 
-    # ── Reserved IP detection helpers ─────────────────────────────────
+    # -- Reserved IP detection helpers ---------------------------------
 
     _RESERVED_IP_RANGES = RESERVED_IP_RANGES
 

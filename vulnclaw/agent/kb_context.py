@@ -21,7 +21,7 @@ def _retriever_for(agent) -> Optional[KnowledgeRetriever]:
     if getattr(agent, "_kb_retriever", None) is None:
         try:
             agent._kb_retriever = KnowledgeRetriever()
-        except Exception as exc:  # defensive — never break the agent loop
+        except Exception as exc:  # defensive; never break the agent loop
             logger.warning("KB retriever initialization failed: %s", exc)
             agent._kb_retriever = None
     return agent._kb_retriever
@@ -38,7 +38,7 @@ def build_kb_context(agent, user_input: Optional[str] = None) -> str:
     if retriever is None or retriever.get_status() is RetrieverStatus.DISABLED:
         return ""
 
-    # ── Session-level cache (keyed by the query signature) ───────────
+    # Session-level cache keyed by the query signature.
     cache = getattr(agent, "_kb_context_cache", None)
     if cache is None:
         cache = {}
@@ -61,7 +61,7 @@ def build_kb_context(agent, user_input: Optional[str] = None) -> str:
 
     try:
         context = _collect_kb_context(agent, retriever, user_input, services, finding_types)
-    except Exception as exc:  # defensive — retrieval must never break the loop
+    except Exception as exc:  # defensive; retrieval must never break the loop
         logger.warning("KB context build failed: %s", exc)
         context = ""
 
@@ -114,7 +114,7 @@ def _collect_kb_context(
 
     formatted = retriever.format_for_prompt(deduped, max_entries=5)
     return (
-        "## 知识库参考（相关 CVE / 利用技巧 / 绕过方法）\n"
-        "以下信息来自本地安全知识库，供参考使用：\n\n"
+        "## Knowledge Base References (Relevant CVEs / Exploitation Tips / Bypasses)\n"
+        "The following information comes from the local security knowledge base:\n\n"
         f"{formatted}\n"
     )

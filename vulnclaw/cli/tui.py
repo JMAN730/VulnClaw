@@ -1,12 +1,5 @@
 """TUI helpers for the VulnClaw CLI."""
 
-# [修改] 重大重构: 从 Rich 数字菜单驱动改为 prompt_toolkit + slash 命令系统
-# - 新增 opencode 风格色彩调色板 (C_PRIMARY / C_SECONDARY 等)
-# - 新增 slash 命令系统 (/target /mode /scope /start /config 等)
-# - 新增 prompt 状态机 (input / choice / confirm / chain)
-# - 新增 _run_pt_tui 函数提供 prompt_toolkit 应用主循环
-# - 旧 Rich Prompt 保留在 _prompt_* 函数中作为兼容
-# - 原 run_tui() 改为桥接至 tui_textual.run_tui_textual()
 
 from __future__ import annotations
 
@@ -17,7 +10,6 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Optional
 
-# [修改] 2026-06-10 Nyaecho - 将 prompt_toolkit 导入移到 _run_pt_tui() 函数内部，避免硬性依赖
 from rich import box
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -35,8 +27,7 @@ from vulnclaw.config.settings import (
 from vulnclaw.i18n import _, init_i18n
 from vulnclaw.target_state.store import get_target_state_preview, list_target_snapshots
 
-# ── opencode-inspired colour palette ──
-# [修改] 替换 Rich 默认配色为统一色彩变量, 便于后续主题切换
+# -- opencode-inspired colour palette --
 C_PRIMARY = "#fab283"         # warm peach  – key indicators, selections
 C_SECONDARY = "#5c9cf5"       # soft blue   – info, mode labels
 C_ACCENT = "#9d7cd8"          # purple      – titles, headings
@@ -48,7 +39,7 @@ C_TEXT = "#eeeeee"            # near-white  – body text
 C_BORDER = "#484848"          # mid-gray    – panel borders
 C_BORDER_SUBTLE = "#3c3c3c"   # dark-gray   – inner / subtle borders
 
-# ── i18n boot ──
+# -- i18n boot --
 _config_holder = [None]
 
 
@@ -316,11 +307,10 @@ def build_dashboard(config, state: TuiState) -> Group:
         overview_table.add_row(_("tui.history_error"), overview.error)
 
     command_preview = _draft_from_state(state).command_line
-    # [修改] 这里改用 Rich Text 逐段上色，避免把 markup 当普通字符串显示出来
     footer_body = Text()
     footer_body.append(_("tui.command_preview"), style=f"bold {C_TEXT}")
     footer_body.append("\n")
-    footer_body.append("┃  ", style=C_MUTED)
+    footer_body.append("|  ", style=C_MUTED)
     footer_body.append(command_preview, style=C_MUTED)
     footer_body.append("\n\n")
     footer_body.append(_("tui.cli_note"), style=C_MUTED)
@@ -351,7 +341,6 @@ def run_tui(
     initial_state: TuiState | None = None,
 ) -> None:
     """Run the interactive terminal UI loop (Textual-powered)."""
-    # [修改] 原 Rich 主循环替换为 Textual 后端, 桥接至 tui_textual.run_tui_textual()
     from vulnclaw.cli.tui_textual import run_tui_textual
     run_tui_textual(launcher=launcher, once=once, initial_state=initial_state)
 
@@ -361,7 +350,6 @@ def _run_pt_tui(session: dict[str, Any]) -> Optional[str]:
 
     Returns 'quit', 'launch', or None (interrupted).
     """
-    # [修改] 2026-06-10 Nyaecho - 将 prompt_toolkit 导入移到函数内部，避免硬性依赖
     from prompt_toolkit import Application
     from prompt_toolkit.buffer import Buffer
     from prompt_toolkit.formatted_text import ANSI
@@ -458,7 +446,7 @@ def _run_pt_tui(session: dict[str, Any]) -> Optional[str]:
         max_desc = max((len(desc) for _, desc in items), default=32)
         box_inner = max(46, max_desc + 16)  # 46 is legacy minimum, 16 = prefix + cmd column + space
         result: list[tuple[str, str]] = []
-        result.append((f"fg:{C_BORDER} bg:#1e1e1e", "╭" + "─" * box_inner + "╮\n"))
+        result.append((f"fg:{C_BORDER} bg:#1e1e1e", "+" + "-" * box_inner + "+\n"))
         for i, (cmd, desc) in enumerate(items):
             prefix = "▸" if i == sel else " "
             if i == sel:
@@ -467,7 +455,7 @@ def _run_pt_tui(session: dict[str, Any]) -> Optional[str]:
             else:
                 result.append((f"fg:{C_PRIMARY} bold bg:#1e1e1e", f" {prefix} /{cmd:<12}"))
                 result.append((f"fg:{C_MUTED} bg:#1e1e1e", f" {desc}\n"))
-        result.append((f"fg:{C_BORDER} bg:#1e1e1e", "╰" + "─" * box_inner + "╯"))
+        result.append((f"fg:{C_BORDER} bg:#1e1e1e", "+" + "-" * box_inner + "+"))
         return result
 
     def _select_palette(_buff: Buffer | None = None) -> None:
@@ -481,7 +469,7 @@ def _run_pt_tui(session: dict[str, Any]) -> Optional[str]:
 
     body = HSplit([
         Window(content=FormattedTextControl(_get_dashboard), wrap_lines=False),
-        Window(height=1, char="─", style=f"fg:{C_BORDER}"),
+        Window(height=1, char="-", style=f"fg:{C_BORDER}"),
         Window(content=FormattedTextControl(_render_status_bar), height=1, style="class:status-bar", dont_extend_height=True),
         Window(content=BufferControl(buffer=input_buffer), height=1, style="class:input"),
     ])
@@ -568,9 +556,7 @@ def _load_default_bindings() -> Any:
     return _DEFAULT_BINDINGS
 
 
-# ── Prompt state machine ──
-# [修改] 新增 prompt 状态机, 支持 input / choice / confirm / chain 四种交互模式
-# 用于替换 Rich 的 Prompt.ask / Confirm.ask, 与 prompt_toolkit 深度集成
+# -- Prompt state machine --
 
 PromptCallback = Callable[[str], None]
 
@@ -654,10 +640,7 @@ def _handle_prompt_response(session: dict[str, Any], prompt: tuple, text: str) -
         _set_prompt_chain(session, _fields, idx + 1, cb)
 
 
-# ── Slash command system ──
-# [修改] 新增 slash 命令系统替代数字菜单, 支持补全、快捷键注册
-# 命令映射关系: /target→原1, /mode→原2, /scope→原3, /start→原4...
-# /history→原5, /report→原6, /diag→原7, /config→原8, /quit→原q
+# -- Slash command system --
 
 def _build_slash_commands() -> dict[str, str]:
     """Build SLASH_COMMANDS dict with translated descriptions."""
@@ -666,7 +649,6 @@ def _build_slash_commands() -> dict[str, str]:
         "mode": _("tui.slash_mode"),
         "scope": _("tui.slash_scope"),
         "run": _("tui.slash_run"),
-        # [新增] 2026-06-10 Nyaecho - TUI命令面板新增 /continue 斜杠命令入口
         "continue": _("tui.slash_continue"),
         "history": _("tui.slash_history"),
         "report": _("tui.slash_report"),
@@ -924,7 +906,6 @@ def _cmd_config(session: dict[str, Any], args: str) -> None:
             nonlocal config
             session["config"] = apply_provider_preset(config, value)
             config = session["config"]
-        # 流程变更：选择提供商后先输入 API Key
         key_status = _("tui.api_key_configured") if config.llm.api_key else _("tui.api_key_not_configured")
         _set_prompt_input(session, _("tui.prompt_enter_apikey", status=key_status), _on_apikey)
 
@@ -933,14 +914,10 @@ def _cmd_config(session: dict[str, Any], args: str) -> None:
             config.llm.api_key = value.strip()
         base_url = config.llm.base_url
         api_key = config.llm.api_key
-        # custom 提供商或缺少 base_url/api_key 时跳过获取，直接手动输入
         if not base_url or not api_key:
             _set_prompt_input(session, _("tui.prompt_enter_model_fallback", model=config.llm.model), _on_model_input, default=config.llm.model)
             return
-        # prompt_toolkit 版本：同步获取模型列表
         _set_prompt_message(session, _("tui.fetching_models"))
-        # Note: 在 prompt_toolkit 同步循环中，消息不会立即渲染
-        # 直接同步获取模型列表
         models = fetch_provider_models(base_url, api_key)
         if models:
             _set_prompt_choice(session, _("tui.prompt_select_model", model=config.llm.model), models, _on_model_selected)
@@ -991,8 +968,7 @@ def _apply_language_pt(session: dict[str, Any], lang: str) -> None:
     session["_message"] = _("tui.language_switched", lang=lang_labels.get(lang, lang))
 
 
-# ── (kept for backward compatibility) ──
-# [修改] 以下旧 Rich/Prompt 函数保留供测试和 CLI 直接调用, 新代码应使用 slash 命令系统
+# -- (kept for backward compatibility) --
 
 
 def render_task_summary(draft: TuiTaskDraft, *, width: int = 100) -> str:
@@ -1026,7 +1002,7 @@ def build_target_overview(target: str) -> TuiTargetOverview:
         return TuiTargetOverview(
             target=normalized,
             has_history=False,
-            error=f"读取失败: {exc}",
+            error=f"Read failed: {exc}",
         )
 
     if preview is None:
@@ -1090,7 +1066,7 @@ def build_runtime_diagnostic(config) -> TuiRuntimeDiagnostic:
             provider=provider,
             model=model,
             api_key_configured=api_key_configured,
-            mcp_error=f"MCP 诊断失败: {exc}",
+            mcp_error=f"MCP diagnostics failed: {exc}",
         )
 
 
@@ -1261,8 +1237,6 @@ def _build_command_preview_args(draft: TuiTaskDraft) -> list[str]:
 
 def build_command_preview_args(draft: TuiTaskDraft, nl_text: str | None = None) -> list[str]:
     """Build a copyable CLI command from a TUI task draft."""
-    # [修改] 2026-06-10 Nyaecho - TUI自然语言驱动: 支持 nl_text 传入并通过 --prompt 传递给CLI子进程
-    # [修改] 2026-06-10 Nyaecho - 添加安全风险提示：通过命令行传递prompt可能暴露给其他本地用户
     args = ["vulnclaw", draft.command, draft.target]
     if nl_text:
         args.extend(["--prompt", nl_text])
@@ -1327,13 +1301,11 @@ def _prompt_llm_config(screen: Console, config):
     if base_url:
         config.llm.base_url = base_url
 
-    # 流程变更：先输入 API Key，再获取模型列表
     current_key = _("tui.api_key_configured") if config.llm.api_key else _("tui.api_key_not_configured")
     api_key = Prompt.ask(f"API Key ({current_key})", default="").strip()
     if api_key:
         config.llm.api_key = api_key
 
-    # 尝试获取模型列表
     effective_base_url = config.llm.base_url
     effective_api_key = config.llm.api_key
     model = config.llm.model

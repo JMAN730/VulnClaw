@@ -1,4 +1,4 @@
-"""VulnClaw Knowledge Updater — update and seed the knowledge base."""
+"""VulnClaw Knowledge Updater - update and seed the knowledge base."""
 
 from __future__ import annotations
 
@@ -6,12 +6,7 @@ from vulnclaw.kb.store import KnowledgeStore
 
 
 def seed_knowledge_base(store: KnowledgeStore) -> None:
-    """Seed the knowledge base with initial data.
-
-    This populates the KB with essential security knowledge for MVP.
-    """
-    # ── CVE Entries ──────────────────────────────────────────────
-
+    """Seed the knowledge base with essential security knowledge."""
     cves = [
         {
             "id": "CVE-2026-21858",
@@ -24,30 +19,30 @@ def seed_knowledge_base(store: KnowledgeStore) -> None:
             "tags": ["n8n", "file-read", "rce", "critical"],
             "exploitation_steps": [
                 "Identify a public form path on the n8n instance",
-                "Send POST request with forged files object containing filepath",
-                "Read server files including /etc/passwd, config, database",
-                "Extract encryption key from config",
-                "Use extracted credentials to login",
-                "Create malicious workflow with expression injection for RCE",
+                "Send a POST request with a forged files object containing filepath",
+                "Read server files such as /etc/passwd, config files, or databases",
+                "Extract encryption material from configuration files",
+                "Use recovered credentials to authenticate where authorized",
+                "Create a controlled workflow proof-of-concept to validate RCE impact",
             ],
-            "remediation": "Upgrade to n8n >= 1.121.0",
+            "remediation": "Upgrade to n8n >= 1.121.0.",
         },
         {
             "id": "CVE-2025-68613",
             "title": "n8n Authenticated Expression Injection RCE",
-            "description": "Authenticated expression injection in n8n allows RCE via "
-            "malicious workflow expressions.",
+            "description": "Authenticated expression injection in n8n allows remote code "
+            "execution through malicious workflow expressions.",
             "severity": "Critical",
             "affected": "n8n >= 0.211.0, < 1.120.4",
             "tags": ["n8n", "rce", "expression-injection", "critical"],
             "exploitation_steps": [
-                "Login with valid credentials",
-                "Create a workflow with manualTrigger + set node",
-                "Insert expression payload: ={{ (function(){...execSync(cmd)...})() }}",
+                "Authenticate with valid credentials",
+                "Create a workflow with manualTrigger and set nodes",
+                "Insert an expression payload that invokes a controlled command",
                 "Run the workflow",
-                "Read execution result for command output",
+                "Read the execution result for command output",
             ],
-            "remediation": "Upgrade to n8n >= 1.120.4 or 1.121.1",
+            "remediation": "Upgrade to n8n >= 1.120.4 or >= 1.121.1.",
         },
     ]
 
@@ -56,55 +51,53 @@ def seed_knowledge_base(store: KnowledgeStore) -> None:
         if not existing:
             store.add_entry("cve", cve["id"], cve)
 
-    # ── Technique Entries ────────────────────────────────────────
-
     techniques = [
         {
             "id": "sqli-bypass",
-            "title": "SQL 注入绕过技巧",
-            "description": "绕过 WAF 的 SQL 注入 payload 构造方法",
+            "title": "SQL Injection Bypass Techniques",
+            "description": "Payload construction methods for bypassing SQL injection filters.",
             "tags": ["sqli", "waf-bypass", "web"],
             "bypass_methods": [
-                "大小写混合: SeLeCt",
-                "内联注释: S/*!ELECT*/",
-                "双重编码: %2565",
-                "等价函数: GROUP_CONCAT 替代 concat_ws",
+                "Mixed case keywords: SeLeCt",
+                "Inline comments: S/*!ELECT*/",
+                "Double encoding: %2565",
+                "Equivalent functions: GROUP_CONCAT instead of concat_ws",
             ],
         },
         {
             "id": "rce-bypass-php",
-            "title": "PHP 命令执行绕过技巧",
-            "description": "绕过 PHP WAF 的命令执行 payload 构造",
+            "title": "PHP Command Execution Bypass Techniques",
+            "description": "Payload construction methods for bypassing PHP command execution filters.",
             "tags": ["rce", "waf-bypass", "php", "web"],
             "bypass_methods": [
-                "Base64编码函数名: $f=base64_decode('c3lzdGVt');$f('id');",
-                "字符串拼接: $f='sys'.'tem';$f('id');",
-                "拆分路径: '/va'.'r/ww'.'w/ht'.'ml'",
-                "反转字符串: $f=strrev('metsys');$f('id');",
+                "Base64-decoded function name: $f=base64_decode('c3lzdGVt');$f('id');",
+                "String concatenation: $f='sys'.'tem';$f('id');",
+                "Split paths: '/va'.'r/ww'.'w/ht'.'ml'",
+                "Reversed function name: $f=strrev('metsys');$f('id');",
             ],
         },
         {
             "id": "xss-bypass",
-            "title": "XSS 绕过技巧",
-            "description": "绕过 WAF/XSS 过滤器的 payload 构造",
+            "title": "XSS Bypass Techniques",
+            "description": "Payload construction methods for bypassing WAF and XSS filters.",
             "tags": ["xss", "waf-bypass", "web"],
             "bypass_methods": [
-                "事件处理器: <img src=x onerror=alert(1)>",
-                "SVG 标签: <svg onload=alert(1)>",
-                "HTML实体编码",
-                "Unicode 编码",
+                "Event handlers: <img src=x onerror=alert(1)>",
+                "SVG tags: <svg onload=alert(1)>",
+                "HTML entity encoding",
+                "Unicode encoding",
             ],
         },
         {
             "id": "cmd-injection-bypass",
-            "title": "命令注入绕过技巧",
-            "description": "绕过命令注入过滤的方法",
+            "title": "Command Injection Bypass Techniques",
+            "description": "Methods for bypassing command injection filters.",
             "tags": ["command-injection", "waf-bypass", "web"],
             "bypass_methods": [
-                "换行符: id\\nwhoami",
-                "管道符: id|whoami",
-                "变量拼接: a=i;b=d;$a$b",
-                "通配符: /bin/ca? /etc/pas?d",
+                "Newline separator: id\\nwhoami",
+                "Pipe separator: id|whoami",
+                "Variable concatenation: a=i;b=d;$a$b",
+                "Wildcards: /bin/ca? /etc/pas?d",
             ],
         },
     ]
@@ -114,32 +107,30 @@ def seed_knowledge_base(store: KnowledgeStore) -> None:
         if not existing:
             store.add_entry("techniques", tech["id"], tech)
 
-    # ── Tool Guides ──────────────────────────────────────────────
-
     tools = [
         {
             "id": "nmap",
-            "title": "Nmap 端口扫描速查",
-            "description": "Nmap 常用扫描命令和参数",
+            "title": "Nmap Port Scanning Quick Reference",
+            "description": "Common Nmap scan commands and options.",
             "tags": ["nmap", "recon", "scanning"],
             "commands": [
-                "nmap -sV -sC -p- TARGET    # 全端口扫描+版本探测",
-                "nmap -sS -TOP_PORTS 1000 TARGET   # SYN扫描Top1000端口",
-                "nmap --script vuln TARGET   # 漏洞扫描脚本",
-                "nmap -sU -TOP_PORTS 100 TARGET     # UDP扫描",
+                "nmap -sV -sC -p- TARGET    # full-port scan plus version detection",
+                "nmap -sS --top-ports 1000 TARGET   # SYN scan top 1000 ports",
+                "nmap --script vuln TARGET   # vulnerability NSE scripts",
+                "nmap -sU --top-ports 100 TARGET     # UDP scan",
             ],
         },
         {
             "id": "burp",
-            "title": "Burp Suite 工作流",
-            "description": "Burp Suite 渗透测试工作流",
+            "title": "Burp Suite Workflow",
+            "description": "Burp Suite penetration testing workflow.",
             "tags": ["burp", "proxy", "web"],
             "workflow": [
-                "配置浏览器代理 → Burp",
-                "浏览目标站点，收集请求",
-                "分析请求中的参数和端点",
-                "使用 Intruder 进行模糊测试",
-                "使用 Repeater 手动验证漏洞",
+                "Configure the browser proxy to Burp",
+                "Browse the target and collect requests",
+                "Analyze request parameters and endpoints",
+                "Use Intruder for controlled fuzzing",
+                "Use Repeater for manual vulnerability validation",
             ],
         },
     ]

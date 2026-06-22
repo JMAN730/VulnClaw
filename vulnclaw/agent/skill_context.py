@@ -20,7 +20,7 @@ def get_active_skill_context(user_input: Optional[str] = None) -> Optional[str]:
                     ref_list = ", ".join(refs[:10])
                     if len(refs) > 10:
                         ref_list += f", ... ({len(refs)} total)"
-                    context += f"\n\n## 可用参考文档\n以下参考文档可在需要时通过 load_skill_reference 加载: {ref_list}"
+                    context += f"\n\n## Available Reference Documents\nThese references can be loaded with load_skill_reference when needed: {ref_list}"
                 return context
         except Exception:
             pass

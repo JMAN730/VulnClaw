@@ -15,18 +15,18 @@ def _seed_store(tmp_path):
         "techniques",
         "sqli-bypass",
         {
-            "title": "SQL 注入绕过技巧",
-            "description": "绕过 WAF 的 SQL injection payload 构造方法",
+            "title": "SQL Injection Bypass Techniques",
+            "description": "Payload construction methods for bypassing WAF SQL injection filters",
             "tags": ["sqli", "waf-bypass", "web"],
-            "bypass_methods": ["大小写混合 SeLeCt", "内联注释"],
+            "bypass_methods": ["Mixed case SeLeCt", "Inline comments"],
         },
     )
     store.add_entry(
         "techniques",
         "xss-bypass",
         {
-            "title": "XSS 绕过技巧",
-            "description": "绕过 WAF 的 cross site scripting payload",
+            "title": "XSS Bypass Techniques",
+            "description": "Payloads for bypassing WAF cross-site scripting filters",
             "tags": ["xss", "waf-bypass", "web"],
         },
     )
@@ -42,7 +42,7 @@ def _seed_store(tmp_path):
     return store
 
 
-# ── Automatic degradation when ChromaDB unavailable ──────────────────
+# -- Automatic degradation when ChromaDB unavailable ------------------
 
 
 class TestAutoDegradation:
@@ -66,7 +66,7 @@ class TestAutoDegradation:
         assert retriever.retrieve("anything") == []
 
 
-# ── Keyword retrieval functionality ──────────────────────────────────
+# -- Keyword retrieval functionality ----------------------------------
 
 
 class TestKeywordRetriever:
@@ -102,7 +102,7 @@ class TestKeywordRetriever:
         assert kw.has_data() is False
 
 
-# ── Status reporting ─────────────────────────────────────────────────
+# -- Status reporting -------------------------------------------------
 
 
 class TestStatusReporting:
@@ -120,7 +120,7 @@ class TestStatusReporting:
         assert retriever.get_status_detail()
 
 
-# ── Retrieval result caching (via kb_context) ────────────────────────
+# -- Retrieval result caching (via kb_context) ------------------------
 
 
 class _FakeState:
@@ -171,14 +171,14 @@ class TestContextCaching:
         monkeypatch.setattr(retriever_mod, "CHROMADB_AVAILABLE", False)
         from vulnclaw.agent import kb_context as kbc
 
-        store = KnowledgeStore(store_dir=tmp_path)  # empty → disabled
+        store = KnowledgeStore(store_dir=tmp_path)  # empty -> disabled
         agent = _FakeAgent()
         agent._kb_retriever = KnowledgeRetriever(store=store)
 
         assert kbc.build_kb_context(agent, "anything") == ""
 
 
-# ── Full-corpus loading from store ───────────────────────────────────
+# -- Full-corpus loading from store -----------------------------------
 
 
 class TestStoreIteration:

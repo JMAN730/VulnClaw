@@ -15,7 +15,7 @@ DEFAULT_TOOL_MAX_CONCURRENT = 5
 async def handle_tool_calls(agent: Any, message: Any) -> str:
     """Handle tool calls from the LLM response (legacy single-turn)."""
     results: list[str] = []
-    # [修改] 2026-06-10 Nyaecho - 修复 tool_calls 属性访问问题，使用 getattr 防止 AttributeError
+    # Use getattr to avoid AttributeError on providers without tool_calls.
     for tool_call in (getattr(message, "tool_calls", None) or []):
         func_name = tool_call.function.name
         func_args = safe_parse_tool_args(tool_call.function.arguments)
@@ -31,7 +31,7 @@ async def handle_tool_calls_with_results(
     max_calls_per_round = 10
 
     seen: dict[str, dict[str, Any]] = {}
-    # [修改] 2026-06-10 Nyaecho - 修复 tool_calls 属性访问问题，使用 getattr 防止 AttributeError
+    # Use getattr to avoid AttributeError on providers without tool_calls.
     for tool_call in (getattr(message, "tool_calls", None) or []):
         func_name = tool_call.function.name
         func_args = safe_parse_tool_args(tool_call.function.arguments)
@@ -45,7 +45,7 @@ async def handle_tool_calls_with_results(
             }
 
     deduplicated = list(seen.values())
-    # [修改] 2026-06-10 Nyaecho - 修复 tool_calls 属性访问问题，使用 getattr 防止 AttributeError
+    # Use getattr to avoid AttributeError on providers without tool_calls.
     total_count = len(getattr(message, "tool_calls", None) or [])
     dedup_count = len(deduplicated)
 
@@ -54,11 +54,11 @@ async def handle_tool_calls_with_results(
     skipped_info: list[str] = []
 
     if total_count > dedup_count:
-        skipped_info.append(f"[去重] {total_count - dedup_count} 个重复调用已合并")
+        skipped_info.append(f"[dedup] merged {total_count - dedup_count} duplicate calls")
     if skipped_calls:
         for sc in skipped_calls:
             skipped_info.append(
-                f"[跳过] {sc['func_name']}({str(sc['func_args'])[:100]}) — 本轮已达上限，下轮继续"
+                f"[skip] {sc['func_name']}({str(sc['func_args'])[:100]}) - per-round limit reached; continue next round"
             )
 
     parallel, max_concurrent = _resolve_parallel_settings(agent)
@@ -106,7 +106,7 @@ async def _execute_parallel(
 async def _execute_single(agent: Any, item: dict[str, Any]) -> dict[str, Any] | None:
     """Execute one tool call with isolated error handling.
 
-    Returns a result dict on success, or ``None`` when the call raised — matching
+    Returns a result dict on success, or ``None`` when the call raised, matching
     the legacy behavior of dropping failed calls from the result set.
     """
     tool_call = item["tool_call"]
@@ -129,7 +129,7 @@ async def _execute_single(agent: Any, item: dict[str, Any]) -> dict[str, Any] | 
             "structured_content": structured_content,
         }
     except Exception as e:
-        print(f"[!] 工具执行失败 {func_name}: {e}", file=sys.stderr)
+        print(f"[!] Tool execution failed {func_name}: {e}", file=sys.stderr)
         return None
 
 
