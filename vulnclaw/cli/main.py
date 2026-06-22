@@ -178,6 +178,40 @@ def _print_agent_output(output: str, config) -> None:
             console.print("[dim](LLM returned only hidden reasoning and no visible answer.)[/dim]")
 
 
+def _make_solve_event_printer(target_console):
+    """Return an on_event callback that prints solve-engine progress live."""
+
+    def on_event(kind: str, payload: dict) -> None:
+        if kind == "reason":
+            decision = payload.get("decision") or {}
+            if decision.get("complete"):
+                target_console.print("[green]✓ Reason: 目标达成[/green]")
+            elif decision.get("intents"):
+                target_console.print(
+                    f"[cyan]◆ Reason:[/cyan] 提出 {len(decision['intents'])} 个新探索方向"
+                )
+            else:
+                target_console.print("[dim]◆ Reason: 暂不新增方向[/dim]")
+        elif kind == "explore_start":
+            target_console.print(
+                f"[yellow]▶ Explore {payload['intent_id']}:[/yellow] {payload['description'][:90]}"
+            )
+        elif kind == "conclude":
+            target_console.print(
+                f"[green]＋ Fact {payload.get('fact', '')}:[/green] {payload.get('desc', '')[:90]}"
+            )
+        elif kind == "hallucination":
+            target_console.print(
+                f"[red]⚠ 幻觉拦截 {payload['intent_id']}:[/red] 声称的 flag 无真实证据，已拒绝"
+            )
+        elif kind == "complete_rejected":
+            target_console.print(f"[red]⚠ 拒绝完成:[/red] {payload.get('reason', '')[:90]}")
+        elif kind == "abandon":
+            target_console.print(f"[red]✗ 放弃 {payload['intent_id']}[/red]")
+
+    return on_event
+
+
 # 鈹€鈹€ REPL 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 
@@ -489,6 +523,43 @@ def _run_repl() -> None:
                     # Autonomous pentest loop
                     console.print(_("cli.enter_auto_mode"))
                     console.print()
+
+                    # 默认走目标驱动 solve 引擎；engine=rounds 时回退到旧固定轮数循环
+                    if getattr(config.session, "engine", "solve") == "solve":
+                        async def _run_auto():
+                            sink = TerminalStreamSink(console, config.session.show_thinking)
+
+                            async def call():
+                                return await agent.solve(
+                                    user_input,
+                                    target=current_target,
+                                    max_steps=config.session.solve_max_steps,
+                                    max_intents=config.session.solve_max_intents,
+                                    max_tool_rounds=config.session.solve_max_tool_rounds,
+                                    stream_sink=sink,
+                                    on_event=_make_solve_event_printer(console),
+                                )
+
+                            async def after_result(result):
+                                board = agent.context.state.board.get_summary()
+                                done = board.get("completed")
+                                console.print()
+                                console.print(
+                                    Panel(
+                                        f"{'✅ 目标达成' if done else '⊘ 未达成'} — "
+                                        f"facts={board.get('facts', 0)} intents={board.get('intents', 0)}\n"
+                                        f"原因: {board.get('complete_reason') or '探索结束'}",
+                                        title="Solve",
+                                        border_style="green" if done else "yellow",
+                                    )
+                                )
+
+                            await _run_repl_agent_call(agent, call=call, after_result=after_result)
+
+                        asyncio.run(_run_auto())
+                        auto_mode_active = True
+                        console.print(_("cli.auto_mode_hint"))
+                        continue
 
                     async def _run_auto():
                         sink = TerminalStreamSink(console, config.session.show_thinking)
@@ -836,9 +907,24 @@ def run(
         err_console.print(f"[!] {violation}")
         raise typer.Exit(1)
 
+    board_holder: dict = {}
+
     async def _run():
         async def runner(agent, shared_config):
             sink = TerminalStreamSink(console, shared_config.session.show_thinking)
+            # 默认走目标驱动 solve 引擎；engine=rounds 时回退到旧的固定轮数循环
+            if getattr(shared_config.session, "engine", "solve") == "solve":
+                result = await agent.solve(
+                    task_prompt,
+                    target=target,
+                    max_steps=shared_config.session.solve_max_steps,
+                    max_intents=shared_config.session.solve_max_intents,
+                    max_tool_rounds=shared_config.session.solve_max_tool_rounds,
+                    stream_sink=sink,
+                    on_event=_make_solve_event_printer(console),
+                )
+                board_holder["board"] = agent.context.state.board.get_summary()
+                return result
             return await agent.auto_pentest(
                 task_prompt,
                 target=target,
@@ -861,8 +947,87 @@ def run(
         return result
 
     orchestrated = asyncio.run(_run())
-    total_findings = orchestrated.summary["findings_count"]
-    console.print(_("cli.pentest_finished", findings=total_findings))
+    if board_holder.get("board"):
+        board = board_holder["board"]
+        status = "✅ 目标达成" if board.get("completed") else "⊘ 未达成"
+        console.print(
+            f"\n[bold]{status}[/bold] — facts={board.get('facts', 0)} "
+            f"intents={board.get('intents', 0)} 原因: {board.get('complete_reason') or '探索结束'}"
+        )
+    else:
+        total_findings = orchestrated.summary["findings_count"]
+        console.print(_("cli.pentest_finished", findings=total_findings))
+
+
+@app.command()
+def solve(
+    target: str = typer.Argument(..., help="Target host/IP/URL"),
+    goal: Optional[str] = typer.Option(
+        None, "--goal", help="Success condition, e.g. 'capture the flag' / 'get a shell'"
+    ),
+    prompt: Optional[str] = typer.Option(
+        None, "--prompt", help="Custom task description (overrides auto-generated)"
+    ),
+    max_steps: int = typer.Option(
+        40, "--max-steps", help="Safety cap on explore steps (NOT a fixed workflow length)"
+    ),
+    max_intents: int = typer.Option(3, "--max-intents", help="Max new intents per reason step"),
+    max_tool_rounds: int = typer.Option(
+        4, "--max-tool-rounds", help="Max tool-calling rounds per intent exploration"
+    ),
+    resume: bool = typer.Option(True, "--resume/--no-resume", help="Resume previous target state"),
+    snapshot: Optional[str] = typer.Option(None, "--snapshot", help="Resume from a snapshot id"),
+) -> None:
+    """Goal-driven solve loop — runs until the goal is met or the exploration frontier is exhausted.
+
+    Unlike `run`, this has no fixed round count. It searches a Fact/Intent graph
+    from the target toward the goal and stops on success or when no path remains.
+    """
+    config = load_config()
+    if not config.llm.api_key:
+        err_console.print("[!] Configure an LLM API key first.")
+        raise typer.Exit(1)
+
+    resolved_goal = goal or "找到 flag / 拿到 shell / 确认并验证高价值漏洞"
+    task_prompt = prompt or (
+        f"对 {target} 进行授权渗透测试。这是明确授权、在范围内的目标。目标(goal)：{resolved_goal}。"
+    )
+    console.print(f"[*] Target: [bold]{target}[/] | Goal: [bold]{resolved_goal}[/]")
+
+    on_event = _make_solve_event_printer(console)
+    holder: dict = {}
+
+    async def _run():
+        async def runner(agent, shared_config):
+            sink = TerminalStreamSink(console, shared_config.session.show_thinking)
+            result = await agent.solve(
+                task_prompt,
+                target=target,
+                goal=resolved_goal,
+                max_steps=max_steps,
+                max_intents=max_intents,
+                max_tool_rounds=max_tool_rounds,
+                stream_sink=sink,
+                on_event=on_event,
+            )
+            holder["board"] = agent.context.state.board.get_summary()
+            return result
+
+        return await _run_cli_orchestrated_task(
+            command="solve",
+            target=target,
+            resume=resume,
+            snapshot=snapshot,
+            runner=runner,
+        )
+
+    asyncio.run(_run())
+    board = holder.get("board") or {}
+    status = "✅ 目标达成" if board.get("completed") else "⊘ 未达成"
+    console.print(
+        f"\n[bold]{status}[/bold] — facts={board.get('facts', 0)} "
+        f"intents={board.get('intents', 0)} 原因: {board.get('complete_reason') or '探索结束'}"
+    )
 
 
 @app.command()
@@ -1474,6 +1639,181 @@ app.add_typer(kb_app, name="kb")
 
 target_state_app = typer.Typer(help="Manage target history state")
 app.add_typer(target_state_app, name="target-state")
+
+plugins_app = typer.Typer(help="Inspect and run vulnerability detection plugins")
+app.add_typer(plugins_app, name="plugins")
+
+
+def _parse_kv_options(pairs: Optional[list[str]]) -> dict[str, object]:
+    """把 --option key=value（可重复）解析为 dict，value 优先按 JSON 解析。"""
+    import json as _json
+
+    options: dict[str, object] = {}
+    for pair in pairs or []:
+        if "=" not in pair:
+            raise typer.BadParameter(f"Expected key=value, got: {pair}")
+        key, _, raw = pair.partition("=")
+        key = key.strip()
+        raw = raw.strip()
+        try:
+            options[key] = _json.loads(raw)
+        except (ValueError, TypeError):
+            options[key] = raw
+    return options
+
+
+@plugins_app.command("list")
+def plugins_list(
+    stage: Optional[str] = typer.Option(None, "--stage", help="Filter by stage"),
+    tag: Optional[str] = typer.Option(None, "--tag", help="Filter by tag"),
+) -> None:
+    """List registered detection plugins."""
+    from rich.table import Table
+
+    from vulnclaw.plugins import registry
+
+    plugin_classes = registry.list()
+    if stage:
+        try:
+            plugin_classes = registry.by_stage(stage)
+        except ValueError:
+            err_console.print(f"[!] Unknown stage: {stage}")
+            raise typer.Exit(1) from None
+    if tag:
+        tag_set = {p.plugin_id for p in registry.by_tag(tag)}
+        plugin_classes = [p for p in plugin_classes if p.plugin_id in tag_set]
+
+    if not plugin_classes:
+        console.print("[yellow]No plugins match the filter.[/yellow]")
+        return
+
+    table = Table(title="VulnClaw Plugins", show_lines=False)
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Name")
+    table.add_column("Stages")
+    table.add_column("Risk")
+    table.add_column("Destructive", justify="center")
+    for plugin_cls in sorted(plugin_classes, key=lambda p: p.plugin_id):
+        meta = plugin_cls.metadata()
+        table.add_row(
+            meta["plugin_id"],
+            meta["name"],
+            ", ".join(meta["stages"]),
+            meta["default_risk"],
+            "⚠️" if meta["destructive"] else "-",
+        )
+    console.print(table)
+
+
+@plugins_app.command("info")
+def plugins_info(plugin_id: str = typer.Argument(..., help="Plugin id")) -> None:
+    """Show full metadata for a single plugin."""
+    import json as _json
+
+    from vulnclaw.plugins import registry
+
+    plugin_cls = registry.get(plugin_id)
+    if plugin_cls is None:
+        err_console.print(f"[!] Plugin not found: {plugin_id}")
+        raise typer.Exit(1)
+    console.print_json(_json.dumps(plugin_cls.metadata(), ensure_ascii=False))
+
+
+@plugins_app.command("run")
+def plugins_run(
+    plugin_id: str = typer.Argument(..., help="Plugin id to run"),
+    target: str = typer.Option("", "--target", help="Target host/IP/URL"),
+    stage: str = typer.Option("discovery", "--stage", help="Plugin stage"),
+    option: Optional[list[str]] = typer.Option(
+        None, "--option", "-o", help="Plugin option key=value (repeatable, value parsed as JSON)"
+    ),
+    input_file: Optional[str] = typer.Option(
+        None, "--input", help="JSON file merged into plugin options"
+    ),
+    allow_destructive: bool = typer.Option(
+        False, "--allow-destructive", help="Permit destructive plugins"
+    ),
+    session_file: Optional[str] = typer.Option(
+        None, "--session", help="Merge findings into this SessionState JSON and save it"
+    ),
+    as_json: bool = typer.Option(False, "--json", help="Print the raw PluginResult as JSON"),
+) -> None:
+    """Run a plugin against supplied data (builtin plugins only analyze provided input)."""
+    import json as _json
+    from pathlib import Path
+
+    from rich.table import Table
+
+    from vulnclaw.plugins import PluginContext, PluginStage, create_builtin_runtime
+    from vulnclaw.plugins.integration import merge_plugin_results_into_session
+
+    try:
+        stage_value = PluginStage(stage)
+    except ValueError:
+        err_console.print(f"[!] Unknown stage: {stage}")
+        raise typer.Exit(1) from None
+
+    options = _parse_kv_options(option)
+    if input_file:
+        path = Path(input_file)
+        if not path.exists():
+            err_console.print(f"[!] Input file not found: {input_file}")
+            raise typer.Exit(1)
+        try:
+            payload = _json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, OSError) as exc:
+            err_console.print(f"[!] Failed to read input file: {exc}")
+            raise typer.Exit(1) from None
+        if isinstance(payload, dict):
+            options.update(payload)
+        else:
+            options["input"] = payload
+
+    config = load_config()
+    runtime = create_builtin_runtime(config)
+    context = PluginContext(
+        target=target,
+        stage=stage_value,
+        options=options,
+        allow_destructive=allow_destructive,
+    )
+
+    result = asyncio.run(runtime.execute(plugin_id, context))
+
+    if as_json:
+        console.print_json(result.model_dump_json())
+    else:
+        if result.skipped:
+            console.print(f"[yellow]⊘ Skipped[/yellow] ({result.error_type}): {result.error}")
+        elif result.error:
+            console.print(f"[red]✗ Error[/red] ({result.error_type}): {result.error}")
+        for message in result.messages:
+            console.print(f"  [dim]{message}[/dim]")
+        if result.findings:
+            table = Table(title=f"{plugin_id} findings", show_lines=True)
+            table.add_column("Risk", style="magenta", no_wrap=True)
+            table.add_column("Title")
+            table.add_column("Type")
+            table.add_column("Confidence", justify="right")
+            for finding in result.findings:
+                table.add_row(
+                    finding.risk.value,
+                    finding.title,
+                    finding.vuln_type or "-",
+                    f"{finding.confidence:.2f}",
+                )
+            console.print(table)
+        elif not result.error:
+            console.print("[green]✓[/green] Plugin ran; no findings.")
+
+    if session_file:
+        session_path = Path(session_file)
+        from vulnclaw.agent.context import SessionState
+
+        session = SessionState.load(session_path) if session_path.exists() else SessionState()
+        added = merge_plugin_results_into_session(session, result)
+        session.save(session_path)
+        console.print(f"[+] Merged {added} finding(s) into {session_file}")
 
 
 @kb_app.command("update")

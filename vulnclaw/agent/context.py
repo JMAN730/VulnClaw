@@ -11,6 +11,9 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, PrivateAttr
 
+from vulnclaw.agent.blackboard import Blackboard
+from vulnclaw.agent.reasoning_state import ReasoningState
+
 
 class PentestPhase(str, Enum):
     """Penetration test phases."""
@@ -284,6 +287,11 @@ class SessionState(BaseModel):
     task_constraints: TaskConstraints = Field(default_factory=TaskConstraints)
     constraint_violations: list[str] = Field(default_factory=list)
     constraint_violation_events: list[ConstraintViolationEvent] = Field(default_factory=list)
+    reasoning: ReasoningState = Field(default_factory=ReasoningState)
+    # 目标驱动求解引擎的黑板图（Fact/Intent），随会话持久化
+    board: Blackboard = Field(default_factory=Blackboard)
+    # 反思引擎跨周期记忆快照（persistent 模式），存为 dict 以避免与 reflexion 模块循环导入
+    reflexion_snapshot: dict[str, Any] = Field(default_factory=dict)
     findings: list[VulnerabilityFinding] = Field(default_factory=list)
     recon_data: dict[str, Any] = Field(default_factory=dict)
     # ★ 原始步骤日志（向后兼容）
@@ -777,6 +785,27 @@ class SessionState(BaseModel):
         """Add a confirmed fact (verified by tool output)."""
         if fact and fact not in self.confirmed_facts:
             self.confirmed_facts.append(fact)
+        if fact:
+            self.reasoning.add_fact(
+                key=self._fact_key_from_text(fact),
+                value=fact,
+                source="confirmed_fact",
+                confidence=0.9,
+            )
+
+    def _fact_key_from_text(self, fact: str) -> str:
+        text = fact.lower()
+        if "cve-" in text:
+            return "cve"
+        if "http://" in text or "https://" in text:
+            return "url"
+        if "port" in text or "端口" in fact:
+            return "port"
+        if "server" in text or "x-powered-by" in text:
+            return "service"
+        if "waf" in text:
+            return "waf"
+        return "confirmed_fact"
 
     def add_assumption(self, assumption: str) -> None:
         """Add an unverified assumption."""

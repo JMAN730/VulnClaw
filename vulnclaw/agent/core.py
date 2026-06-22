@@ -185,6 +185,48 @@ class AgentCore:
         # Re-bind finding parser to the new runtime object
         self._finding_parser = FindingParser(self.context, self.runtime)
 
+        # 跨周期恢复反思记忆（persistent 模式）：保留失败路径/历史/归因，重置本周期 stuck 计数
+        self._restore_reflexion_history()
+
+    # ── Reflexion 跨周期持久化 ───────────────────────────────────────
+    _REFLEXION_ATTEMPT_MEMORY = 50  # 跨周期最多携带的 attempt 条数，限制内存与归因开销
+
+    def _restore_reflexion_history(self) -> None:
+        """从 SessionState 快照恢复反思的记忆部分，但重置每周期 stuck 计数。"""
+        if not getattr(self.config.session, "reflexion_enabled", True):
+            return
+        snapshot = getattr(self.context.state, "reflexion_snapshot", None)
+        reflexion = getattr(self.runtime, "reflexion", None)
+        if not snapshot or reflexion is None:
+            return
+        try:
+            from vulnclaw.agent.reflexion import ReflexionState
+
+            restored = ReflexionState.model_validate(snapshot)
+        except Exception:
+            return
+        # 记忆：失败路径 / 归因素材 / 最近 attempts / 已知障碍
+        reflexion.state.failed_paths = restored.failed_paths
+        reflexion.state.constraints = restored.constraints
+        reflexion.state.attempts = restored.attempts[-self._REFLEXION_ATTEMPT_MEMORY :]
+        reflexion.state.last_vuln_type = restored.last_vuln_type
+        # 每周期重置：连败计数 / 同类失败计数 / 升级驱动（reflections）
+        reflexion.state.consecutive_failures = 0
+        reflexion.state.vuln_type_fail_count = 0
+        reflexion.state.reflections = []
+
+    def _save_reflexion_snapshot(self) -> None:
+        """把当前反思状态写回 SessionState 快照，供下个周期/同目标恢复时复用。"""
+        if not getattr(self.config.session, "reflexion_enabled", True):
+            return
+        reflexion = getattr(self.runtime, "reflexion", None)
+        if reflexion is None:
+            return
+        try:
+            self.context.state.reflexion_snapshot = reflexion.state.model_dump(mode="json")
+        except Exception:
+            pass
+
     def _get_client(self):
         """Lazy-initialize OpenAI client."""
         if self._client is None:
@@ -362,6 +404,42 @@ class AgentCore:
     def _build_round_context(self, round_num: int, max_rounds: int) -> str:
         """Build context string for the current round in auto loop."""
         return build_round_context(self, round_num, max_rounds)
+
+    # ── 目标驱动求解循环（黑板图 OODA，无固定轮数）──────────────────
+
+    async def solve(
+        self,
+        user_input: str,
+        target: Optional[str] = None,
+        *,
+        goal: Optional[str] = None,
+        max_steps: int = 40,
+        max_intents: int = 3,
+        max_tool_rounds: int = 4,
+        stream_sink: Optional["StreamSink"] = None,
+        on_event: Optional[Callable[[str, dict], None]] = None,
+    ) -> Any:
+        """以「目标达成 / 探索前沿耗尽 / 安全预算」为终止条件求解，而非固定轮数。"""
+        from vulnclaw.agent.solver import solve as run_solve
+
+        detected_target = target or self._detect_target(user_input)
+        if detected_target:
+            self.context.state.target = detected_target
+        self._reset_runtime_state(user_input=user_input)
+        self.context.add_user_message(user_input)
+
+        resolved_goal = goal or user_input
+        origin = detected_target or self.context.state.target or user_input
+        return await run_solve(
+            self,
+            origin=origin,
+            goal=resolved_goal,
+            max_steps=max_steps,
+            max_intents=max_intents,
+            max_tool_rounds=max_tool_rounds,
+            stream_sink=stream_sink,
+            on_event=on_event,
+        )
 
     # ── Persistent pentest loop ──────────────────────────────────────
 
