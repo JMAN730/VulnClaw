@@ -196,6 +196,35 @@ def _overlay_env(config: VulnClawConfig) -> VulnClawConfig:
             config.session.max_rounds = int(v)
     if v := os.environ.get("VULNCLAW_SESSION_SHOW_THINKING"):
         config.session.show_thinking = v.lower() in ("1", "true", "yes", "on")
+    if v := os.environ.get("VULNCLAW_SESSION_STALE_ROUNDS_THRESHOLD"):
+        with suppress(ValueError):
+            config.session.stale_rounds_threshold = int(v)
+
+    # ── Session: 推理状态 / 反思引擎 / 插件运行时 ──────────────
+    _truthy = ("1", "true", "yes", "on")
+    if v := os.environ.get("VULNCLAW_SESSION_REASONING_STATE_ENABLED"):
+        config.session.reasoning_state_enabled = v.lower() in _truthy
+    if v := os.environ.get("VULNCLAW_SESSION_REFLEXION_ENABLED"):
+        config.session.reflexion_enabled = v.lower() in _truthy
+    if v := os.environ.get("VULNCLAW_SESSION_REFLEXION_MAX_SAME_VULN_FAILS"):
+        with suppress(ValueError):
+            config.session.reflexion_max_same_vuln_fails = int(v)
+    if v := os.environ.get("VULNCLAW_SESSION_REFLEXION_MAX_TOTAL_NO_PROGRESS"):
+        with suppress(ValueError):
+            config.session.reflexion_max_total_no_progress = int(v)
+    if v := os.environ.get("VULNCLAW_SESSION_ESCALATION_MAX_LEVEL"):
+        with suppress(ValueError):
+            config.session.escalation_max_level = int(v)
+    if v := os.environ.get("VULNCLAW_SESSION_PLUGIN_RUNTIME_ENABLED"):
+        config.session.plugin_runtime_enabled = v.lower() in _truthy
+    if v := os.environ.get("VULNCLAW_SESSION_PLUGIN_DEFAULT_TIMEOUT"):
+        with suppress(ValueError):
+            config.session.plugin_default_timeout = int(v)
+    if v := os.environ.get("VULNCLAW_SESSION_PLUGIN_MAX_REQUESTS_PER_TARGET"):
+        with suppress(ValueError):
+            config.session.plugin_max_requests_per_target = int(v)
+    if v := os.environ.get("VULNCLAW_SESSION_EVIDENCE_MIN_REPORT_LEVEL"):
+        config.session.evidence_min_report_level = v
 
     # ── Safety ───────────────────────────────────────────────────────
     if v := os.environ.get("VULNCLAW_SAFETY_PYTHON_EXECUTE_ENABLED"):
