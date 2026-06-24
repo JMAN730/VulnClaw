@@ -30,12 +30,30 @@ KB_DIR = CONFIG_DIR / "kb"
 SKILLS_DIR = CONFIG_DIR / "skills"
 WEB_TASKS_FILE = CONFIG_DIR / "web_tasks.json"
 PYTHON_EXECUTE_AUDIT_FILE = CONFIG_DIR / "python_execute_audit.jsonl"
+DEFAULT_OPENAI_USER_AGENT = "Mozilla/5.0"
 
 
 def ensure_dirs() -> None:
     """Create VulnClaw config directories if they don't exist."""
     for d in [CONFIG_DIR, SESSIONS_DIR, TARGETS_DIR, KB_DIR, SKILLS_DIR]:
         d.mkdir(parents=True, exist_ok=True)
+
+
+def openai_default_headers() -> dict[str, str]:
+    return {"User-Agent": os.environ.get("VULNCLAW_LLM_USER_AGENT", DEFAULT_OPENAI_USER_AGENT)}
+
+
+def make_openai_client(api_key: str, base_url: str, timeout: float | None = None):
+    from openai import OpenAI
+
+    kwargs: dict[str, Any] = {
+        "api_key": api_key,
+        "base_url": base_url,
+        "default_headers": openai_default_headers(),
+    }
+    if timeout is not None:
+        kwargs["timeout"] = timeout
+    return OpenAI(**kwargs)
 
 
 # ── Load / Save ────────────────────────────────────────────────────
@@ -347,9 +365,7 @@ def fetch_provider_models(base_url: str, api_key: str, timeout: float = 10.0) ->
     if not base_url or not api_key:
         return []
     try:
-        from openai import OpenAI
-
-        client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
+        client = make_openai_client(api_key=api_key, base_url=base_url, timeout=timeout)
         models_page = client.models.list()
         model_ids = [m.id for m in models_page if m.id]
         return sorted(model_ids)
