@@ -500,16 +500,14 @@ CYCLE_REPORT_TEMPLATE = """\
 def _generate_attack_summary_from_session(session: SessionState) -> str:
     """Generate a readable attack-path summary using VulnClaw's configured LLM."""
     try:
-        from openai import OpenAI
-
         from vulnclaw.agent.think_filter import strip_think_tags
-        from vulnclaw.config.settings import load_config
+        from vulnclaw.config.settings import load_config, make_openai_client
 
         config = load_config()
         if not config.llm.api_key:
             return ""
 
-        client = OpenAI(
+        client = make_openai_client(
             api_key=config.llm.api_key,
             base_url=config.llm.base_url,
         )
