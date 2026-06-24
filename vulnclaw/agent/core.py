@@ -43,6 +43,7 @@ from vulnclaw.agent.skill_context import get_active_skill_context
 from vulnclaw.agent.system_prompt import build_dynamic_system_prompt
 from vulnclaw.agent.tool_call_manager import safe_parse_tool_args
 from vulnclaw.config.schema import VulnClawConfig
+from vulnclaw.config.settings import make_openai_client
 from vulnclaw.target_state.store import save_target_state
 
 # Optional KB integration — gracefully degrade if KB data is unavailable
@@ -231,9 +232,7 @@ class AgentCore:
         """Lazy-initialize OpenAI client."""
         if self._client is None:
             try:
-                from openai import OpenAI
-
-                self._client = OpenAI(
+                self._client = make_openai_client(
                     api_key=self.config.llm.api_key,
                     base_url=self.config.llm.base_url,
                 )
