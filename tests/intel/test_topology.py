@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from vulnbot.intel import topology
-from vulnbot.intel.topology import (
+from vulnclaw.intel import topology
+from vulnclaw.intel.topology import (
     auto_parse,
     format_markdown,
     parse_masscan_output,

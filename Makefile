@@ -6,7 +6,7 @@ NPM ?= npm
 
 help:
 	@printf '%s\n' \
-		'VulnBot development targets:' \
+		'VulnClaw development targets:' \
 		'  make install          Install Python dev extras and frontend dependencies' \
 		'  make test             Run the backend pytest suite' \
 		'  make lint             Run Ruff checks' \

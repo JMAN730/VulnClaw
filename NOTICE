@@ -1,7 +1,7 @@
-VulnBot
+VulnClaw
 =======
 
-VulnBot is a derivative work that combines two MIT-licensed projects:
+VulnClaw is a derivative work that combines two MIT-licensed projects:
 
   Vulnbot  — Copyright (c) 2026 UncleC
               https://github.com/Unclecheng-li/Vulnbot
@@ -9,7 +9,7 @@ VulnBot is a derivative work that combines two MIT-licensed projects:
   HackBot   — Copyright (c) 2026 HackBot Team (Yashab Alam)
               https://github.com/yashab-cyber/hackbot
 
-VulnBot uses Vulnbot as its base (agent core, MCP toolchain, skills,
+VulnClaw uses Vulnbot as its base (agent core, MCP toolchain, skills,
 CLI/TUI/web surfaces) and ports selected intelligence modules from HackBot
 (CVE, OSINT, topology, compliance/MITRE, findings scoring, remediation, and
 PDF reporting).

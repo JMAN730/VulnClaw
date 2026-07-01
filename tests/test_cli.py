@@ -1,4 +1,4 @@
-"""VulnBot CLI module tests for main.py."""
+"""VulnClaw CLI module tests for main.py."""
 
 import io
 
@@ -20,35 +20,35 @@ class TestCLI:
         return CliRunner()
 
     def test_cli_help(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        assert "VulnBot" in result.output or "vulnbot" in result.output.lower()
+        assert "VulnClaw" in result.output or "vulnclaw" in result.output.lower()
         assert "TUI" in result.output
 
     def test_cli_version(self, runner):
-        from vulnbot import __version__
-        from vulnbot.cli.main import app
+        from vulnclaw import __version__
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
         assert __version__ in result.output
 
     def test_cli_manual_command(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["manual"])
 
         assert result.exit_code == 0
-        assert "VULNBOT(1)" in result.output
+        assert "VULNCLAW(1)" in result.output
         assert "COMMON TASK FLAGS" in result.output
         assert "--only-port" in result.output
         assert "network-scan" in result.output
         assert "--parallel-agents" in result.output
 
     def test_cli_manual_topic_markdown(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["manual", "network-scan", "--format", "markdown"])
 
@@ -58,7 +58,7 @@ class TestCLI:
         assert "### `run`" not in result.output
 
     def test_cli_man_alias_and_root_flag(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         alias_result = runner.invoke(app, ["man", "config"])
         root_result = runner.invoke(app, ["--man"])
@@ -67,10 +67,10 @@ class TestCLI:
         assert "CONFIG" in alias_result.output
         assert "llm.api_keys" in alias_result.output
         assert root_result.exit_code == 0
-        assert "VULNBOT(1)" in root_result.output
+        assert "VULNCLAW(1)" in root_result.output
 
     def test_cli_manual_rejects_unknown_topic(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["manual", "does-not-exist"])
 
@@ -78,34 +78,34 @@ class TestCLI:
         assert "unknown manual topic" in result.output
 
     def test_cli_init(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["init"])
         # Should not crash
         assert result.exit_code == 0
-        assert "vulnbot" in result.output
-        assert "vulnbot tui" in result.output
+        assert "vulnclaw" in result.output
+        assert "vulnclaw tui" in result.output
 
     def test_cli_doctor(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["doctor"])
         # Should not crash
         assert result.exit_code == 0
         assert "Registered:" in result.output
         assert "Tools:" in result.output
-        assert "vulnbot tui" in result.output or "Set an API key first" in result.output
+        assert "vulnclaw tui" in result.output or "Set an API key first" in result.output
 
     def test_cli_config_list(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["config", "list"])
         # Should not crash
         assert result.exit_code == 0
 
     def test_cli_config_without_subcommand_opens_tui(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
 
         called = []
 
@@ -121,7 +121,7 @@ class TestCLI:
         from prompt_toolkit.input import DummyInput
         from prompt_toolkit.output import DummyOutput
 
-        import vulnbot.cli.main as cli_main
+        import vulnclaw.cli.main as cli_main
 
         monkeypatch.setattr(cli_main, "CONFIG_DIR", tmp_path)
 
@@ -135,7 +135,7 @@ class TestCLI:
         assert session.history.filename == str(tmp_path / "repl_history")
 
     def test_repl_parallel_budget_defaults_and_low_rounds(self):
-        import vulnbot.cli.main as cli_main
+        import vulnclaw.cli.main as cli_main
 
         settings = cli_main.ReplParallelSettings(
             enabled=True,
@@ -160,7 +160,7 @@ class TestCLI:
         assert low_budget.worker_rounds == 1
 
     def test_repl_parallel_budget_disabled_and_invalid(self):
-        import vulnbot.cli.main as cli_main
+        import vulnclaw.cli.main as cli_main
 
         disabled = cli_main.ReplParallelSettings(True, 3, 1, 3, 20)
         disabled.enabled = False
@@ -185,8 +185,8 @@ class TestCLI:
     def test_repl_parallel_status_command_prints_effective_values(self, monkeypatch):
         from rich.console import Console
 
-        import vulnbot.cli.main as cli_main
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.config.schema import VulnClawConfig
 
         output = io.StringIO()
         monkeypatch.setattr(
@@ -194,7 +194,7 @@ class TestCLI:
             "console",
             Console(file=output, force_terminal=False, color_system=None, width=100),
         )
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         settings = cli_main._repl_parallel_settings_from_config(config)
 
         handled, updated = cli_main._handle_repl_parallel_command(
@@ -212,17 +212,17 @@ class TestCLI:
 
     @pytest.mark.asyncio
     async def test_repl_auto_mode_uses_parallel_by_default(self, monkeypatch):
-        import vulnbot.agent.parallel_agents as parallel_mod
-        import vulnbot.cli.main as cli_main
-        from vulnbot.agent.parallel_agents import AttackSurface, ParallelAgentRunResult
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.agent.parallel_agents as parallel_mod
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.agent.parallel_agents import AttackSurface, ParallelAgentRunResult
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         captured = {}
 
         class DummyAgent:
             def __init__(self, _config=None, mcp_manager=None):
-                from vulnbot.agent.context import SessionState
+                from vulnclaw.agent.context import SessionState
 
                 self.config = _config
                 self.mcp_manager = mcp_manager
@@ -261,16 +261,16 @@ class TestCLI:
 
     @pytest.mark.asyncio
     async def test_repl_parallel_off_uses_single_agent_auto(self, monkeypatch):
-        import vulnbot.agent.parallel_agents as parallel_mod
-        import vulnbot.cli.main as cli_main
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.agent.parallel_agents as parallel_mod
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         calls = []
 
         class DummyAgent:
             def __init__(self):
-                from vulnbot.agent.context import SessionState
+                from vulnclaw.agent.context import SessionState
 
                 self.session_state = SessionState(target="https://example.com")
 
@@ -302,12 +302,12 @@ class TestCLI:
 
     @pytest.mark.asyncio
     async def test_repl_parallel_agents_command_changes_effective_fanout(self, monkeypatch):
-        import vulnbot.agent.parallel_agents as parallel_mod
-        import vulnbot.cli.main as cli_main
-        from vulnbot.agent.parallel_agents import AttackSurface, ParallelAgentRunResult
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.agent.parallel_agents as parallel_mod
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.agent.parallel_agents import AttackSurface, ParallelAgentRunResult
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         settings = cli_main._repl_parallel_settings_from_config(config)
         handled, settings = cli_main._handle_repl_parallel_command(
             "parallel agents 2",
@@ -318,7 +318,7 @@ class TestCLI:
 
         class DummyAgent:
             def __init__(self, _config=None, mcp_manager=None):
-                from vulnbot.agent.context import SessionState
+                from vulnclaw.agent.context import SessionState
 
                 self.session_state = SessionState(target="https://example.com")
                 self.mcp_manager = mcp_manager
@@ -348,15 +348,15 @@ class TestCLI:
         assert captured["max_agents"] == 2
 
     def test_repl_single_turn_chat_does_not_use_parallel(self, runner, monkeypatch):
-        import vulnbot.agent.core as agent_core
-        import vulnbot.agent.parallel_agents as parallel_mod
-        import vulnbot.cli.main as cli_main
-        import vulnbot.mcp.lifecycle as lifecycle_mod
-        from vulnbot.agent.runtime_state import AgentResult
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.agent.core as agent_core
+        import vulnclaw.agent.parallel_agents as parallel_mod
+        import vulnclaw.cli.main as cli_main
+        import vulnclaw.mcp.lifecycle as lifecycle_mod
+        from vulnclaw.agent.runtime_state import AgentResult
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
         chat_calls = []
 
@@ -385,12 +385,12 @@ class TestCLI:
         assert chat_calls == [("hello there", None)]
 
     def test_repl_parallel_status_command_is_exposed_through_repl(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        import vulnbot.mcp.lifecycle as lifecycle_mod
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        import vulnclaw.mcp.lifecycle as lifecycle_mod
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
 
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
@@ -407,22 +407,22 @@ class TestCLI:
         assert "Effective:" in result.output
 
     def test_cli_config_provider_list(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["config", "provider", "--list"])
         # Should show available providers
         assert result.exit_code == 0
 
     def test_cli_config_provider_set(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["config", "provider", "deepseek"])
         # Should not crash
         assert result.exit_code == 0
 
     def test_cli_kb_update(self, runner, monkeypatch, tmp_path):
-        import vulnbot.kb.store as kb_store
-        from vulnbot.cli.main import app
+        import vulnclaw.kb.store as kb_store
+        from vulnclaw.cli.main import app
 
         monkeypatch.setattr(kb_store, "KB_DIR", tmp_path)
         result = runner.invoke(app, ["kb", "update"])
@@ -431,7 +431,7 @@ class TestCLI:
         assert (tmp_path / "index.json").exists()
 
     def test_cli_doctor_reports_registered_tools(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code == 0
@@ -439,10 +439,10 @@ class TestCLI:
         assert "Tools:" in result.output
 
     def test_recon_resumes_target_state(self, runner, monkeypatch, tmp_path):
-        import vulnbot.orchestrator as orchestrator_mod
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import PentestPhase, SessionState
-        from vulnbot.cli.main import app
+        import vulnclaw.orchestrator as orchestrator_mod
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import PentestPhase, SessionState
+        from vulnclaw.cli.main import app
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path / "targets")
         state = SessionState(target="https://example.com")
@@ -464,9 +464,9 @@ class TestCLI:
         assert calls == [("https://example.com", None)]
 
     def test_recon_no_resume_skips_target_state(self, runner, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import PentestPhase, SessionState
-        from vulnbot.cli.main import app
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import PentestPhase, SessionState
+        from vulnclaw.cli.main import app
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path / "targets")
         state = SessionState(target="https://example.com")
@@ -478,8 +478,8 @@ class TestCLI:
         assert result.output is not None
 
     def test_network_scan_defaults_to_safe_recon_scan_actions(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
 
         captured = {}
 
@@ -521,9 +521,9 @@ class TestCLI:
         assert captured["max_rounds"] == 3
 
     def test_network_scan_without_target_uses_connected_wifi(self, runner, monkeypatch):
-        import vulnbot.agent.network_scan as network_scan_mod
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
+        import vulnclaw.agent.network_scan as network_scan_mod
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
 
         captured = {}
 
@@ -568,7 +568,7 @@ class TestCLI:
         assert "against 192.168.1.0/24" in captured["prompt"]
 
     def test_network_scan_rejects_unknown_profile(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["network-scan", "192.168.56.10", "--profile", "loud"])
 
@@ -576,9 +576,9 @@ class TestCLI:
         assert "profile must be one of" in result.output
 
     def test_network_scan_parallel_agents_uses_coordinator(self, runner, monkeypatch):
-        import vulnbot.agent.parallel_agents as parallel_mod
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
+        import vulnclaw.agent.parallel_agents as parallel_mod
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
 
         captured = {}
 
@@ -640,14 +640,14 @@ class TestCLI:
         assert "Parallel agents:" in result.output
 
     def test_repl_persistent_explicit_target_restores_history(self, runner, monkeypatch):
-        import vulnbot.agent.core as agent_core
-        import vulnbot.cli.main as cli_main
-        import vulnbot.mcp.lifecycle as lifecycle_mod
-        from vulnbot.agent.context import PentestPhase, SessionState
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.agent.core as agent_core
+        import vulnclaw.cli.main as cli_main
+        import vulnclaw.mcp.lifecycle as lifecycle_mod
+        from vulnclaw.agent.context import PentestPhase, SessionState
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
 
         old_state = SessionState(target="https://old.example")
@@ -721,9 +721,9 @@ class TestCLI:
         assert observed["phase"] == PentestPhase.EXPLOITATION.value
 
     def test_report_target_mode(self, runner, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
-        from vulnbot.cli.main import app
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+        from vulnclaw.cli.main import app
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path / "targets")
         state = SessionState(target="https://example.com")
@@ -738,11 +738,11 @@ class TestCLI:
         assert "Report generated" in result.output or result.output
 
     def test_report_target_mode_pdf(self, runner, monkeypatch, tmp_path):
-        import vulnbot.config.settings as settings_mod
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
-        from vulnbot.cli.main import app
-        from vulnbot.report import pdf_exporter
+        import vulnclaw.config.settings as settings_mod
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+        from vulnclaw.cli.main import app
+        from vulnclaw.report import pdf_exporter
 
         sessions = tmp_path / "sessions"
         sessions.mkdir()
@@ -765,15 +765,15 @@ class TestCLI:
             assert pdfs and pdfs[0].read_bytes()[:5] == b"%PDF-"
         else:
             assert result.exit_code == 1
-            assert "vulnbot[pdf]" in result.output
+            assert "vulnclaw[pdf]" in result.output
 
     def test_repl_report_command_uses_current_session_or_target_state(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        import vulnbot.mcp.lifecycle as lifecycle_mod
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        import vulnclaw.mcp.lifecycle as lifecycle_mod
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
 
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
@@ -796,11 +796,11 @@ class TestCLI:
         assert "report.md" in result.output
 
     def test_run_uses_shared_orchestrator(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
 
@@ -817,13 +817,13 @@ class TestCLI:
         assert called == [("run", "https://example.com")]
 
     def test_run_output_generates_report_from_target_state(self, runner, monkeypatch, tmp_path):
-        import vulnbot.cli.main as cli_main
-        import vulnbot.report.generator as report_generator
-        from vulnbot.agent.context import SessionState
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        import vulnclaw.report.generator as report_generator
+        from vulnclaw.agent.context import SessionState
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
 
@@ -856,11 +856,11 @@ class TestCLI:
         assert "Report generated" in result.output
 
     def test_run_cli_constraints_are_appended_to_prompt(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
 
@@ -897,11 +897,11 @@ class TestCLI:
         assert "Only test path /admin" in prompts[0]
 
     def test_run_cli_blocked_host_and_path_are_appended_to_prompt(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
 
@@ -935,11 +935,11 @@ class TestCLI:
         assert "Blocked path /internal" in prompts[0]
 
     def test_cli_blocks_command_when_allowed_actions_conflict(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
         monkeypatch.setattr(
@@ -952,11 +952,11 @@ class TestCLI:
         assert result.exit_code == 0
 
     def test_cli_blocks_command_with_explicit_allow_actions_option(self, runner):
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
         monkeypatch = pytest.MonkeyPatch()
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
@@ -966,11 +966,11 @@ class TestCLI:
         assert result.exit_code == 0
 
     def test_persistent_command_uses_correct_cycle_callback(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
 
@@ -998,14 +998,14 @@ class TestCLI:
         assert result.exit_code == 0
 
     def test_repl_persistent_interrupt_generates_final_report(self, runner, monkeypatch):
-        import vulnbot.agent.core as agent_core
-        import vulnbot.cli.main as cli_main
-        import vulnbot.mcp.lifecycle as lifecycle_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
-        from vulnbot.cli.main import app
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.agent.core as agent_core
+        import vulnclaw.cli.main as cli_main
+        import vulnclaw.mcp.lifecycle as lifecycle_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
 
         monkeypatch.setattr(cli_main, "load_config", lambda: config)
@@ -1053,9 +1053,9 @@ class TestCLI:
         assert "final.md" in result.output
 
     def test_target_state_list_and_clear(self, runner, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState
-        from vulnbot.cli.main import app
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState
+        from vulnclaw.cli.main import app
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path / "targets")
         state = SessionState(target="https://example.com")
@@ -1070,9 +1070,9 @@ class TestCLI:
         assert result_clear.output
 
     def test_target_state_preview_and_diff(self, runner, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
-        from vulnbot.cli.main import app
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+        from vulnclaw.cli.main import app
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path / "targets")
 
@@ -1105,7 +1105,7 @@ class TestCLI:
 
     @pytest.mark.asyncio
     async def test_repl_runner_executes_post_hook(self):
-        from vulnbot.repl_runner import run_repl_call
+        from vulnclaw.repl_runner import run_repl_call
 
         observed = []
 
@@ -1121,7 +1121,7 @@ class TestCLI:
         assert observed == ["call", "after:hello"]
 
     def test_cli_kb_info(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["kb", "info"])
         # kb info might not exist in all versions, just verify no crash
@@ -1129,8 +1129,8 @@ class TestCLI:
 
     def test_cli_no_args(self, runner, monkeypatch):
         """Running with no args should open the original CLI/REPL by default."""
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
 
         called = []
         monkeypatch.setattr(cli_main, "_run_repl", lambda: called.append("repl"))
@@ -1140,8 +1140,8 @@ class TestCLI:
         assert called == ["repl"]
 
     def test_repl_command_starts_classic_repl(self, runner, monkeypatch):
-        import vulnbot.cli.main as cli_main
-        from vulnbot.cli.main import app
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
 
         called = []
         monkeypatch.setattr(cli_main, "_run_repl", lambda: called.append("repl"))
@@ -1151,11 +1151,11 @@ class TestCLI:
         assert called == ["repl"]
 
     def test_tui_once_renders_workbench(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["tui", "--once"])
         assert result.exit_code == 0
-        assert "VulnBot TUI" in result.output
+        assert "VulnClaw TUI" in result.output
         assert "Authorized Target" in result.output
         assert "Run Overview" in result.output
         assert "No target selected" in result.output
@@ -1163,8 +1163,8 @@ class TestCLI:
         # Newer TUI uses slash commands instead of the old numeric menu.
 
     def test_tui_once_renders_target_overview(self, runner, monkeypatch):
-        import vulnbot.cli.tui as tui_mod
-        from vulnbot.cli.main import app
+        import vulnclaw.cli.tui as tui_mod
+        from vulnclaw.cli.main import app
 
         monkeypatch.setattr(
             tui_mod,
@@ -1200,7 +1200,7 @@ class TestCLI:
         assert "1 times" in result.output
 
     def test_tui_once_accepts_prefilled_target(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(
             app,
@@ -1221,7 +1221,7 @@ class TestCLI:
         assert "443" in result.output
 
     def test_tui_dry_run_renders_launch_summary(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(
             app,
@@ -1246,21 +1246,21 @@ class TestCLI:
         )
         assert result.exit_code == 0
         assert "Launch Summary" in result.output
-        assert "vulnbot scan https://example.com" in result.output
+        assert "vulnclaw scan https://example.com" in result.output
         assert "--only-port 443" in result.output
         assert "--only-path /admin" in result.output
         assert "--blocked-host staging.example.com" in result.output
 
     def test_tui_rejects_unknown_mode(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["tui", "--mode", "unknown", "--dry-run"])
         assert result.exit_code == 1
         assert "Unknown TUI mode" in result.output
 
     def test_tui_interactive_launch_builds_task_draft(self, runner, monkeypatch):
-        import vulnbot.cli.tui as tui_mod
-        from vulnbot.cli.main import app
+        import vulnclaw.cli.tui as tui_mod
+        from vulnclaw.cli.main import app
 
         launched = []
 
@@ -1288,7 +1288,7 @@ class TestCLI:
         assert launched[0].allow_actions == ("recon",)
 
     def test_tui_scope_prompt_updates_action_constraints(self, monkeypatch):
-        import vulnbot.cli.tui as tui_mod
+        import vulnclaw.cli.tui as tui_mod
 
         answers = iter(
             [
@@ -1322,10 +1322,10 @@ class TestCLI:
         assert "--block-actions exploit,post_exploitation" in draft.command_line
 
     def test_tui_runtime_diagnostic_panel_renders_environment_summary(self, monkeypatch):
-        import vulnbot.cli.tui as tui_mod
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.tui as tui_mod
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.api_key = "test-key"
         config.llm.provider = "openai"
         config.llm.model = "gpt-test"
@@ -1343,7 +1343,7 @@ class TestCLI:
         def fake_get_mcp_diagnostics():
             return DummyMCPDiagnostics()
 
-        import vulnbot.web.services.mcp_service as mcp_service
+        import vulnclaw.web.services.mcp_service as mcp_service
 
         monkeypatch.setattr(mcp_service, "get_mcp_diagnostics", fake_get_mcp_diagnostics)
         rendered = tui_mod.Console(
@@ -1365,10 +1365,10 @@ class TestCLI:
         assert "5" in output
 
     def test_tui_llm_config_prompt_saves_provider_and_api_key(self, monkeypatch):
-        import vulnbot.cli.tui as tui_mod
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.tui as tui_mod
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         # New flow: provider -> base_url -> api_key -> fetch models -> model -> enter
         answers = iter(
             [
@@ -1407,10 +1407,10 @@ class TestCLI:
     def test_config_tui_edits_api_keys_and_session(self, monkeypatch):
         from pathlib import Path
 
-        import vulnbot.cli.tui as tui_mod
-        from vulnbot.config.schema import VulnBotConfig
+        import vulnclaw.cli.tui as tui_mod
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.session.max_rounds = 15
 
         answers = iter(
@@ -1467,10 +1467,10 @@ class TestCLI:
         assert config.session.language == "en"
 
     def test_config_tui_can_add_and_delete_mcp_servers(self, monkeypatch):
-        import vulnbot.cli.tui as tui_mod
-        from vulnbot.config.schema import MCPServerConfig, MCPTransportConfig, VulnBotConfig
+        import vulnclaw.cli.tui as tui_mod
+        from vulnclaw.config.schema import MCPServerConfig, MCPTransportConfig, VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.mcp.servers = {
             "custom": MCPServerConfig(
                 name="custom",
@@ -1530,44 +1530,44 @@ class TestCLISubCommands:
         return CliRunner()
 
     def test_run_help(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["run", "--help"])
         assert result.exit_code == 0
 
     def test_recon_help(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["recon", "--help"])
         assert result.exit_code == 0
 
     def test_scan_help(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["scan", "--help"])
         assert result.exit_code == 0
 
     def test_network_scan_help(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["network-scan", "--help"])
         assert result.exit_code == 0
 
     def test_report_help(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["report", "--help"])
         assert result.exit_code == 0
 
     def test_repl_help(self, runner):
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         result = runner.invoke(app, ["repl", "--help"])
         assert result.exit_code == 0
 
     def test_run_with_prompt_option(self, runner):
         # 2026-06-10 Nyaecho - add --prompt option coverage
-        from vulnbot.cli.main import app
+        from vulnclaw.cli.main import app
 
         # Test that --prompt option is accepted and doesn't crash
         # We expect failure due to missing target, but the option should be parsed
@@ -1584,9 +1584,9 @@ class TestFreshReconI18n:
         import json
         from pathlib import Path
 
-        import vulnbot
+        import vulnclaw
 
-        base = Path(vulnbot.__file__).parent / "i18n"
+        base = Path(vulnclaw.__file__).parent / "i18n"
         en = json.loads((base / "en.json").read_text(encoding="utf-8"))
         zh = json.loads((base / "zh.json").read_text(encoding="utf-8"))
         for key in ("cli.fresh_recon_armed", "cli.recon_reused", "help.rescan"):

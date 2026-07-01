@@ -1,8 +1,8 @@
 import httpx
 import pytest
 
-from vulnbot.intel import cve
-from vulnbot.intel.cve import (
+from vulnclaw.intel import cve
+from vulnclaw.intel.cve import (
     CVEEntry,
     cve_lookup_tool,
     format_cve_report,

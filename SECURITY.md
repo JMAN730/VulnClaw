@@ -2,7 +2,7 @@
 
 ## Public Alpha Status
 
-VulnBot is public alpha software for authorized security testing, CTFs, labs, and
+VulnClaw is public alpha software for authorized security testing, CTFs, labs, and
 controlled research. Do not treat it as a production security control, a strong
 sandbox, or an authorization mechanism.
 
@@ -33,7 +33,7 @@ until a fix or mitigation is available.
 
 ## Authorized Use
 
-VulnBot is intended solely for lawful, authorized security work. Before use,
+VulnClaw is intended solely for lawful, authorized security work. Before use,
 confirm:
 
 - The target owner explicitly authorized the test
@@ -47,6 +47,6 @@ for misuse.
 ## Sensitive Data
 
 Do not commit API keys, session files, reports containing third-party secrets, or
-target-state data from real engagements. By default VulnBot stores local
-configuration under `~/.vulnbot/`; review those files before sharing logs or
+target-state data from real engagements. By default VulnClaw stores local
+configuration under `~/.vulnclaw/`; review those files before sharing logs or
 bug reports.

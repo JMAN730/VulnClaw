@@ -1,4 +1,4 @@
-"""VulnBot MCP lifecycle robustness tests — restart, health, graceful stop."""
+"""VulnClaw MCP lifecycle robustness tests — restart, health, graceful stop."""
 
 from __future__ import annotations
 
@@ -6,13 +6,13 @@ import asyncio
 
 import pytest
 
-from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
-from vulnbot.mcp.lifecycle import MCPLifecycleManager
-from vulnbot.mcp.registry import HealthStatus
+from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
+from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+from vulnclaw.mcp.registry import HealthStatus
 
 
 def _manager() -> MCPLifecycleManager:
-    return MCPLifecycleManager(VulnBotConfig())
+    return MCPLifecycleManager(VulnClawConfig())
 
 
 class _FakeProc:
@@ -99,7 +99,7 @@ class TestStartStop:
 
     @pytest.mark.asyncio
     async def test_context_manager_starts_and_stops(self):
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.mcp.servers["fetch"] = MCPServerConfig(**BUILTIN_MCP_SERVERS["fetch"])
         async with MCPLifecycleManager(config) as m:
             assert "fetch" in m.registry.get_all_servers()

@@ -1,6 +1,6 @@
 <div align="center">
 
-# VulnBot 🦞
+# VulnClaw 🦞
 
 > *AI-Powered Penetration Testing CLI — Speak plainly, find real bugs.*
 
@@ -8,13 +8,13 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![OpenAI Compatible](https://img.shields.io/badge/API-OpenAI_Compatible-green)](https://platform.openai.com/)
 [![MCP](https://img.shields.io/badge/Toolchain-MCP-orange)](https://modelcontextprotocol.io/)
-[![PyPI](https://img.shields.io/badge/PyPI-v0.3.1-blueviolet)](https://pypi.org/project/vulnbot/)
+[![PyPI](https://img.shields.io/badge/PyPI-v0.3.1-blueviolet)](https://pypi.org/project/vulnclaw/)
 [![Security](https://img.shields.io/badge/Scope-Authorized_Only-red)](#-security-notice)
 <br>
 
 **This project is a standalone AI penetration testing Agent.**
 
-**Public alpha:** VulnBot is public alpha software for authorized security
+**Public alpha:** VulnClaw is public alpha software for authorized security
 testing, CTFs, labs, and controlled research. It is not a production security
 control or a replacement for human authorization, scoping, review, or reporting.
 See [SECURITY.md](SECURITY.md) before using or reporting security issues.
@@ -29,7 +29,7 @@ Natural language input → automated "Recon → Vulnerability Discovery → Expl
 
 </div>
 
-> **ℹ️ About this build — VulnBot.** This package (`vulnbot`) is a combined
+> **ℹ️ About this build — VulnClaw.** This package (`vulnclaw`) is a combined
 > product that merges [Vulnbot](https://github.com/Unclecheng-li/Vulnbot)
 > (base: agent core, MCP toolchain, skills, CLI/TUI/web) with intelligence
 > modules ported from [HackBot](https://github.com/yashab-cyber/hackbot)
@@ -46,14 +46,14 @@ Give it a natural language command and watch it run a full pentest:
 ```
 User:   "Run a penetration test on http://target.example.com"
 
-VulnBot executes:
+VulnClaw executes:
   Round 1:  Recon → Fingerprinting, port scan, directory enumeration
   Round 2:  Vulnerability Discovery → Injection points, known CVEs, misconfigs
   Round 3:  Exploitation → PoC verification, access obtained
   Round 4:  Reporting → Structured report + Python PoC script
 ```
 
-<img width="780" alt="VulnBot terminal demo" src="docs/assets/terminal-demo.png" />
+<img width="780" alt="VulnClaw terminal demo" src="docs/assets/terminal-demo.png" />
 
 Suitable for authorized pentests, CTF competitions, security training, and red team operations.
 
@@ -73,14 +73,14 @@ Suitable for authorized pentests, CTF competitions, security training, and red t
 - **REPL Parallel Auto-Mode** — Classic REPL auto prompts now use bounded child-agent fan-out by default; `parallel status/on/off/agents/reset` controls the current session without affecting one-off chat
 - **Sandbox Mode Prompting** — Unlocks AI security testing capabilities, designed for CTF and authorized pentest scenarios
 - **Auto Report & PoC** — Generates structured Markdown reports and runnable Python PoC scripts
-- **Web UI Mode** — `vulnbot web` launches a local web interface for browser-based pentest operations, default `127.0.0.1:7788`
+- **Web UI Mode** — `vulnclaw web` launches a local web interface for browser-based pentest operations, default `127.0.0.1:7788`
 - **Security Knowledge Base** — Includes the KB module and baseline seed data today; retrieval augmentation is being integrated into the main workflow incrementally
 
 ---
 
 ## 🧠 Intelligence Tools (merged from HackBot)
 
-VulnBot adds eight built-in **intel tools** the agent can call directly, ported
+VulnClaw adds eight built-in **intel tools** the agent can call directly, ported
 from [HackBot](https://github.com/yashab-cyber/hackbot) and rewritten for the
 async/httpx stack. Read-only tools are classified as passive `recon` for the
 constraint policy.
@@ -96,9 +96,9 @@ constraint policy.
 | `remediation_advice` | Generate fix commands, config patches, and code snippets from a rule knowledge base |
 | `attack_map` | Map findings (and tool usage) to MITRE ATT&CK techniques; export an ATT&CK Navigator layer |
 
-Optional extras: `pip install vulnbot[osint]` (dnspython for richer DNS),
-`pip install vulnbot[pdf]` (reportlab for PDF report export via
-`vulnbot report ... --pdf`).
+Optional extras: `pip install vulnclaw[osint]` (dnspython for richer DNS),
+`pip install vulnclaw[pdf]` (reportlab for PDF report export via
+`vulnclaw report ... --pdf`).
 
 ---
 
@@ -108,11 +108,11 @@ Optional extras: `pip install vulnbot[osint]` (dnspython for richer DNS),
 
 ```bash
 # Install from PyPI (recommended)
-pip install vulnbot
+pip install vulnclaw
 
-# Install from source (VulnBot is built on the Vulnbot tree)
-git clone https://github.com/Unclecheng-li/Vulnbot.git
-cd Vulnbot
+# Install from source
+git clone https://github.com/JMAN730/VulnClaw.git
+cd VulnClaw
 pip install -e .
 ```
 
@@ -120,32 +120,32 @@ pip install -e .
 
 ```bash
 # 1. Select provider (auto-fills Base URL and model name)
-vulnbot config provider minimax   # or openai / deepseek / zhipu / moonshot / qwen / siliconflow
+vulnclaw config provider minimax   # or openai / deepseek / zhipu / moonshot / qwen / siliconflow
 
 # 1.2 (optional) custom Base URL or model name
-vulnbot config set llm.base_url https://your-own-api.example.com/v1
-vulnbot config set llm.model your-model-name
+vulnclaw config set llm.base_url https://your-own-api.example.com/v1
+vulnclaw config set llm.model your-model-name
 
 # 2. Set API Key
-vulnbot config set llm.api_key sk-your-key-here
+vulnclaw config set llm.api_key sk-your-key-here
 
 # 3. Default: open the original CLI / REPL
-vulnbot
+vulnclaw
 
 # 4. Optional: open the TUI workbench
-vulnbot tui
+vulnclaw tui
 ```
 
 ### Environment Check
 
 ```bash
-vulnbot doctor
+vulnclaw doctor
 ```
 
 Sample output:
 
 ```
-🦞 VulnBot Environment Check
+🦞 VulnClaw Environment Check
 
   Python: 3.14.4
   Node.js: v24.14.1
@@ -163,22 +163,22 @@ MCP Services:
   memory: enabled [P0]
   ...
 
-✅ Ready. Run vulnbot to start.
+✅ Ready. Run vulnclaw to start.
 ```
 
 ---
 
 ## CLI Command Reference
 
-Run `vulnbot --help` to see all available commands. For the full flag manual, use
-`vulnbot manual`, `vulnbot manual <command>`, or `vulnbot --man`.
+Run `vulnclaw --help` to see all available commands. For the full flag manual, use
+`vulnclaw manual`, `vulnclaw manual <command>`, or `vulnclaw --man`.
 
 ```bash
-$ vulnbot --help
+$ vulnclaw --help
 
-🦞 VulnBot — AI-powered penetration testing CLI
+🦞 VulnClaw — AI-powered penetration testing CLI
 
- Usage: vulnbot [OPTIONS] COMMAND [ARGS]...
+ Usage: vulnclaw [OPTIONS] COMMAND [ARGS]...
 
  Options:
    --version  Show version and exit.
@@ -206,36 +206,36 @@ $ vulnbot --help
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `vulnbot` | Open the original CLI / REPL by default | `vulnbot` |
-| `vulnbot tui` | Explicitly open the terminal UI workbench | `vulnbot tui` / `vulnbot tui --target target.com` |
-| `vulnbot repl` | Start the classic REPL interactive shell | `vulnbot repl` |
-| `vulnbot run <target>` | Full pentest in one shot | `vulnbot run 192.168.1.1` |
-| `vulnbot persistent <target>` | Persistent pentesting | `vulnbot persistent 192.168.1.1` |
-| `vulnbot recon <target>` | Reconnaissance only | `vulnbot recon target.com` |
-| `vulnbot scan <target>` | Vulnerability scanning | `vulnbot scan target.com --ports 80,443` |
-| `vulnbot network-scan [target]` | Nmap scan, weak-link ranking, safe follow-up probes. Defaults to connected Wi-Fi subnet. Use `--parallel-agents N` for bounded worker fan-out across discovered surfaces. | `vulnbot network-scan --profile fast --parallel-agents 3` |
-| `vulnbot exploit <target>` | Exploitation phase | `vulnbot exploit target.com --cve CVE-2024-1234` |
-| `vulnbot report <session>` | Generate report from session | `vulnbot report session_xxx.json` |
-| `vulnbot config set <key> <value>` | Set a config value | `vulnbot config set llm.api_key sk-xxx` |
-| `vulnbot config get <key>` | View a config value | `vulnbot config get llm.model` |
-| `vulnbot config list` | List all config | `vulnbot config list` |
-| `vulnbot config provider <name>` | Switch LLM provider | `vulnbot config provider deepseek` |
-| `vulnbot init` | Initialize config files | `vulnbot init` |
-| `vulnbot doctor` | Check runtime environment | `vulnbot doctor` |
-| `vulnbot manual [command]` | Full CLI manual with flag explanations | `vulnbot manual network-scan` / `vulnbot --man` |
-| `vulnbot web` | Launch local Web UI | `vulnbot web` / `vulnbot web --port 8080` |
+| `vulnclaw` | Open the original CLI / REPL by default | `vulnclaw` |
+| `vulnclaw tui` | Explicitly open the terminal UI workbench | `vulnclaw tui` / `vulnclaw tui --target target.com` |
+| `vulnclaw repl` | Start the classic REPL interactive shell | `vulnclaw repl` |
+| `vulnclaw run <target>` | Full pentest in one shot | `vulnclaw run 192.168.1.1` |
+| `vulnclaw persistent <target>` | Persistent pentesting | `vulnclaw persistent 192.168.1.1` |
+| `vulnclaw recon <target>` | Reconnaissance only | `vulnclaw recon target.com` |
+| `vulnclaw scan <target>` | Vulnerability scanning | `vulnclaw scan target.com --ports 80,443` |
+| `vulnclaw network-scan [target]` | Nmap scan, weak-link ranking, safe follow-up probes. Defaults to connected Wi-Fi subnet. Use `--parallel-agents N` for bounded worker fan-out across discovered surfaces. | `vulnclaw network-scan --profile fast --parallel-agents 3` |
+| `vulnclaw exploit <target>` | Exploitation phase | `vulnclaw exploit target.com --cve CVE-2024-1234` |
+| `vulnclaw report <session>` | Generate report from session | `vulnclaw report session_xxx.json` |
+| `vulnclaw config set <key> <value>` | Set a config value | `vulnclaw config set llm.api_key sk-xxx` |
+| `vulnclaw config get <key>` | View a config value | `vulnclaw config get llm.model` |
+| `vulnclaw config list` | List all config | `vulnclaw config list` |
+| `vulnclaw config provider <name>` | Switch LLM provider | `vulnclaw config provider deepseek` |
+| `vulnclaw init` | Initialize config files | `vulnclaw init` |
+| `vulnclaw doctor` | Check runtime environment | `vulnclaw doctor` |
+| `vulnclaw manual [command]` | Full CLI manual with flag explanations | `vulnclaw manual network-scan` / `vulnclaw --man` |
+| `vulnclaw web` | Launch local Web UI | `vulnclaw web` / `vulnclaw web --port 8080` |
 
 ### TUI Workbench
 
-`vulnbot tui` is the optional terminal UI workbench entry. It shows the authorized target, check mode, runtime overview, safety boundary, command preview, target history, report entry, and inline environment diagnostics before a task starts.
+`vulnclaw tui` is the optional terminal UI workbench entry. It shows the authorized target, check mode, runtime overview, safety boundary, command preview, target history, report entry, and inline environment diagnostics before a task starts.
 
 ```bash
-vulnbot tui
-vulnbot tui --target https://target.example --mode quick --only-port 443
-vulnbot tui --dry-run --target https://target.example --mode deep --only-path /admin
+vulnclaw tui
+vulnclaw tui --target https://target.example --mode quick --only-port 443
+vulnclaw tui --dry-run --target https://target.example --mode deep --only-path /admin
 ```
 
-The default `vulnbot` command still opens the original CLI / REPL. The TUI opens only when users explicitly run `vulnbot tui`.
+The default `vulnclaw` command still opens the original CLI / REPL. The TUI opens only when users explicitly run `vulnclaw tui`.
 The runtime overview reads the selected target's snapshots, finding counts, persisted constraints, and blocked constraint violations so users can confirm context before continuing.
 The TUI "Set testing scope" flow can edit allowed actions and blocked actions directly, for example allowing only `recon,scan` or blocking `exploit,post_exploitation`.
 
@@ -243,13 +243,13 @@ The TUI "Set testing scope" flow can edit allowed actions and blocked actions di
 
 ```bash
 # List all providers and switch
-vulnbot config provider --list    # list all available providers
-vulnbot config provider minimax   # switch to MiniMax
+vulnclaw config provider --list    # list all available providers
+vulnclaw config provider minimax   # switch to MiniMax
 
 # Manual setup (custom mode)
-vulnbot config set llm.base_url https://your-api.com/v1
-vulnbot config set llm.model your-model-name
-vulnbot config set llm.api_key sk-your-key
+vulnclaw config set llm.base_url https://your-api.com/v1
+vulnclaw config set llm.model your-model-name
+vulnclaw config set llm.api_key sk-your-key
 ```
 
 ---
@@ -259,13 +259,13 @@ vulnbot config set llm.api_key sk-your-key
 ### Mode 1: Original CLI / REPL Interactive Mode (Default)
 
 ```bash
-$ vulnbot
+$ vulnclaw
 ```
 
 No-args startup opens the original 🦞 interactive shell for natural-language use:
 
 ```text
-🦞 vulnbot> pentest 192.168.1.100 — this is my authorized lab
+🦞 vulnclaw> pentest 192.168.1.100 — this is my authorized lab
 
 [*] Entering autonomous pentest mode. Press Ctrl+C to interrupt at any time.
 ── Round 1 ──
@@ -276,13 +276,13 @@ No-args startup opens the original 🦞 interactive shell for natural-language u
 ### Mode 2: TUI Workbench (Explicit)
 
 ```bash
-$ vulnbot tui
+$ vulnclaw tui
 ```
 
 The TUI shows target, mode, runtime overview, and safety boundary before launching a task:
 
 ```text
-VulnBot TUI Workbench
+VulnClaw TUI Workbench
 
 Authorized target    https://example.com
 Check mode           Quick recon / recon
@@ -299,19 +299,19 @@ Safety boundary      only port 443, block exploit/persistent/post_exploitation
 Common launch examples:
 
 ```bash
-vulnbot tui
-vulnbot tui --target https://target.example --mode quick --only-port 443
-vulnbot tui --dry-run --target https://target.example --mode deep --only-path /admin
+vulnclaw tui
+vulnclaw tui --target https://target.example --mode quick --only-port 443
+vulnclaw tui --dry-run --target https://target.example --mode deep --only-path /admin
 ```
 
 Menu item 3, "Set testing scope", edits host, port, path, exclusions, allowed actions, and blocked actions. These boundaries are shown in the pre-launch confirmation and passed into the actual task command.
-Menu item 7, "Environment diagnostics", shows Python, Node/npx/uvx/nmap, LLM configuration, and MCP service/tool summaries inside the TUI. Run `vulnbot doctor` only when you need the full details.
+Menu item 7, "Environment diagnostics", shows Python, Node/npx/uvx/nmap, LLM configuration, and MCP service/tool summaries inside the TUI. Run `vulnclaw doctor` only when you need the full details.
 Menu item 8, "Model/API settings", switches Provider, Base URL, Model, and API Key directly in the workbench. Saved changes are used by the current TUI session immediately.
 
 ### Mode 3: Classic REPL Subcommand
 
 ```bash
-$ vulnbot repl
+$ vulnclaw repl
 ```
 
 Enter the classic 🦞 interactive shell and chat in natural language:
@@ -319,7 +319,7 @@ Enter the classic 🦞 interactive shell and chat in natural language:
 Auto-mode prompts in the REPL now use bounded parallel child-agent fan-out by default. Use `parallel status`, `parallel off`, `parallel agents 2`, or `parallel reset` to control the current session without changing single-turn chat.
 
 ```
-🦞 vulnbot> pentest 192.168.1.100 — this is my authorized lab
+🦞 vulnclaw> pentest 192.168.1.100 — this is my authorized lab
 
 [*] Entering autonomous pentest mode. Press Ctrl+C to interrupt at any time.
 ── Round 1 ──
@@ -351,11 +351,11 @@ Auto-mode prompts in the REPL now use bounded parallel child-agent fan-out by de
 | `persistent <host>` | Start persistent pentest on a target                   |
 | `clear`             | Clear current session                                  |
 | `help`              | Show help                                              |
-| `exit` / `quit` / `q` | Exit VulnBot                                       |
+| `exit` / `quit` / `q` | Exit VulnClaw                                       |
 
 #### Autonomous Pentest Mode
 
-VulnBot auto-enters multi-round autonomous loop when it detects these keywords + a target:
+VulnClaw auto-enters multi-round autonomous loop when it detects these keywords + a target:
 
 | Trigger               | Example                                             |
 | --------------------- | --------------------------------------------------- |
@@ -370,35 +370,35 @@ VulnBot auto-enters multi-round autonomous loop when it detects these keywords +
 
 ```bash
 # Full pentest in one shot
-vulnbot run 192.168.1.100
+vulnclaw run 192.168.1.100
 
 # Persistent pentesting (100 rounds/cycle × 10 cycles, auto-report)
-vulnbot persistent 192.168.1.100
+vulnclaw persistent 192.168.1.100
 
 # Custom cycle parameters
-vulnbot persistent 192.168.1.100 --rounds 200 --cycles 5
+vulnclaw persistent 192.168.1.100 --rounds 200 --cycles 5
 
 # Recon only
-vulnbot recon 192.168.1.100
+vulnclaw recon 192.168.1.100
 
 # Vulnerability scan (specify ports)
-vulnbot scan 192.168.1.100 --ports 80,443,8080
+vulnclaw scan 192.168.1.100 --ports 80,443,8080
 
 # Network scan with weak-link prioritization (safe probes by default)
-vulnbot network-scan --profile adaptive
-vulnbot network-scan 192.168.1.100 --profile thorough --ports 1-1000
-vulnbot network-scan --profile fast --parallel-agents 3 --parallel-depth 2 --worker-rounds 3
+vulnclaw network-scan --profile adaptive
+vulnclaw network-scan 192.168.1.100 --profile thorough --ports 1-1000
+vulnclaw network-scan --profile fast --parallel-agents 3 --parallel-depth 2 --worker-rounds 3
 
 # Exploitation (specify CVE)
-vulnbot exploit 192.168.1.100 --cve CVE-2024-1234 --cmd id
+vulnclaw exploit 192.168.1.100 --cve CVE-2024-1234 --cmd id
 
 # Generate report
-vulnbot report session.json
+vulnclaw report session.json
 ```
 
 ### Mode 3: Persistent Pentest
 
-For long-running deep penetration. VulnBot runs in **cyclic loops**:
+For long-running deep penetration. VulnClaw runs in **cyclic loops**:
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -419,18 +419,18 @@ For long-running deep penetration. VulnBot runs in **cyclic loops**:
 
 ```bash
 # CLI mode
-vulnbot persistent 192.168.1.100              # default: 100 rounds/cycle × 10 cycles
-vulnbot persistent 192.168.1.100 -r 200 -c 5  # 200 rounds/cycle × 5 cycles
-vulnbot persistent 192.168.1.100 --no-report   # disable auto-report
+vulnclaw persistent 192.168.1.100              # default: 100 rounds/cycle × 10 cycles
+vulnclaw persistent 192.168.1.100 -r 200 -c 5  # 200 rounds/cycle × 5 cycles
+vulnclaw persistent 192.168.1.100 --no-report   # disable auto-report
 
 # TUI mode
-vulnbot tui --target 192.168.1.100 --mode continuous
+vulnclaw tui --target 192.168.1.100 --mode continuous
 
 # REPL mode
-🦞 vulnbot> target 192.168.1.100
-🦞 vulnbot> persistent
+🦞 vulnclaw> target 192.168.1.100
+🦞 vulnclaw> persistent
 # or directly
-🦞 vulnbot> persistent 192.168.1.100
+🦞 vulnclaw> persistent 192.168.1.100
 ```
 
 ### Mode 4: Web UI
@@ -439,16 +439,16 @@ Operate the full pentest workflow through a browser — ideal for users who pref
 
 ```bash
 # Install Web dependencies
-pip install vulnbot[web]
+pip install vulnclaw[web]
 
 # Launch Web UI (default: 127.0.0.1:7788)
-vulnbot web
+vulnclaw web
 
 # Custom port
-vulnbot web --port 8080
+vulnclaw web --port 8080
 
 # Dry-run (validate launch info without starting the server)
-vulnbot web --dry-run
+vulnclaw web --dry-run
 ```
 
 Once launched, open `http://127.0.0.1:7788` in your browser.
@@ -459,11 +459,11 @@ Once launched, open `http://127.0.0.1:7788` in your browser.
 
 ## LLM Provider Configuration
 
-VulnBot supports all OpenAI-compatible APIs with 8 built-in provider presets:
+VulnClaw supports all OpenAI-compatible APIs with 8 built-in provider presets:
 
 ```bash
-vulnbot config provider --list    # list all providers
-vulnbot config provider minimax   # one-command switch
+vulnclaw config provider --list    # list all providers
+vulnclaw config provider minimax   # one-command switch
 ```
 
 | Provider     | Command                  | Default Model          |
@@ -488,7 +488,7 @@ vulnbot config provider minimax   # one-command switch
 
 ```
 ┌─────────────────────────────────────────────┐
-│                   VulnBot CLI                   │
+│                   VulnClaw CLI                   │
 │  ┌─────────┐  ┌─────────┐  ┌────────────┐  │
 │  │ Natural  │  │  Task   │  │  Report    │  │
 │  │ Language │  │Orchestr.│  │ & PoC Gen  │  │
@@ -591,7 +591,7 @@ vulnbot config provider minimax   # one-command switch
 
 Skills are auto-dispatched based on user input — no manual selection needed. Specialized skills include detailed methodology documents in `references/`, loadable via the `load_skill_reference` tool.
 
-`secknowledge-skill` integrates [`Pa55w0rd/secknowledge-skill`](https://github.com/Pa55w0rd/secknowledge-skill). All 38 upstream `references/` documents are included, plus VulnBot's `vulnbot-ctf-src-routing.md` guide for CTF/SRC workflows. It is routed by strong signals such as `SRC`, vulnerability research, bug bounty, GAARM, OWASP LLM/ASI/WSTG, and Web+AI testing, then loads SQLi, XSS, RCE, SSRF, AI/MCP, Agent, risk-matrix, and methodology references on demand.
+`secknowledge-skill` integrates [`Pa55w0rd/secknowledge-skill`](https://github.com/Pa55w0rd/secknowledge-skill). All 38 upstream `references/` documents are included, plus VulnClaw's `vulnclaw-ctf-src-routing.md` guide for CTF/SRC workflows. It is routed by strong signals such as `SRC`, vulnerability research, bug bounty, GAARM, OWASP LLM/ASI/WSTG, and Web+AI testing, then loads SQLi, XSS, RCE, SSRF, AI/MCP, Agent, risk-matrix, and methodology references on demand.
 
 ### Built-in Encode/Decode & Crypto Tool (`crypto_decode`)
 
@@ -612,14 +612,14 @@ Registered as a built-in Agent tool, callable in any context — no more guessin
 ### CLI Configuration
 
 ```bash
-vulnbot config list                          # view all settings
-vulnbot config get llm.model                 # view single setting
-vulnbot config set llm.api_key sk-xx         # set API key
-vulnbot config set session.max_rounds 30     # set max autonomous rounds (default 15)
-vulnbot config set session.stale_rounds_threshold 8  # set dead-loop threshold (default 5)
-vulnbot config set session.show_thinking false  # hide thinking process (also in REPL: think off)
-vulnbot config set session.repl_parallel_enabled true  # enable REPL fan-out by default
-vulnbot config set session.repl_parallel_agents 3      # default child-agent count
+vulnclaw config list                          # view all settings
+vulnclaw config get llm.model                 # view single setting
+vulnclaw config set llm.api_key sk-xx         # set API key
+vulnclaw config set session.max_rounds 30     # set max autonomous rounds (default 15)
+vulnclaw config set session.stale_rounds_threshold 8  # set dead-loop threshold (default 5)
+vulnclaw config set session.show_thinking false  # hide thinking process (also in REPL: think off)
+vulnclaw config set session.repl_parallel_enabled true  # enable REPL fan-out by default
+vulnclaw config set session.repl_parallel_agents 3      # default child-agent count
 ```
 
 ### Configurable Options
@@ -633,7 +633,7 @@ vulnbot config set session.repl_parallel_agents 3      # default child-agent cou
 | `llm.temperature`                      | 0.1            | Sampling temperature                             |
 | `llm.max_tokens`                       | 4096           | Max output tokens per call                       |
 | `session.max_rounds`                    | 15             | Max rounds per autonomous pentest (10-50 recommended)|
-| `session.output_dir`                    | ./vulnbot-output | Report output directory                    |
+| `session.output_dir`                    | ./vulnclaw-output | Report output directory                    |
 | `session.report_format`                  | markdown       | Report format (markdown / html)                |
 | `session.poc_language`                  | python         | PoC generation language (python / bash)          |
 | `session.show_thinking`                 | false          | Show LLM reasoning (think tag content, default off)|
@@ -651,27 +651,27 @@ vulnbot config set session.repl_parallel_agents 3      # default child-agent cou
 
 | Variable                                        | Description              |
 | ----------------------------------------------- | ---------------------- |
-| `VULNBOT_LLM_PROVIDER`                       | LLM provider name      |
-| `VULNBOT_LLM_API_KEY`                        | API key                |
-| `VULNBOT_LLM_BASE_URL`                       | API base URL           |
-| `VULNBOT_LLM_MODEL`                          | Model name             |
-| `VULNBOT_SESSION_MAX_ROUNDS`                 | Max autonomous rounds  |
-| `VULNBOT_SESSION_SHOW_THINKING`              | Show or hide thinking output |
-| `VULNBOT_SESSION_REPL_PARALLEL_ENABLED`      | Enable REPL parallel auto-mode |
-| `VULNBOT_SESSION_REPL_PARALLEL_AGENTS`       | Child-agent count for REPL auto-mode |
-| `VULNBOT_SESSION_REPL_PARALLEL_DEPTH`        | Discovery depth for REPL auto-mode |
-| `VULNBOT_SESSION_REPL_PARALLEL_WORKER_ROUNDS`| Rounds per REPL child worker |
-| `VULNBOT_SESSION_REPL_PARALLEL_SURFACE_LIMIT`| Surface cap for REPL fan-out |
+| `VULNCLAW_LLM_PROVIDER`                       | LLM provider name      |
+| `VULNCLAW_LLM_API_KEY`                        | API key                |
+| `VULNCLAW_LLM_BASE_URL`                       | API base URL           |
+| `VULNCLAW_LLM_MODEL`                          | Model name             |
+| `VULNCLAW_SESSION_MAX_ROUNDS`                 | Max autonomous rounds  |
+| `VULNCLAW_SESSION_SHOW_THINKING`              | Show or hide thinking output |
+| `VULNCLAW_SESSION_REPL_PARALLEL_ENABLED`      | Enable REPL parallel auto-mode |
+| `VULNCLAW_SESSION_REPL_PARALLEL_AGENTS`       | Child-agent count for REPL auto-mode |
+| `VULNCLAW_SESSION_REPL_PARALLEL_DEPTH`        | Discovery depth for REPL auto-mode |
+| `VULNCLAW_SESSION_REPL_PARALLEL_WORKER_ROUNDS`| Rounds per REPL child worker |
+| `VULNCLAW_SESSION_REPL_PARALLEL_SURFACE_LIMIT`| Surface cap for REPL fan-out |
 
 Priority: **Environment Variables > Config File > Built-in Defaults**
 
-Config file location: `~/.vulnbot/config.yaml`.
+Config file location: `~/.vulnclaw/config.yaml`.
 
 ---
 
 ## Security Notice
 
-VulnBot is intended **solely for authorized security testing**. Before using this tool, ensure:
+VulnClaw is intended **solely for authorized security testing**. Before using this tool, ensure:
 
 1. You have **explicit authorization** for the target system
 2. Scope has been **confirmed in writing** with the target owner
@@ -694,13 +694,13 @@ Connect with security enthusiasts to share, learn, and grow together.
 | Community Group | Developer Group |
 |:--:|:--:|
 | Join discussions and get the latest product updates and usage tips | Join us for open-source contributions and deep technical discussions |
-| ![VulnBot Community Group](assets/vulnclaw-community.jpg) | ![VulnBot Developer Group](assets/vulnclaw-developer-community.png) |
+| ![VulnClaw Community Group](assets/vulnclaw-community.jpg) | ![VulnClaw Developer Group](assets/vulnclaw-developer-community.png) |
 | **QQ Group: 954402631** | **QQ Group: 1065858551** |
 
 ---
 
 <div align="center">
 
-> 🦞 **VulnBot** — Every pentest should follow a process.
+> 🦞 **VulnClaw** — Every pentest should follow a process.
 
 </div>

@@ -9,7 +9,7 @@ import pytest
 
 TEST_ROOT = Path(__file__).resolve().parent / ".test-tmp"
 TEST_ROOT.mkdir(parents=True, exist_ok=True)
-os.environ["VULNBOT_CONFIG_DIR"] = str(TEST_ROOT / "config")
+os.environ["VULNCLAW_CONFIG_DIR"] = str(TEST_ROOT / "config")
 os.environ["TMPDIR"] = str(TEST_ROOT)
 os.environ["TEMP"] = str(TEST_ROOT)
 os.environ["TMP"] = str(TEST_ROOT)

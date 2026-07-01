@@ -1,6 +1,6 @@
 import pytest
 
-from vulnbot.intel.compliance import (
+from vulnclaw.intel.compliance import (
     compliance_map_tool,
     format_report,
     list_frameworks,

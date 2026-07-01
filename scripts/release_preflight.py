@@ -16,7 +16,7 @@ def run_step(name: str, command: list[str], cwd: Path | None = None) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run Vulnbot release preflight checks.")
+    parser = argparse.ArgumentParser(description="Run VulnClaw release preflight checks.")
     parser.add_argument("--build", action="store_true", help="Also build dist artifacts after tests and typechecks")
     args = parser.parse_args()
 

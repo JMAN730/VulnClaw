@@ -30,7 +30,7 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
       ...init,
     });
   } catch {
-    throw new Error("Unable to reach the VulnBot backend API. Start `vulnbot web` and reconnect.");
+    throw new Error("Unable to reach the VulnClaw backend API. Start `vulnclaw web` and reconnect.");
   }
 
   if (!response.ok) {
@@ -45,7 +45,7 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
   try {
     return await response.json() as T;
   } catch {
-    throw new Error("The backend API returned non-JSON content. Confirm the backend was started with `vulnbot web`.");
+    throw new Error("The backend API returned non-JSON content. Confirm the backend was started with `vulnclaw web`.");
   }
 }
 

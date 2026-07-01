@@ -5,7 +5,7 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from vulnbot.agent.llm_client import (
+from vulnclaw.agent.llm_client import (
     _call_with_persistent_retries,
     _is_key_exhausted_error,
 )
@@ -114,10 +114,10 @@ class TestFailover:
 
 class TestAgentCoreRotation:
     def _agent(self, **llm):
-        from vulnbot.agent.core import AgentCore
-        from vulnbot.config.schema import VulnBotConfig
+        from vulnclaw.agent.core import AgentCore
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         for k, v in llm.items():
             setattr(config.llm, k, v)
         return AgentCore(config)

@@ -1,12 +1,12 @@
 """Tests for KB retrieval graceful degradation (keyword fallback)."""
 
-import vulnbot.kb.retriever as retriever_mod
-from vulnbot.kb.retriever import (
+import vulnclaw.kb.retriever as retriever_mod
+from vulnclaw.kb.retriever import (
     KeywordRetriever,
     KnowledgeRetriever,
     RetrieverStatus,
 )
-from vulnbot.kb.store import KnowledgeStore
+from vulnclaw.kb.store import KnowledgeStore
 
 
 def _seed_store(tmp_path):
@@ -146,7 +146,7 @@ class _FakeAgent:
 class TestContextCaching:
     def test_same_query_uses_cache(self, tmp_path, monkeypatch):
         monkeypatch.setattr(retriever_mod, "CHROMADB_AVAILABLE", False)
-        from vulnbot.agent import kb_context as kbc
+        from vulnclaw.agent import kb_context as kbc
 
         store = _seed_store(tmp_path)
         agent = _FakeAgent()
@@ -169,7 +169,7 @@ class TestContextCaching:
 
     def test_disabled_retriever_returns_empty_context(self, tmp_path, monkeypatch):
         monkeypatch.setattr(retriever_mod, "CHROMADB_AVAILABLE", False)
-        from vulnbot.agent import kb_context as kbc
+        from vulnclaw.agent import kb_context as kbc
 
         store = KnowledgeStore(store_dir=tmp_path)  # empty -> disabled
         agent = _FakeAgent()

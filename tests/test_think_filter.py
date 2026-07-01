@@ -2,8 +2,8 @@
 
 import pytest
 
-from vulnbot.agent.core import AgentCore
-from vulnbot.agent.think_filter import format_think_tags, strip_think_tags
+from vulnclaw.agent.core import AgentCore
+from vulnclaw.agent.think_filter import format_think_tags, strip_think_tags
 
 
 class _FakeMessage:

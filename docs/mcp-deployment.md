@@ -1,8 +1,8 @@
-# VulnBot MCP Tool Deployment Guide
+# VulnClaw MCP Tool Deployment Guide
 
 ## Overview
 
-VulnBot ships with 4 MCP services: 2 local implementations that work out of the box, and 2 that require deploying an external service.
+VulnClaw ships with 4 MCP services: 2 local implementations that work out of the box, and 2 that require deploying an external service.
 
 | Service | Mode | Status | Purpose |
 |---|---|---|---|
@@ -24,7 +24,7 @@ https://github.com/ChromeDevTools/chrome-devtools-mcp
 - ffmpeg (optional, required for the screencast feature)
 
 ### Installation
-No manual installation required — VulnBot's configuration already uses `npx -y chrome-devtools-mcp@latest` to fetch it automatically.
+No manual installation required — VulnClaw's configuration already uses `npx -y chrome-devtools-mcp@latest` to fetch it automatically.
 
 ### Start Chrome remote debugging
 ```bash
@@ -35,8 +35,8 @@ No manual installation required — VulnBot's configuration already uses `npx -y
 google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug
 ```
 
-### VulnBot Configuration
-Edit `~/.vulnbot/config.yaml`:
+### VulnClaw Configuration
+Edit `~/.vulnclaw/config.yaml`:
 ```yaml
 mcp:
   servers:
@@ -53,7 +53,7 @@ mcp:
 
 Or via the CLI:
 ```bash
-vulnbot config set mcp.servers.chrome-devtools.enabled true
+vulnclaw config set mcp.servers.chrome-devtools.enabled true
 ```
 
 ### Capabilities Provided (31+ tools)
@@ -106,16 +106,16 @@ cd burp-mcp
 3. Listens on `http://127.0.0.1:9876` by default
 4. Optional: change the Host/Port
 
-### VulnBot Configuration
+### VulnClaw Configuration
 
 Copy the built JAR to a fixed location:
 ```bash
-# Recommended: place it in VulnBot's tools directory
-mkdir -p ~/.vulnbot/tools
-cp build/libs/burp-mcp-all.jar ~/.vulnbot/tools/
+# Recommended: place it in VulnClaw's tools directory
+mkdir -p ~/.vulnclaw/tools
+cp build/libs/burp-mcp-all.jar ~/.vulnclaw/tools/
 ```
 
-Edit `~/.vulnbot/config.yaml`:
+Edit `~/.vulnclaw/config.yaml`:
 ```yaml
 mcp:
   servers:
@@ -126,7 +126,7 @@ mcp:
         command: java
         args:
           - "-jar"
-          - "~/.vulnbot/tools/burp-mcp-all.jar"
+          - "~/.vulnclaw/tools/burp-mcp-all.jar"
           - "--sse-url"
           - "http://127.0.0.1:9876"
 ```
@@ -154,8 +154,8 @@ mcp:
 ### Verify Chrome DevTools MCP
 ```bash
 # 1. Start Chrome in debug mode
-# 2. Start VulnBot
-vulnbot repl
+# 2. Start VulnClaw
+vulnclaw repl
 
 # 3. Enter a test command
 > Open http://example.com and take a screenshot
@@ -164,8 +164,8 @@ vulnbot repl
 ### Verify Burp MCP
 ```bash
 # 1. Start Burp Suite and enable the MCP extension
-# 2. Start VulnBot
-vulnbot repl
+# 2. Start VulnClaw
+vulnclaw repl
 
 # 3. Enter a test command
 > View Burp proxy history

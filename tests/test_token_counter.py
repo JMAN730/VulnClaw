@@ -1,6 +1,6 @@
-"""Tests for vulnbot.agent.token_counter - estimation + sliding-window truncation."""
+"""Tests for vulnclaw.agent.token_counter - estimation + sliding-window truncation."""
 
-from vulnbot.agent.token_counter import (
+from vulnclaw.agent.token_counter import (
     estimate_message_tokens,
     estimate_tokens,
     truncate_messages,

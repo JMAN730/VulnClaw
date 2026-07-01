@@ -1,6 +1,6 @@
 import pytest
 
-from vulnbot.agent import builtin_tools as bt
+from vulnclaw.agent import builtin_tools as bt
 
 
 def test_builder_includes_intel_schemas():
@@ -11,7 +11,7 @@ def test_builder_includes_intel_schemas():
 
 @pytest.mark.asyncio
 async def test_execute_routes_intel_tool(monkeypatch):
-    from vulnbot.intel import tools as intel_tools
+    from vulnclaw.intel import tools as intel_tools
 
     async def fake(agent, args):
         return "OK:" + args["query"]

@@ -6,8 +6,8 @@ __pycache__/
 .pytest_cache/
 .test-tmp/
 .npm-cache/
-.vulnbot/
-vulnbot-output/
+.vulnclaw/
+vulnclaw-output/
 dist/
 build/
 *.egg-info/

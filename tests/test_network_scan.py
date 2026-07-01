@@ -23,7 +23,7 @@ NMAP_XML = """<?xml version="1.0"?>
 
 
 def test_network_scan_profile_planning():
-    from vulnbot.agent.network_scan import build_nmap_command, build_nmap_plan
+    from vulnclaw.agent.network_scan import build_nmap_command, build_nmap_plan
 
     plan = build_nmap_plan(profile="thorough")
 
@@ -38,7 +38,7 @@ def test_network_scan_profile_planning():
 
 
 def test_build_nmap_command_deescalates_without_root(monkeypatch):
-    from vulnbot.agent.network_scan import (
+    from vulnclaw.agent.network_scan import (
         build_nmap_command,
         build_nmap_plan,
         deescalate_nmap_argv,
@@ -48,7 +48,7 @@ def test_build_nmap_command_deescalates_without_root(monkeypatch):
     plan = build_nmap_plan(profile="thorough")
     assert "-O" in plan.args
 
-    monkeypatch.setattr("vulnbot.agent.network_scan.nmap_has_raw_socket_access", lambda: False)
+    monkeypatch.setattr("vulnclaw.agent.network_scan.nmap_has_raw_socket_access", lambda: False)
     command = build_nmap_command("/usr/bin/nmap", "192.168.56.10", plan)
     assert "-O" not in command
     assert "-sS" not in command
@@ -61,7 +61,7 @@ def test_build_nmap_command_deescalates_without_root(monkeypatch):
 
 
 def test_network_scan_adaptive_uses_prior_ports():
-    from vulnbot.agent.network_scan import build_nmap_plan
+    from vulnclaw.agent.network_scan import build_nmap_plan
 
     plan = build_nmap_plan(
         profile="adaptive",
@@ -78,7 +78,7 @@ def test_network_scan_adaptive_uses_prior_ports():
 
 
 def test_detect_connected_wifi_target_uses_active_wireless_ipv4(monkeypatch):
-    import vulnbot.agent.network_scan as network_scan
+    import vulnclaw.agent.network_scan as network_scan
 
     monkeypatch.setattr(network_scan, "_wifi_interfaces", lambda: ["wlp2s0"])
     monkeypatch.setattr(network_scan, "_interface_is_up", lambda interface: True)
@@ -100,7 +100,7 @@ def test_detect_connected_wifi_target_uses_active_wireless_ipv4(monkeypatch):
 
 
 def test_parse_nmap_xml_structured_ranks_weak_links():
-    from vulnbot.agent.network_scan import parse_nmap_xml_structured, summarize_network_scan
+    from vulnclaw.agent.network_scan import parse_nmap_xml_structured, summarize_network_scan
 
     structured = parse_nmap_xml_structured(NMAP_XML, "192.168.56.10")
 
@@ -114,8 +114,8 @@ def test_parse_nmap_xml_structured_ranks_weak_links():
 
 
 def test_attach_network_scan_to_session_creates_candidate_findings():
-    from vulnbot.agent.context import SessionState
-    from vulnbot.agent.network_scan import (
+    from vulnclaw.agent.context import SessionState
+    from vulnclaw.agent.network_scan import (
         attach_network_scan_to_session,
         parse_nmap_xml_structured,
     )

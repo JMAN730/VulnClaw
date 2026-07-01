@@ -1,4 +1,4 @@
-"""VulnBot Agent Module Tests - context.py + memory.py + prompts.py + core.py"""
+"""VulnClaw Agent Module Tests - context.py + memory.py + prompts.py + core.py"""
 
 import time
 
@@ -11,7 +11,7 @@ class TestPentestPhase:
     """Test PentestPhase enum."""
 
     def test_phase_values(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         assert PentestPhase.IDLE.value == "Idle"
         assert PentestPhase.RECON.value == "Recon"
@@ -21,7 +21,7 @@ class TestPentestPhase:
         assert PentestPhase.REPORTING.value == "Reporting"
 
     def test_phase_is_str(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         # PentestPhase inherits from str, Enum
         assert isinstance(PentestPhase.RECON, str)
@@ -31,7 +31,7 @@ class TestVulnerabilityFinding:
     """Test VulnerabilityFinding model."""
 
     def test_default_values(self):
-        from vulnbot.agent.context import VulnerabilityFinding
+        from vulnclaw.agent.context import VulnerabilityFinding
 
         finding = VulnerabilityFinding(title="Test Vuln")
         assert finding.title == "Test Vuln"
@@ -42,7 +42,7 @@ class TestVulnerabilityFinding:
         assert finding.lifecycle_status == "candidate"
 
     def test_full_values(self):
-        from vulnbot.agent.context import VulnerabilityFinding
+        from vulnclaw.agent.context import VulnerabilityFinding
 
         finding = VulnerabilityFinding(
             title="SQL Injection",
@@ -62,7 +62,7 @@ class TestSessionState:
     """Test SessionState model."""
 
     def test_default_state(self):
-        from vulnbot.agent.context import PentestPhase, SessionState
+        from vulnclaw.agent.context import PentestPhase, SessionState
 
         state = SessionState()
         assert state.phase == PentestPhase.IDLE
@@ -71,7 +71,7 @@ class TestSessionState:
         assert state.executed_steps == []
 
     def test_advance_phase(self):
-        from vulnbot.agent.context import PentestPhase, SessionState
+        from vulnclaw.agent.context import PentestPhase, SessionState
 
         state = SessionState()
         state.advance_phase(PentestPhase.RECON)
@@ -81,7 +81,7 @@ class TestSessionState:
         assert "Recon" in state.executed_steps[0]
 
     def test_add_finding(self):
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
 
         state = SessionState()
         state.add_finding(VulnerabilityFinding(title="XSS", severity="High"))
@@ -89,7 +89,7 @@ class TestSessionState:
         assert "XSS" in state.findings[0].title
 
     def test_add_step(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState()
         state.add_step("Scanned port 80")
@@ -97,14 +97,14 @@ class TestSessionState:
         assert len(state.executed_steps) == 1
 
     def test_add_note(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState()
         state.add_note("Interesting endpoint found")
         assert len(state.notes) == 1
 
     def test_save_and_load(self, tmp_path):
-        from vulnbot.agent.context import PentestPhase, SessionState, VulnerabilityFinding
+        from vulnclaw.agent.context import PentestPhase, SessionState, VulnerabilityFinding
 
         state = SessionState(target="192.168.1.100")
         state.advance_phase(PentestPhase.RECON)
@@ -121,7 +121,7 @@ class TestSessionState:
         assert "SQLi" in loaded.findings[0].title
 
     def test_multiple_findings(self):
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
 
         state = SessionState()
         severities = ["Critical", "High", "Medium", "Low", "Info"]
@@ -132,7 +132,7 @@ class TestSessionState:
         assert len(state.findings) == 5
 
     def test_recon_data(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState()
         state.recon_data = {"ports": [80, 443], "services": ["nginx", "mysql"]}
@@ -143,7 +143,7 @@ class TestContextManager:
     """Test ContextManager."""
 
     def test_add_messages(self):
-        from vulnbot.agent.context import ContextManager
+        from vulnclaw.agent.context import ContextManager
 
         cm = ContextManager()
         cm.add_user_message("Hello")
@@ -153,7 +153,7 @@ class TestContextManager:
         assert cm.get_messages()[1]["role"] == "assistant"
 
     def test_max_history(self):
-        from vulnbot.agent.context import ContextManager
+        from vulnclaw.agent.context import ContextManager
 
         cm = ContextManager(max_history=5)
         for i in range(10):
@@ -162,7 +162,7 @@ class TestContextManager:
         assert len(cm.get_messages()) <= 5
 
     def test_reset(self):
-        from vulnbot.agent.context import ContextManager
+        from vulnclaw.agent.context import ContextManager
 
         cm = ContextManager()
         cm.add_user_message("Hello")
@@ -171,7 +171,7 @@ class TestContextManager:
         assert cm.state.target is None
 
     def test_session_state_access(self):
-        from vulnbot.agent.context import ContextManager, PentestPhase
+        from vulnclaw.agent.context import ContextManager, PentestPhase
 
         cm = ContextManager()
         cm.state.target = "10.0.0.1"
@@ -184,11 +184,11 @@ class TestAgentAutoSave:
     """Test agent auto-save behavior."""
 
     def test_auto_save_respects_config(self, monkeypatch, tmp_path):
-        from vulnbot.agent.context import SessionState
-        from vulnbot.agent.core import AgentCore
-        from vulnbot.config.schema import VulnBotConfig
+        from vulnclaw.agent.context import SessionState
+        from vulnclaw.agent.core import AgentCore
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.session.auto_save = False
         config.session.output_dir = tmp_path
 
@@ -208,34 +208,34 @@ class TestPriorRecon:
     """Test reuse-of-prior-recon helpers on SessionState."""
 
     def test_has_prior_recon_false_on_empty(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState(target="https://example.com")
         assert state.has_prior_recon() is False
 
     def test_has_prior_recon_true_with_recon_assets(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState(target="https://example.com")
         state.recon_data["network_services"] = [{"port": 80, "service": "http"}]
         assert state.has_prior_recon() is True
 
     def test_has_prior_recon_true_when_phase_past_recon(self):
-        from vulnbot.agent.context import PentestPhase, SessionState
+        from vulnclaw.agent.context import PentestPhase, SessionState
 
         state = SessionState(target="https://example.com")
         state.phase = PentestPhase.EXPLOITATION
         assert state.has_prior_recon() is True
 
     def test_has_prior_recon_ignores_empty_lists(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState(target="https://example.com")
         state.recon_data["subdomains"] = []
         assert state.has_prior_recon() is False
 
     def test_mark_recon_complete_from_data(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState(target="https://example.com")
         assert state.is_recon_complete() is False
@@ -243,14 +243,14 @@ class TestPriorRecon:
         assert state.is_recon_complete() is True
 
     def test_has_prior_recon_true_with_legacy_ports(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState(target="https://example.com")
         state.recon_data["ports"] = [80, 443]
         assert state.has_prior_recon() is True
 
     def test_has_prior_recon_true_with_legacy_services(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState(target="https://example.com")
         state.recon_data["services"] = ["http", "https"]
@@ -261,8 +261,8 @@ class TestTargetState:
     """Test target-level resume state."""
 
     def test_target_state_save_and_load(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import PentestPhase, SessionState
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import PentestPhase, SessionState
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -277,8 +277,8 @@ class TestTargetState:
         assert "Historical Results Summary" in restored.resume_summary
 
     def test_target_state_merges_findings(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
 
@@ -298,8 +298,8 @@ class TestTargetState:
         assert "XSS" in titles
 
     def test_target_state_resume_strategy_prefers_pending(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -318,8 +318,8 @@ class TestTargetState:
     def test_target_state_preview_carries_structured_constraint_violation_events(
         self, monkeypatch, tmp_path
     ):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -340,8 +340,8 @@ class TestTargetState:
         assert preview["constraint_violation_events"][0]["source"] == "tool"
 
     def test_target_state_resume_strategy_prefers_exploit_on_verified(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -364,8 +364,8 @@ class TestTargetState:
         assert "next_actions" in restored.resume_meta
 
     def test_target_state_confidence_is_persisted(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -380,8 +380,8 @@ class TestTargetState:
         assert meta["confidence"] > 0
 
     def test_target_state_recon_meta_is_persisted(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -401,8 +401,8 @@ class TestTargetState:
         assert raw["recon_meta"]["params"]["id"]["observation_count"] >= 1
 
     def test_target_state_resume_summary_includes_recon_assets(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -424,9 +424,9 @@ class TestTargetState:
     def test_target_state_resume_strategy_exposes_recon_priority_targets(
         self, monkeypatch, tmp_path
     ):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState
-        from vulnbot.agent.runtime_state import RuntimeState
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState
+        from vulnclaw.agent.runtime_state import RuntimeState
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -446,9 +446,9 @@ class TestTargetState:
         assert raw["resume_meta"]["priority_recon_assets"]
 
     def test_target_state_runtime_meta_is_persisted(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState
-        from vulnbot.agent.runtime_state import RuntimeState
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState
+        from vulnclaw.agent.runtime_state import RuntimeState
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -472,9 +472,9 @@ class TestTargetState:
         assert raw["runtime_meta"]["failed_steps"]
 
     def test_target_state_resume_summary_includes_runtime_signals(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState
-        from vulnbot.agent.runtime_state import RuntimeState
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState
+        from vulnclaw.agent.runtime_state import RuntimeState
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -492,8 +492,8 @@ class TestTargetState:
         assert "Recent failed paths/steps" in restored.resume_summary
 
     def test_target_state_snapshots_and_rollback(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
 
@@ -516,8 +516,8 @@ class TestTargetState:
         assert "SQLi" in titles
 
     def test_target_state_schema_preview_and_diff(self, monkeypatch, tmp_path):
-        import vulnbot.target_state.store as store_mod
-        from vulnbot.agent.context import SessionState, VulnerabilityFinding
+        import vulnclaw.target_state.store as store_mod
+        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
 
@@ -557,7 +557,7 @@ class TestMemoryStore:
     """Test MemoryStore."""
 
     def test_save_and_retrieve(self, tmp_path):
-        from vulnbot.agent.memory import MemoryStore
+        from vulnclaw.agent.memory import MemoryStore
 
         store = MemoryStore(store_dir=tmp_path)
         store.save("test_key", {"data": "test_value"})
@@ -565,13 +565,13 @@ class TestMemoryStore:
         assert result == {"data": "test_value"}
 
     def test_retrieve_nonexistent(self, tmp_path):
-        from vulnbot.agent.memory import MemoryStore
+        from vulnclaw.agent.memory import MemoryStore
 
         store = MemoryStore(store_dir=tmp_path)
         assert store.retrieve("nonexistent") is None
 
     def test_list_keys(self, tmp_path):
-        from vulnbot.agent.memory import MemoryStore
+        from vulnclaw.agent.memory import MemoryStore
 
         store = MemoryStore(store_dir=tmp_path)
         store.save("key1", "val1")
@@ -581,7 +581,7 @@ class TestMemoryStore:
         assert "key2" in keys
 
     def test_delete(self, tmp_path):
-        from vulnbot.agent.memory import MemoryStore
+        from vulnclaw.agent.memory import MemoryStore
 
         store = MemoryStore(store_dir=tmp_path)
         store.save("to_delete", "value")
@@ -589,7 +589,7 @@ class TestMemoryStore:
         assert store.retrieve("to_delete") is None
 
     def test_search(self, tmp_path):
-        from vulnbot.agent.memory import MemoryStore
+        from vulnclaw.agent.memory import MemoryStore
 
         store = MemoryStore(store_dir=tmp_path)
         store.save("sqli_info", {"type": "SQL Injection", "severity": "High"})
@@ -599,7 +599,7 @@ class TestMemoryStore:
         assert results[0][0] == "sqli_info"
 
     def test_persistence(self, tmp_path):
-        from vulnbot.agent.memory import MemoryStore
+        from vulnclaw.agent.memory import MemoryStore
 
         store1 = MemoryStore(store_dir=tmp_path)
         store1.save("persistent", "value_across_sessions")
@@ -608,7 +608,7 @@ class TestMemoryStore:
         assert store2.retrieve("persistent") == "value_across_sessions"
 
     def test_overwrite(self, tmp_path):
-        from vulnbot.agent.memory import MemoryStore
+        from vulnclaw.agent.memory import MemoryStore
 
         store = MemoryStore(store_dir=tmp_path)
         store.save("key", "original")
@@ -616,7 +616,7 @@ class TestMemoryStore:
         assert store.retrieve("key") == "updated"
 
     def test_complex_value(self, tmp_path):
-        from vulnbot.agent.memory import MemoryStore
+        from vulnclaw.agent.memory import MemoryStore
 
         store = MemoryStore(store_dir=tmp_path)
         complex_val = {
@@ -636,33 +636,33 @@ class TestPromptBuilder:
     """Test prompt building."""
 
     def test_basic_prompt(self):
-        from vulnbot.agent.prompts import build_system_prompt
+        from vulnclaw.agent.prompts import build_system_prompt
 
         prompt = build_system_prompt()
-        assert "VulnBot" in prompt
+        assert "VulnClaw" in prompt
         assert "penetration testing" in prompt
 
     def test_prompt_with_target(self):
-        from vulnbot.agent.prompts import build_system_prompt
+        from vulnclaw.agent.prompts import build_system_prompt
 
         prompt = build_system_prompt(target="192.168.1.100")
         assert "192.168.1.100" in prompt
 
     def test_prompt_with_phase(self):
-        from vulnbot.agent.prompts import build_system_prompt
+        from vulnclaw.agent.prompts import build_system_prompt
 
         prompt = build_system_prompt(phase="Recon")
         assert "Recon" in prompt
 
     def test_prompt_with_skill_context(self):
-        from vulnbot.agent.prompts import build_system_prompt
+        from vulnclaw.agent.prompts import build_system_prompt
 
         prompt = build_system_prompt(skill_context="This is reverse analysis skill context")
         assert "reverse analysis" in prompt
         assert "Current Skill Context" in prompt
 
     def test_prompt_with_mcp_tools(self):
-        from vulnbot.agent.prompts import build_system_prompt
+        from vulnclaw.agent.prompts import build_system_prompt
 
         tools = [
             {
@@ -679,21 +679,21 @@ class TestPromptBuilder:
         assert "URL to fetch" in prompt
 
     def test_waf_bypass_knowledge_included(self):
-        from vulnbot.agent.prompts import build_system_prompt
+        from vulnclaw.agent.prompts import build_system_prompt
 
         prompt = build_system_prompt()
         assert "WAF" in prompt
         assert "base64" in prompt
 
     def test_core_contract_included(self):
-        from vulnbot.agent.prompts import build_system_prompt
+        from vulnclaw.agent.prompts import build_system_prompt
 
         prompt = build_system_prompt()
         assert "Authorized Sandbox Mode" in prompt
         assert "conflicting evidence" in prompt
 
     def test_all_phases_render(self):
-        from vulnbot.agent.prompts import build_system_prompt
+        from vulnclaw.agent.prompts import build_system_prompt
 
         phases = ["Recon", "Vulnerability Discovery", "Exploitation", "Post-Exploitation", "Reporting"]
         for phase in phases:
@@ -708,10 +708,10 @@ class TestAgentCore:
     """Test AgentCore."""
 
     def _make_agent(self):
-        from vulnbot.agent.core import AgentCore
-        from vulnbot.config.schema import VulnBotConfig
+        from vulnclaw.agent.core import AgentCore
+        from vulnclaw.config.schema import VulnClawConfig
 
-        return AgentCore(VulnBotConfig())
+        return AgentCore(VulnClawConfig())
 
     def test_init(self):
         agent = self._make_agent()
@@ -719,7 +719,7 @@ class TestAgentCore:
         assert agent.context is not None
 
     def test_phase_detection_recon(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         assert agent._detect_phase("scan ports on 192.168.1.100") == PentestPhase.RECON
@@ -727,14 +727,14 @@ class TestAgentCore:
         assert agent._detect_phase("recon") == PentestPhase.RECON
 
     def test_phase_detection_vuln(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         assert agent._detect_phase("what vulnerabilities exist") == PentestPhase.VULN_DISCOVERY
         assert agent._detect_phase("SQL injection") == PentestPhase.VULN_DISCOVERY
 
     def test_phase_detection_exploit(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         assert agent._detect_phase("exploit") == PentestPhase.EXPLOITATION
@@ -744,13 +744,13 @@ class TestAgentCore:
         assert agent._detect_phase("poc verification") == PentestPhase.EXPLOITATION
 
     def test_phase_detection_post(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         assert agent._detect_phase("post-exploitation") == PentestPhase.POST_EXPLOITATION
 
     def test_phase_detection_report(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         assert agent._detect_phase("generate penetration test report") == PentestPhase.REPORTING
@@ -816,7 +816,7 @@ class TestAgentCore:
         agent = self._make_agent()
         prompt = agent._build_system_prompt(target="10.0.0.1", user_input="scan ports")
         assert "10.0.0.1" in prompt
-        assert "VulnBot" in prompt
+        assert "VulnClaw" in prompt
 
     def test_build_system_prompt_auto_mode(self):
         agent = self._make_agent()
@@ -860,7 +860,7 @@ class TestAgentCore:
         assert agent.context.state.recon_dimensions_completed["server"] is True
 
     def test_trim_summary_uses_system_role(self):
-        from vulnbot.agent.context import ContextManager
+        from vulnclaw.agent.context import ContextManager
 
         cm = ContextManager(max_history=5)
         for i in range(8):
@@ -914,7 +914,7 @@ class TestAgentCore:
         assert verified[0].lifecycle_status == "verified"
 
     def test_phase_detection_from_output(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         assert agent._detect_phase_from_output("entering vulnerability discovery phase") == PentestPhase.VULN_DISCOVERY
@@ -940,7 +940,7 @@ class TestAgentCore:
         assert agent.context.state.recon_dimension4_active is False
 
     def test_reset_runtime_state_for_recon_initializes_expected_fields(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         agent._reset_runtime_state(
@@ -995,7 +995,7 @@ class TestAgentCore:
         assert agent.runtime.consecutive_errors == 0
 
     def test_build_round_context_consumes_user_vuln_hint_rounds(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         agent.context.state.advance_phase(PentestPhase.VULN_DISCOVERY)
@@ -1014,14 +1014,14 @@ class TestAgentCore:
         assert agent.runtime.user_vuln_hint_rounds == 1
 
     def test_extract_task_constraints_parses_allowed_ports(self):
-        from vulnbot.agent.input_analysis import extract_task_constraints
+        from vulnclaw.agent.input_analysis import extract_task_constraints
 
         constraints = extract_task_constraints("only test port 443 on https://example.com")
         assert constraints.allowed_ports == [443]
         assert constraints.strict_mode is True
 
     def test_extract_task_constraints_infers_allowed_host_and_path(self):
-        from vulnbot.agent.input_analysis import extract_task_constraints
+        from vulnclaw.agent.input_analysis import extract_task_constraints
 
         constraints = extract_task_constraints("only test this path https://example.com/admin")
         assert "example.com" in constraints.allowed_hosts
@@ -1037,7 +1037,7 @@ class TestAgentCore:
         This then caused fetch scope checks to fail because urlparse().hostname
         never returns a trailing dot per RFC 3986.
         """
-        from vulnbot.agent.input_analysis import extract_task_constraints
+        from vulnclaw.agent.input_analysis import extract_task_constraints
 
         # The period after .com is sentence punctuation, not part of the URL
         constraints = extract_task_constraints("pentest http://example.com.")
@@ -1046,7 +1046,7 @@ class TestAgentCore:
         assert all(not h.endswith(".") for h in constraints.allowed_hosts)
 
     def test_extract_task_constraints_preserves_cidr_target(self):
-        from vulnbot.agent.input_analysis import detect_target, extract_task_constraints
+        from vulnclaw.agent.input_analysis import detect_target, extract_task_constraints
 
         prompt = "Perform an authorized adaptive network scan against 192.168.50.0/24."
         assert detect_target(prompt) == "192.168.50.0/24"
@@ -1056,7 +1056,7 @@ class TestAgentCore:
         assert "192.168.50.0" not in constraints.allowed_hosts
 
     def test_host_matches_allowed_scope_for_cidr(self):
-        from vulnbot.agent.constraint_policy import host_matches_allowed_scope
+        from vulnclaw.agent.constraint_policy import host_matches_allowed_scope
 
         allowed = ["192.168.50.0/24"]
         assert host_matches_allowed_scope("192.168.50.0/24", allowed)
@@ -1065,7 +1065,7 @@ class TestAgentCore:
         assert not host_matches_allowed_scope("192.168.51.1", allowed)
 
     def test_round_context_includes_hard_constraints(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         agent.context.state.advance_phase(PentestPhase.RECON)
@@ -1089,7 +1089,7 @@ class TestAgentCore:
 
         async def _fake_auto_pentest(*args, **kwargs):
             captured_inputs.append(kwargs.get("user_input", args[0] if args else ""))
-            from vulnbot.agent.runtime_state import AgentResult
+            from vulnclaw.agent.runtime_state import AgentResult
 
             return [AgentResult(output="cycle", should_continue=False)]
 
@@ -1112,7 +1112,7 @@ class TestAgentCore:
         assert "Only test ports: 443" in captured_inputs[1]
 
     def test_reset_runtime_state_clears_previous_run_contamination(self):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent()
         agent.runtime.blocked_targets = {"old.example.com"}
@@ -1168,7 +1168,7 @@ class TestAgentCore:
         }
 
     def test_reset_runtime_state_preserves_existing_constraints_when_new_input_has_none(self):
-        from vulnbot.agent.context import PentestPhase, TaskConstraints
+        from vulnclaw.agent.context import PentestPhase, TaskConstraints
 
         agent = self._make_agent()
         agent.context.state.task_constraints = TaskConstraints(
@@ -1188,16 +1188,16 @@ class TestAgentCoreLoop:
     """State-machine-level tests for auto_pentest / persistent_pentest loops."""
 
     def _make_agent(self):
-        from vulnbot.agent.core import AgentCore
-        from vulnbot.config.schema import VulnBotConfig
+        from vulnclaw.agent.core import AgentCore
+        from vulnclaw.config.schema import VulnClawConfig
 
-        config = VulnBotConfig()
+        config = VulnClawConfig()
         config.llm.model = "gpt-4o-mini"
         config.llm.api_key = "sk-test"
         return AgentCore(config=config)
 
     def test_llm_client_uses_max_completion_tokens_for_gpt5_models(self):
-        from vulnbot.agent.llm_client import build_chat_completion_kwargs
+        from vulnclaw.agent.llm_client import build_chat_completion_kwargs
 
         class DummyAgent:
             class _DummyConfig:
@@ -1220,7 +1220,7 @@ class TestAgentCoreLoop:
         assert kwargs["reasoning_effort"] == "high"
 
     def test_llm_client_keeps_max_tokens_for_compatible_providers(self):
-        from vulnbot.agent.llm_client import build_chat_completion_kwargs
+        from vulnclaw.agent.llm_client import build_chat_completion_kwargs
 
         class DummyAgent:
             class _DummyConfig:
@@ -1244,8 +1244,8 @@ class TestAgentCoreLoop:
 
     @pytest.mark.asyncio
     async def test_generate_attack_summary_uses_gpt5_token_parameter(self):
-        from vulnbot.agent.context import SessionState
-        from vulnbot.agent.prompt_context import generate_attack_summary
+        from vulnclaw.agent.context import SessionState
+        from vulnclaw.agent.prompt_context import generate_attack_summary
 
         captured_kwargs = {}
 
@@ -1302,7 +1302,7 @@ class TestAgentCoreLoop:
 
     @pytest.mark.asyncio
     async def test_llm_client_call_llm_auto_uses_shared_helper(self, monkeypatch):
-        from vulnbot.agent import llm_client
+        from vulnclaw.agent import llm_client
 
         class DummyAgent:
             class _DummyClient:
@@ -1356,7 +1356,7 @@ class TestAgentCoreLoop:
 
     @pytest.mark.asyncio
     async def test_llm_client_call_llm_auto_retries_within_same_round(self, monkeypatch):
-        from vulnbot.agent import llm_client
+        from vulnclaw.agent import llm_client
 
         calls = {"count": 0}
 
@@ -1426,7 +1426,7 @@ class TestAgentCoreLoop:
 
     @pytest.mark.asyncio
     async def test_llm_client_bad_request_errors_are_not_retried(self):
-        from vulnbot.agent import llm_client
+        from vulnclaw.agent import llm_client
 
         calls = {"count": 0}
 
@@ -1475,7 +1475,7 @@ class TestAgentCoreLoop:
 
     @pytest.mark.asyncio
     async def test_llm_client_tool_summary_bad_request_degrades_to_plain_text(self, monkeypatch):
-        from vulnbot.agent import llm_client
+        from vulnclaw.agent import llm_client
 
         calls = {"count": 0}
 
@@ -1570,7 +1570,7 @@ class TestAgentCoreLoop:
 
     @pytest.mark.asyncio
     async def test_llm_client_does_not_persist_tool_summary_as_assistant_history(self, monkeypatch):
-        from vulnbot.agent import llm_client
+        from vulnclaw.agent import llm_client
 
         class DummyToolCall:
             id = "tool_1"
@@ -1668,7 +1668,7 @@ class TestAgentCoreLoop:
     @pytest.mark.asyncio
     async def test_auto_pentest_stops_on_done_signal(self, monkeypatch):
         agent = self._make_agent()
-        from vulnbot.agent import loop_controller
+        from vulnclaw.agent import loop_controller
 
         async def _fake_call_llm_auto(agent_obj, system_prompt, round_context, **kwargs):
             return "No new vulnerabilities found this round; preparing summary.\n[DONE]"
@@ -1683,7 +1683,7 @@ class TestAgentCoreLoop:
     @pytest.mark.asyncio
     async def test_auto_pentest_ctf_flag_state_machine(self, monkeypatch):
         agent = self._make_agent()
-        from vulnbot.agent import loop_controller
+        from vulnclaw.agent import loop_controller
 
         round_responses = [
             "Found suspicious file; trying to read it.\nflag{test123}",
@@ -1712,7 +1712,7 @@ class TestAgentCoreLoop:
     @pytest.mark.asyncio
     async def test_auto_pentest_dead_loop_detects_same_path(self, monkeypatch):
         agent = self._make_agent()
-        from vulnbot.agent import loop_controller
+        from vulnclaw.agent import loop_controller
 
         async def _fake_call_llm_auto(agent_obj, system_prompt, round_context, **kwargs):
             # Same wording every round, with an attack-path keyword
@@ -1730,7 +1730,7 @@ class TestAgentCoreLoop:
     @pytest.mark.asyncio
     async def test_auto_pentest_blocks_phase_transition_when_action_not_allowed(self, monkeypatch):
         agent = self._make_agent()
-        from vulnbot.agent import loop_controller
+        from vulnclaw.agent import loop_controller
 
         async def _fake_call_llm_auto(agent_obj, system_prompt, round_context, **kwargs):
             return "Recon complete, switching to exploitation.\nphase: exploitation"
@@ -1747,14 +1747,14 @@ class TestAgentCoreLoop:
         assert agent.context.state.phase.value == "Recon"
 
     def test_constraint_policy_normalizes_actions_and_validates_phase(self):
-        from vulnbot.agent.constraint_policy import (
+        from vulnclaw.agent.constraint_policy import (
             infer_tool_action,
             normalize_action_name,
             validate_action_constraints,
             validate_phase_transition,
             validate_tool_action,
         )
-        from vulnbot.agent.context import PentestPhase, TaskConstraints
+        from vulnclaw.agent.context import PentestPhase, TaskConstraints
 
         constraints = TaskConstraints(allowed_actions=["recon"], strict_mode=True)
         assert normalize_action_name("reporting") == "report"
@@ -1776,7 +1776,7 @@ class TestAgentCoreLoop:
     @pytest.mark.asyncio
     async def test_auto_pentest_blocks_repeatedly_failed_target(self, monkeypatch):
         agent = self._make_agent()
-        from vulnbot.agent import loop_controller
+        from vulnclaw.agent import loop_controller
 
         async def _fake_call_llm_auto(agent_obj, system_prompt, round_context, **kwargs):
             return "Access to https://victim.local/admin failed with connection timeout."
@@ -1798,7 +1798,7 @@ class TestAgentCoreLoop:
         async def _fake_auto_pentest(*args, **kwargs):
             nonlocal cycle_count
             cycle_count += 1
-            from vulnbot.agent.runtime_state import AgentResult
+            from vulnclaw.agent.runtime_state import AgentResult
 
             return [AgentResult(output=f"cycle {cycle_count}", should_continue=False)]
 
@@ -1819,7 +1819,7 @@ class TestWantsFreshRecon:
     """Test the force-fresh-recon keyword detector."""
 
     def test_detects_rescan_tokens(self):
-        from vulnbot.agent.input_analysis import wants_fresh_recon
+        from vulnclaw.agent.input_analysis import wants_fresh_recon
 
         for text in [
             "rescan example.com",
@@ -1832,7 +1832,7 @@ class TestWantsFreshRecon:
             assert wants_fresh_recon(text) is True, text
 
     def test_ignores_ordinary_prompts(self):
-        from vulnbot.agent.input_analysis import wants_fresh_recon
+        from vulnclaw.agent.input_analysis import wants_fresh_recon
 
         assert wants_fresh_recon("exploit the SQL injection") is False
         assert wants_fresh_recon("continue the pentest") is False
@@ -1843,11 +1843,11 @@ class TestResetRuntimePreservesRecon:
     """Test preserve_recon path of _reset_runtime_state."""
 
     def test_preserve_recon_keeps_dimensions(self):
-        from vulnbot.agent.context import PentestPhase
-        from vulnbot.agent.core import AgentCore
-        from vulnbot.config.schema import VulnBotConfig
+        from vulnclaw.agent.context import PentestPhase
+        from vulnclaw.agent.core import AgentCore
+        from vulnclaw.config.schema import VulnClawConfig
 
-        agent = AgentCore(VulnBotConfig())
+        agent = AgentCore(VulnClawConfig())
         agent.context.state.recon_dimensions_completed = {
             "server": True,
             "website": True,
@@ -1861,11 +1861,11 @@ class TestResetRuntimePreservesRecon:
         assert agent.runtime.is_recon_phase is False
 
     def test_default_resets_dimensions(self):
-        from vulnbot.agent.context import PentestPhase
-        from vulnbot.agent.core import AgentCore
-        from vulnbot.config.schema import VulnBotConfig
+        from vulnclaw.agent.context import PentestPhase
+        from vulnclaw.agent.core import AgentCore
+        from vulnclaw.config.schema import VulnClawConfig
 
-        agent = AgentCore(VulnBotConfig())
+        agent = AgentCore(VulnClawConfig())
         agent.context.state.recon_dimensions_completed = {
             "server": True,
             "website": True,
@@ -1880,21 +1880,21 @@ class TestAutoPentestResumeAware:
     """Test that auto_pentest reuses recon instead of resetting to Recon."""
 
     def _make_agent(self, monkeypatch):
-        from vulnbot.agent.core import AgentCore
-        from vulnbot.config.schema import VulnBotConfig
+        from vulnclaw.agent.core import AgentCore
+        from vulnclaw.config.schema import VulnClawConfig
 
-        agent = AgentCore(VulnBotConfig())
+        agent = AgentCore(VulnClawConfig())
 
         async def fake_call_llm_auto(_agent, _system, _ctx, stream_sink=None):
             return "Nothing further. [DONE]"
 
-        import vulnbot.agent.loop_controller as lc
+        import vulnclaw.agent.loop_controller as lc
 
         monkeypatch.setattr(lc, "call_llm_auto", fake_call_llm_auto)
         return agent
 
     async def test_reuses_recon_starts_in_vuln_discovery(self, monkeypatch):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent(monkeypatch)
         agent.context.state.target = "https://example.com"
@@ -1907,7 +1907,7 @@ class TestAutoPentestResumeAware:
         assert agent.context.state.phase == PentestPhase.VULN_DISCOVERY
 
     async def test_fresh_recon_keyword_forces_recon(self, monkeypatch):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent(monkeypatch)
         agent.context.state.target = "https://example.com"
@@ -1919,7 +1919,7 @@ class TestAutoPentestResumeAware:
         assert agent.context.state.phase == PentestPhase.RECON
 
     async def test_fresh_recon_flag_forces_recon(self, monkeypatch):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent(monkeypatch)
         agent.context.state.target = "https://example.com"
@@ -1933,7 +1933,7 @@ class TestAutoPentestResumeAware:
         assert agent.context.state.phase == PentestPhase.RECON
 
     async def test_no_prior_recon_starts_in_recon(self, monkeypatch):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent(monkeypatch)
         agent.context.state.target = "https://example.com"
@@ -1944,7 +1944,7 @@ class TestAutoPentestResumeAware:
         assert agent.context.state.phase == PentestPhase.RECON
 
     async def test_reuse_honors_saved_phase_past_recon(self, monkeypatch):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent(monkeypatch)
         agent.context.state.target = "https://example.com"
@@ -1988,7 +1988,7 @@ class TestAutoPentestResumeAware:
         assert agent.context.state.recon_data == {}
 
     async def test_reuse_honors_explicit_recon_only_directive(self, monkeypatch):
-        from vulnbot.agent.context import PentestPhase
+        from vulnclaw.agent.context import PentestPhase
 
         agent = self._make_agent(monkeypatch)
         agent.context.state.target = "https://example.com"
@@ -2006,10 +2006,10 @@ class TestRoundContextRecon:
     """Test concrete recon rendering and reuse directive in round context."""
 
     def _agent_with_recon(self, reuse: bool):
-        from vulnbot.agent.core import AgentCore
-        from vulnbot.config.schema import VulnBotConfig
+        from vulnclaw.agent.core import AgentCore
+        from vulnclaw.config.schema import VulnClawConfig
 
-        agent = AgentCore(VulnBotConfig())
+        agent = AgentCore(VulnClawConfig())
         agent._reset_runtime_state(user_input="continue")
         agent.runtime.reuse_recon = reuse
         agent.context.state.target = "https://example.com"
@@ -2021,7 +2021,7 @@ class TestRoundContextRecon:
         return agent
 
     def test_reuse_includes_directive_and_assets(self):
-        from vulnbot.agent.prompt_context import build_round_context
+        from vulnclaw.agent.prompt_context import build_round_context
 
         agent = self._agent_with_recon(reuse=True)
         ctx = build_round_context(agent, round_num=1, max_rounds=5)
@@ -2031,7 +2031,7 @@ class TestRoundContextRecon:
         assert "api.example.com" in ctx
 
     def test_no_reuse_omits_directive(self):
-        from vulnbot.agent.prompt_context import build_round_context
+        from vulnclaw.agent.prompt_context import build_round_context
 
         agent = self._agent_with_recon(reuse=False)
         ctx = build_round_context(agent, round_num=1, max_rounds=5)

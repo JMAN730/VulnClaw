@@ -3,8 +3,8 @@ import socket
 import httpx
 import pytest
 
-from vulnbot.intel import osint
-from vulnbot.intel.osint import (
+from vulnclaw.intel import osint
+from vulnclaw.intel.osint import (
     DNSRecord,
     OSINTReport,
     SubdomainResult,

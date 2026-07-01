@@ -1,7 +1,7 @@
-# VulnBot Codebase Audit
+# VulnClaw Codebase Audit
 
 **Date:** 2026-06-29
-**Scope:** All 80 Python modules under `vulnbot/` (~27,800 LoC). Static analysis
+**Scope:** All 80 Python modules under `vulnclaw/` (~27,800 LoC). Static analysis
 (AST cross-reference + `vulture`) followed by manual verification of every flagged
 item against the whole repo *including* `tests/`.
 **Note:** This is an audit only — **no code was changed.**
@@ -20,7 +20,7 @@ item against the whole repo *including* `tests/`.
    - `@_register(...)` crypto ops and `@_rule(...)` remediation handlers (registered
      into dispatch dicts, called via `crypto_decode` / `RemediationEngine`)
    - prompt_toolkit key-binding (`kb.add`) callbacks
-3. For each remaining candidate, grepped `vulnbot` + `tests` to confirm it has
+3. For each remaining candidate, grepped `vulnclaw` + `tests` to confirm it has
    zero call sites (or test-only call sites) before listing it.
 
 Confidence is noted per finding: **High** = verified zero production call sites;
@@ -30,7 +30,7 @@ Confidence is noted per finding: **High** = verified zero production call sites;
 
 ## 1. Data corruption - garbled tool descriptions (resolved)
 
-**File:** `vulnbot/skills/crypto_tools.py`
+**File:** `vulnclaw/skills/crypto_tools.py`
 
 The original audit found user-facing placeholder text in several crypto operation
 descriptions and optional parameter labels. This was resolved in the public-alpha
@@ -44,7 +44,7 @@ for the stale placeholder tokens.
 
 ## 2. Byte-order mark in source file (resolved)
 
-**File:** `vulnbot/config/schema.py:1`
+**File:** `vulnclaw/config/schema.py:1`
 
 The original audit found a UTF-8 BOM (`U+FEFF`) at the start of the schema module.
 The file has been re-saved as plain UTF-8 during the public-alpha hardening pass.
@@ -53,8 +53,8 @@ The file has been re-saved as plain UTF-8 during the public-alpha hardening pass
 
 ## 3. Dead production modules (MED severity)
 
-### 3a. `vulnbot/mcp/router.py` — entire module unused in production
-`MCPRouter` is **never imported anywhere in `vulnbot/`** (not even in
+### 3a. `vulnclaw/mcp/router.py` — entire module unused in production
+`MCPRouter` is **never imported anywhere in `vulnclaw/`** (not even in
 `mcp/__init__.py`). Its only references are in `tests/test_mcp.py`. All its
 methods are therefore dead production code:
 - `route` (:45), `extract_url` (:64), `extract_ip` (:69), `suggest_tools_for_phase` (:74)
@@ -64,7 +64,7 @@ live part of the MCP toolchain — the doc is stale, or the wiring was dropped.
 **Recommendation:** Either wire the router into the agent's tool-suggestion flow or
 remove the module + tests and update `CLAUDE.md`.
 
-### 3b. `vulnbot/report/verifier.py` — `VulnerabilityVerifier` never instantiated
+### 3b. `vulnclaw/report/verifier.py` — `VulnerabilityVerifier` never instantiated
 `VulnerabilityVerifier` is only re-exported in `report/__init__.py` `__all__` and
 exercised by tests; it is never constructed in production code. The following are
 all fully-implemented-but-unused:
@@ -77,12 +77,12 @@ pipeline. If yes, wire it in; if no, drop the class and its tests.
 
 ## 4. The prompt_toolkit TUI is dead code (MED severity)
 
-**File:** `vulnbot/cli/tui.py`
+**File:** `vulnclaw/cli/tui.py`
 
 `run_tui()` (:340) now delegates entirely to the Textual implementation:
 ```python
 def run_tui(...):
-    from vulnbot.cli.tui_textual import run_tui_textual
+    from vulnclaw.cli.tui_textual import run_tui_textual
     run_tui_textual(...)
 ```
 The older prompt_toolkit implementation `_run_pt_tui()` (:351–553) has **zero
@@ -111,7 +111,7 @@ the only TUI, or document why it's retained.
 
 ## 5. Dead AgentCore delegation shims (MED severity)
 
-**File:** `vulnbot/agent/core.py`
+**File:** `vulnclaw/agent/core.py`
 
 `AgentCore` was refactored into thin method wrappers that delegate to extracted
 module functions. Most wrappers are still called, but these six are never invoked as
@@ -140,15 +140,15 @@ validation, not just dead code).
 
 ## 6. No-op functions (LOW–MED severity)
 
-- **`vulnbot/agent/context.py:871` `ContextManager.add_system_message`** — body is
+- **`vulnclaw/agent/context.py:871` `ContextManager.add_system_message`** — body is
   just `pass` (with comment "System messages are handled separately"). Never called
   (0 references). A genuine no-op stub. **Recommendation:** remove, or implement if
   the sibling `add_user_message`/`add_assistant_message` imply it should work.
-- **`vulnbot/cli/tui.py:672` `_SlashCompleter.get_completions`** — `pass` ("async
+- **`vulnclaw/cli/tui.py:672` `_SlashCompleter.get_completions`** — `pass` ("async
   path is used instead"). This is a *required* abstract override from prompt_toolkit's
   `Completer`, so the no-op is intentional — but it's inside the dead island (§4),
   so it dies with that. Low priority on its own.
-- **`vulnbot/intel/attack.py:777` `AttackMapper.__init__`** — `pass`. Redundant
+- **`vulnclaw/intel/attack.py:777` `AttackMapper.__init__`** — `pass`. Redundant
   empty constructor; harmless, can be deleted (the class is instantiated and used).
 - Legitimate no-ops (not findings, listed for completeness): `StreamSink` Protocol
   stubs (`...`) and `_NullSink` null-object methods in `agent/llm_client.py` —
@@ -243,18 +243,18 @@ intended to.
 # Part 2 — Security Audit (deep dive, category B)
 
 **Date:** 2026-06-29 · **Scope:** Security only.
-**Tools:** `bandit -r vulnbot -ll -ii` (8 High / 4 Med / 63 Low candidates), plus
+**Tools:** `bandit -r vulnclaw -ll -ii` (8 High / 4 Med / 63 Low candidates), plus
 manual review of `agent/builtin_tools.py`, `agent/network_scan.py`, `mcp/lifecycle.py`,
 `web/app.py`, `web/services/*`, `config/schema.py`. **No code changed.**
 
-Threat model that matters here: VulnBot is an **autonomous LLM agent** that ingests
+Threat model that matters here: VulnClaw is an **autonomous LLM agent** that ingests
 **attacker-controlled content** (target web pages, banners, HTTP responses) and then
 **calls tools / runs code on the operator's host**. So "prompt injection from the
 target → agent runs tool" is a realistic, in-scope attack path, not a theoretical one.
 
 ## SEC-1 — `python_execute` is arbitrary code execution, on by default (CRITICAL, High confidence)
 
-**File:** `vulnbot/agent/builtin_tools.py:794–978`, defaults in `config/schema.py:172–210`
+**File:** `vulnclaw/agent/builtin_tools.py:794–978`, defaults in `config/schema.py:172–210`
 
 The `python_execute` tool writes the model-supplied `code` to a temp file and runs it
 with `asyncio.create_subprocess_exec(sys.executable, tmp_path, ...)` — i.e. a **real,
@@ -265,12 +265,12 @@ unconfined Python subprocess** with full filesystem/network access. The only
 ```python
 BLOCKED_PATTERNS = [ r"os\.\s*system\s*\(", r"subprocess\.\s*Popen\s*\(",
                      r"shutil\.\s*rmtree\s*\(", r"__import__\s*\(\s*['\"]os['\"]",
-                     r"open\s*\(\s*['\"].*vulnbot.*config", r"open\s*\(\s*['\"].*\.vulnbot" ]
+                     r"open\s*\(\s*['\"].*vulnclaw.*config", r"open\s*\(\s*['\"].*\.vulnclaw" ]
 ```
 - `subprocess.run(...)` / `subprocess.call(...)` are **not** blocked (only `Popen`).
 - `eval(...)`, `exec(...)`, `compile(...)`, `getattr(os,'sys'+'tem')(...)`,
   `__import__('o'+'s')` — none are blocked.
-- The config-file read guard is a literal-string regex; `pathlib.Path('~/.vulnbot/
+- The config-file read guard is a literal-string regex; `pathlib.Path('~/.vulnclaw/
   config.yaml').read_text()` or `io.open`/`codecs.open` sail past it.
 
 **Default configuration is the most dangerous one (verified in `SafetyConfig`):**
@@ -285,7 +285,7 @@ In `trusted-local` mode `_validate_python_execute_mode` applies **no** extra pat
 env = {**os.environ, **base_env} if mode == "trusted-local" else base_env   # :909
 ```
 So out of the box, any code the LLM emits runs locally **with the operator's
-environment, including the LLM API key** (`os.environ` / `VULNBOT_API_KEY`), which the
+environment, including the LLM API key** (`os.environ` / `VULNCLAW_API_KEY`), which the
 injected code can read and exfiltrate. The `safe`/`lab` modes (also regex denylists)
 are not the default and are themselves bypassable (regex on source text).
 
@@ -298,7 +298,7 @@ text cannot be made safe. At minimum, document that enabling it grants the agent
 
 ## SEC-2 — Web `provider-models` endpoint: SSRF + API-key exfiltration (HIGH, High confidence)
 
-**Files:** `vulnbot/web/services/provider_service.py:34–74`, `web/app.py:115`,
+**Files:** `vulnclaw/web/services/provider_service.py:34–74`, `web/app.py:115`,
 `config/settings.py:fetch_provider_models`
 
 `POST /api/provider-models` takes `base_url` **straight from the client** and calls
@@ -323,7 +323,7 @@ verification on this path (see SEC-5).
 
 ## SEC-3 — Web backend has no auth, no CORS, no Host pinning (MEDIUM, High confidence)
 
-**File:** `vulnbot/web/app.py:82–246` (no `add_middleware`, no `Depends`, no
+**File:** `vulnclaw/web/app.py:82–246` (no `add_middleware`, no `Depends`, no
 `CORSMiddleware`/`TrustedHostMiddleware` anywhere)
 
 The default bind is sensible (`127.0.0.1`, refuses non-local without `--allow-remote`,
@@ -347,7 +347,7 @@ unless an auth token is configured.
 
 ## SEC-4 — MCP `fetch` tool has no SSRF guard (MEDIUM, Med confidence)
 
-**File:** `vulnbot/mcp/lifecycle.py:987–1008`
+**File:** `vulnclaw/mcp/lifecycle.py:987–1008`
 
 `_call_fetch` issues `client.request(method, url, headers, content=body)` for an
 agent-supplied `url` with **no reserved-IP / cloud-metadata filtering** — unlike the
@@ -373,7 +373,7 @@ provider/credentialed calls.
 
 `xml.etree.ElementTree.fromstring` is used on external XML in
 `agent/builtin_tools.py:712`, `agent/network_scan.py:273`, and **`intel/topology.py:292`**.
-nmap-generated XML (the first two) is low risk since VulnBot generates it, but
+nmap-generated XML (the first two) is low risk since VulnClaw generates it, but
 `topology.py` can parse externally-supplied XML files — stdlib ET is vulnerable to
 entity-expansion ("billion laughs") and, on older runtimes, external-entity attacks.
 **Recommendation:** parse with `defusedxml` (a soft dependency already fits the
@@ -381,7 +381,7 @@ project's optional-import pattern), or call `defusedxml.defuse_stdlib()`.
 
 ## SEC-7 — nmap argument-injection (LOW, Med confidence)
 
-**File:** `vulnbot/agent/builtin_tools.py:618–620`
+**File:** `vulnclaw/agent/builtin_tools.py:618–620`
 
 `target` and `custom_ports` flow into the argv list unvalidated
 (`cmd.extend(["-p", custom_ports]); cmd.append(target)`). Because they are passed as

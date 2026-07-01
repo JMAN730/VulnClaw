@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from vulnbot.agent.context import SessionState, VulnerabilityFinding
-from vulnbot.agent.parallel_agents import extract_attack_surfaces, run_parallel_pentest
+from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+from vulnclaw.agent.parallel_agents import extract_attack_surfaces, run_parallel_pentest
 
 
 class FakeAgent:

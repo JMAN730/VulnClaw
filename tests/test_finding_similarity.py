@@ -1,9 +1,9 @@
-"""VulnBot Finding Similarity Tests - semantic deduplication module."""
+"""VulnClaw Finding Similarity Tests - semantic deduplication module."""
 
 from __future__ import annotations
 
-from vulnbot.agent.context import VulnerabilityFinding
-from vulnbot.agent.finding_similarity import (
+from vulnclaw.agent.context import VulnerabilityFinding
+from vulnclaw.agent.finding_similarity import (
     deduplicate_findings,
     finding_similarity,
     normalize_text,
@@ -233,7 +233,7 @@ class TestDeduplicateFindings:
 
 class TestSessionStateIntegration:
     def test_semantic_dedup_on_add(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState(target="t.com")
         f1 = _mk(
@@ -252,7 +252,7 @@ class TestSessionStateIntegration:
         assert len(state.findings) == 1
 
     def test_distinct_findings_both_added(self):
-        from vulnbot.agent.context import SessionState
+        from vulnclaw.agent.context import SessionState
 
         state = SessionState(target="t.com")
         assert state.add_finding(

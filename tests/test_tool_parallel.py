@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from vulnbot.agent.tool_call_manager import handle_tool_calls_with_results
+from vulnclaw.agent.tool_call_manager import handle_tool_calls_with_results
 
 
 class _Func:
