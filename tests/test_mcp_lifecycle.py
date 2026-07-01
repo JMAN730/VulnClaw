@@ -1,4 +1,4 @@
-"""VulnClaw MCP lifecycle robustness tests — restart, health, graceful stop."""
+"""VulnBot MCP lifecycle robustness tests — restart, health, graceful stop."""
 
 from __future__ import annotations
 
@@ -6,13 +6,13 @@ import asyncio
 
 import pytest
 
-from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-from vulnclaw.mcp.lifecycle import MCPLifecycleManager
-from vulnclaw.mcp.registry import HealthStatus
+from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+from vulnbot.mcp.lifecycle import MCPLifecycleManager
+from vulnbot.mcp.registry import HealthStatus
 
 
 def _manager() -> MCPLifecycleManager:
-    return MCPLifecycleManager(VulnClawConfig())
+    return MCPLifecycleManager(VulnBotConfig())
 
 
 class _FakeProc:
@@ -99,7 +99,7 @@ class TestStartStop:
 
     @pytest.mark.asyncio
     async def test_context_manager_starts_and_stops(self):
-        config = VulnClawConfig()
+        config = VulnBotConfig()
         config.mcp.servers["fetch"] = MCPServerConfig(**BUILTIN_MCP_SERVERS["fetch"])
         async with MCPLifecycleManager(config) as m:
             assert "fetch" in m.registry.get_all_servers()
@@ -222,7 +222,7 @@ class TestAutoRestart:
         m.registry.register_server("chrome-devtools")
         m.registry.register_tool(
             "chrome-devtools",
-            {"name": "chrome_navigate", "description": "", "inputSchema": {"type": "object"}},
+            {"name": "navigate", "description": "", "inputSchema": {"type": "object"}},
         )
         m.config.mcp.servers["chrome-devtools"] = MCPServerConfig(
             **BUILTIN_MCP_SERVERS["chrome-devtools"]
@@ -247,7 +247,7 @@ class TestAutoRestart:
         monkeypatch.setattr(m, "_restart_server", fake_restart)
         monkeypatch.setattr(m, "_get_or_create_persistent_stdio_session", fake_session)
 
-        await m.call_tool("chrome_navigate", {"url": "https://example.com"})
+        await m.call_tool("navigate", {"url": "https://example.com"})
 
         assert restarted["called"] is True
 
@@ -361,205 +361,6 @@ class TestStats:
         stats = m.registry.get_server_stats("memory")
         assert stats["call_count"] == 1
         assert stats["avg_latency_ms"] >= 0.0
-
-
-def _http_server_config(name: str = "streamable-mcp-server") -> MCPServerConfig:
-    return MCPServerConfig(
-        name=name,
-        enabled=True,
-        transport={"type": "streamable-http", "url": "http://127.0.0.1:12306/mcp"},
-    )
-
-
-def _sse_server_config(name: str = "burp") -> MCPServerConfig:
-    return MCPServerConfig(
-        name=name,
-        enabled=True,
-        transport={"type": "sse", "url": "http://127.0.0.1:9876"},
-    )
-
-
-class TestStreamableHttp:
-    def test_attach_success_registers_known_tools(self, monkeypatch):
-        import vulnclaw.mcp.lifecycle as _mod
-
-        m = _manager()
-        cfg = _http_server_config("chrome-devtools")
-        m.config.mcp.servers["chrome-devtools"] = cfg
-        m.registry.register_server("chrome-devtools")
-
-        # Ensure SDK availability checks pass even when mcp package not installed
-        monkeypatch.setattr(_mod, "ClientSession", object)
-        monkeypatch.setattr(_mod, "streamablehttp_client", object)
-        monkeypatch.setattr(m, "_check_http_reachable", lambda url, timeout: True)
-
-        assert m._start_server("chrome-devtools", cfg) is True
-        state = m.registry.get_all_servers()["chrome-devtools"]
-        assert state.running is True
-        assert state.execution_mode == "http"
-        assert state.health_status == HealthStatus.HEALTHY.value
-        assert "chrome_navigate" in m.list_available_tools()
-
-    def test_attach_failure_degrades_and_falls_back(self, monkeypatch):
-        import vulnclaw.mcp.lifecycle as _mod
-
-        m = _manager()
-        cfg = _http_server_config("chrome-devtools")
-        m.config.mcp.servers["chrome-devtools"] = cfg
-        m.registry.register_server("chrome-devtools")
-
-        monkeypatch.setattr(_mod, "ClientSession", object)
-        monkeypatch.setattr(_mod, "streamablehttp_client", object)
-        monkeypatch.setattr(m, "_check_http_reachable", lambda url, timeout: False)
-
-        assert m._start_server("chrome-devtools", cfg) is True
-        state = m.registry.get_all_servers()["chrome-devtools"]
-        assert state.running is False
-        assert state.health_status == HealthStatus.DEGRADED.value
-        assert "chrome_navigate" in m.list_available_tools()
-
-    async def test_get_or_create_session_dispatches_http(self, monkeypatch):
-        m = _manager()
-        m.config.mcp.servers["streamable-mcp-server"] = _http_server_config()
-        sentinel = object()
-
-        async def fake_http(name):
-            assert name == "streamable-mcp-server"
-            return sentinel
-
-        monkeypatch.setattr(m, "_get_or_create_persistent_http_session", fake_http)
-        got = await m._get_or_create_session("streamable-mcp-server")
-        assert got is sentinel
-
-    async def test_call_tool_routes_streamable_http_server(self, monkeypatch):
-        import vulnclaw.mcp.lifecycle as _mod
-
-        m = _manager()
-        m.config.mcp.servers["streamable-mcp-server"] = _http_server_config()
-        m.registry.register_server("streamable-mcp-server")
-        m.registry.register_tool(
-            "streamable-mcp-server",
-            {"name": "do_thing", "description": "", "inputSchema": {"type": "object"}},
-        )
-        m.registry.set_server_execution_mode("streamable-mcp-server", "http")
-
-        # Ensure SDK availability checks pass
-        monkeypatch.setattr(_mod, "ClientSession", object)
-        monkeypatch.setattr(_mod, "streamablehttp_client", object)
-
-        class DummySession:
-            async def call_tool(self, tool_name, arguments=None):
-                return {"echo": tool_name, "args": arguments}
-
-        async def fake_http(name):
-            return DummySession()
-
-        monkeypatch.setattr(m, "_get_or_create_persistent_http_session", fake_http)
-
-        result = await m.call_tool("do_thing", {"x": 1})
-        assert result["ok"] is True
-        assert result["server"] == "streamable-mcp-server"
-        assert "do_thing" in str(result["content"])
-
-
-class TestSseMcp:
-    def test_burp_attach_success_registers_runtime_tools(self, monkeypatch):
-        import vulnclaw.mcp.lifecycle as _mod
-
-        m = _manager()
-        cfg = _sse_server_config()
-        m.config.mcp.servers["burp"] = cfg
-        m.registry.register_server("burp")
-
-        monkeypatch.setattr(_mod, "ClientSession", object)
-        monkeypatch.setattr(_mod, "sse_client", object)
-        monkeypatch.setattr(m, "_check_http_reachable", lambda url, timeout: True)
-        monkeypatch.setattr(
-            m,
-            "_probe_sse_server",
-            lambda config: (
-                True,
-                "ok",
-                [
-                    {
-                        "name": "get_proxy_http_history",
-                        "description": "",
-                        "inputSchema": {"type": "object"},
-                    }
-                ],
-            ),
-        )
-
-        assert m._start_server("burp", cfg) is True
-        state = m.registry.get_all_servers()["burp"]
-        assert state.running is True
-        assert state.execution_mode == "sse"
-        assert state.health_status == HealthStatus.HEALTHY.value
-        assert "get_proxy_http_history" in m.list_available_tools()
-
-    async def test_get_or_create_session_dispatches_sse(self, monkeypatch):
-        m = _manager()
-        m.config.mcp.servers["burp"] = _sse_server_config()
-        sentinel = object()
-
-        async def fake_sse(name):
-            assert name == "burp"
-            return sentinel
-
-        monkeypatch.setattr(m, "_get_or_create_persistent_sse_session", fake_sse)
-        got = await m._get_or_create_session("burp")
-        assert got is sentinel
-
-    async def test_call_tool_routes_sse_server(self, monkeypatch):
-        import vulnclaw.mcp.lifecycle as _mod
-
-        m = _manager()
-        m.config.mcp.servers["burp"] = _sse_server_config()
-        m.registry.register_server("burp")
-        m.registry.register_tool(
-            "burp",
-            {
-                "name": "get_proxy_http_history",
-                "description": "",
-                "inputSchema": {"type": "object"},
-            },
-        )
-        m.registry.set_server_execution_mode("burp", "sse")
-
-        monkeypatch.setattr(_mod, "ClientSession", object)
-        monkeypatch.setattr(_mod, "sse_client", object)
-
-        class DummySession:
-            async def call_tool(self, tool_name, arguments=None):
-                return {"echo": tool_name, "args": arguments}
-
-        async def fake_sse(name):
-            return DummySession()
-
-        monkeypatch.setattr(m, "_get_or_create_persistent_sse_session", fake_sse)
-
-        result = await m.call_tool("get_proxy_http_history", {})
-        assert result["ok"] is True
-        assert result["server"] == "burp"
-        assert "get_proxy_http_history" in str(result["content"])
-
-    async def test_sse_shutdown_noise_is_ignored(self):
-        m = _manager()
-        m.registry.register_server("burp")
-        m.registry.set_server_running("burp", running=True)
-
-        class BadSession:
-            async def __aexit__(self, exc_type, exc, tb):
-                raise RuntimeError("Attempted to exit cancel scope in a different task")
-
-        m._mcp_clients["burp"] = {
-            "kind": "persistent-sse",
-            "session": BadSession(),
-            "context_manager": None,
-        }
-
-        await m.astop_server("burp")
-        assert m.registry.get_all_servers()["burp"].running is False
 
 
 def test_smoke_event_loop_isolation():

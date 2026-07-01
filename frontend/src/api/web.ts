@@ -2,6 +2,9 @@ import type {
   ConfigView,
   ConstraintAuditView,
   ConfigUpdateRequest,
+  ProvidersView,
+  ProviderModelsRequest,
+  ProviderModelsResponse,
   MCPDiagnosticsView,
   ReportListItem,
   ReportContentView,
@@ -27,7 +30,7 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
       ...init,
     });
   } catch {
-    throw new Error("Unable to reach the VulnClaw backend API. Start `vulnclaw web` and reconnect.");
+    throw new Error("Unable to reach the VulnBot backend API. Start `vulnbot web` and reconnect.");
   }
 
   if (!response.ok) {
@@ -42,7 +45,7 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
   try {
     return await response.json() as T;
   } catch {
-    throw new Error("The backend API returned non-JSON content. Confirm the backend was started with `vulnclaw web`.");
+    throw new Error("The backend API returned non-JSON content. Confirm the backend was started with `vulnbot web`.");
   }
 }
 
@@ -103,6 +106,17 @@ export function getConstraintAudit(): Promise<ConstraintAuditView> {
 
 export function updateConfig(payload: ConfigUpdateRequest): Promise<ConfigView> {
   return requestJson<ConfigView>("/api/config", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getProviders(): Promise<ProvidersView> {
+  return requestJson<ProvidersView>("/api/providers");
+}
+
+export function fetchProviderModels(payload: ProviderModelsRequest): Promise<ProviderModelsResponse> {
+  return requestJson<ProviderModelsResponse>("/api/provider-models", {
     method: "POST",
     body: JSON.stringify(payload),
   });

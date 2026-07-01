@@ -1,368 +1,301 @@
-# Contributing to VulnClaw
+# Contributing to Vulnbot
 
-感谢你为 VulnClaw 做贡献。
+Thanks for contributing to Vulnbot.
 
-这份文档的目标不是规定繁琐流程，而是帮助你快速理解当前代码结构，尽量在正确的层次修改代码，减少“功能能跑，但架构越来越乱”的情况。
+This guide is meant to help contributors understand the current code structure quickly, make changes at the right layer, and avoid adding behavior that works locally but makes the architecture harder to maintain.
 
 ---
 
-## 项目结构
+## Project Structure
 
 ```text
-VulnClaw/
-|-- vulnclaw/
-|   |-- __init__.py              # 包版本与基础元数据
-|   |-- orchestrator.py          # CLI / Web 共享任务编排入口
-|   |-- repl_runner.py           # REPL 共享执行辅助
-|   |-- agent/                   # Agent 核心逻辑
-|   |   |-- core.py              # AgentCore 壳层与协调入口
-|   |   |-- llm_client.py        # LLM 调用、重试、工具总结回传
-|   |   |-- tool_call_manager.py # tool-call 去重、执行、结果封装
-|   |   |-- builtin_tools.py     # python_execute / nmap_scan / MCP 桥接
-|   |   |-- context.py           # 会话状态、finding、步骤、生命周期状态
-|   |   |-- runtime_state.py     # 运行时循环状态
-|   |   |-- loop_controller.py   # auto / persistent 主循环
-|   |   |-- finding_parser.py    # finding 提取、证据等级与生命周期归类
-|   |   |-- prompt_context.py    # 回合上下文与攻击摘要
-|   |   |-- prompts.py           # prompt 构建辅助
-|   |   |-- system_prompt.py     # 动态 system prompt 组合
-|   |   |-- input_analysis.py    # 目标、阶段、漏洞提示提取
-|   |   |-- anti_loop.py         # 防死循环、失败目标、攻击路径跟踪
-|   |   |-- recon_tracker.py     # recon 维度完成度追踪
-|   |   |-- ctf_mode.py          # CTF flag 识别与验证
-|   |   |-- skill_context.py     # Skill 上下文选择
-|   |   |-- kb_context.py        # 知识库上下文注入
-|   |   `-- think_filter.py      # think 标签显示与隐藏
+Vulnbot/
+|-- vulnbot/
+|   |-- __init__.py              # Package version and base metadata
+|   |-- orchestrator.py          # Shared CLI / Web task orchestration entrypoint
+|   |-- repl_runner.py           # Shared REPL execution helper
+|   |-- agent/                   # Agent core logic
+|   |   |-- core.py              # AgentCore coordination shell
+|   |   |-- llm_client.py        # LLM calls, retries, and tool-summary feedback
+|   |   |-- tool_call_manager.py # Tool-call deduplication, execution, and result wrapping
+|   |   |-- builtin_tools.py     # python_execute / nmap_scan / MCP bridge
+|   |   |-- context.py           # Session state, findings, steps, and lifecycle state
+|   |   |-- runtime_state.py     # Runtime loop state
+|   |   |-- loop_controller.py   # Auto and persistent main loops
+|   |   |-- finding_parser.py    # Finding extraction, evidence levels, and lifecycle grouping
+|   |   |-- prompt_context.py    # Round context and attack summaries
+|   |   |-- prompts.py           # Prompt construction helpers
+|   |   |-- system_prompt.py     # Dynamic system prompt composition
+|   |   |-- input_analysis.py    # Target, phase, and vulnerability hint extraction
+|   |   |-- anti_loop.py         # Anti-loop logic, failed goals, and attack-path tracking
+|   |   |-- recon_tracker.py     # Recon dimension completion tracking
+|   |   |-- ctf_mode.py          # CTF flag detection and verification
+|   |   |-- skill_context.py     # Skill context selection
+|   |   |-- kb_context.py        # Knowledge-base context injection
+|   |   `-- think_filter.py      # Think-tag display and hiding
 |   |-- cli/
-|   |   |-- main.py              # CLI 命令、doctor、web 启动、target-state CLI
-|   |   |-- tui.py               # TUI 数据类、仪表盘渲染、配色常量
-|   |   `-- tui_textual.py       # Textual 驱动的 TUI 工作台
-|   |-- config/                  # 配置 schema、加载、保存、环境变量覆盖
-|   |-- kb/                      # 知识库存储、检索、更新
+|   |   |-- main.py              # CLI commands, doctor, web launcher, target-state CLI
+|   |   |-- tui.py               # TUI data classes, dashboard rendering, and color constants
+|   |   `-- tui_textual.py       # Textual-powered TUI workbench
+|   |-- config/                  # Config schema, loading, saving, and env overrides
+|   |-- kb/                      # Knowledge-base storage, retrieval, and updates
 |   |-- mcp/
-|   |   |-- lifecycle.py         # attach / probe / call / degrade 行为
-|   |   |-- registry.py          # 服务状态、健康度、attach 状态、工具注册
-|   |   `-- router.py            # 自然语言意图到 MCP 工具建议
-|   |-- report/                  # 报告生成、过滤、PoC 生成
-|   |-- skills/                  # 内置 markdown skills、loader、dispatcher
-|   |   |-- core/                  # 7 个核心 flat-format Skill（单个 .md 文件）
-|   |   |-- specialized/           # 目录格式专项 Skill，每个子目录含 SKILL.md
-|   |   |   |-- <skill-name>/
-|   |   |   |   |-- SKILL.md      # frontmatter + 触发条件 + 行为准则
-|   |   |   |   `-- references/  # 可由 load_skill_reference 按需加载的资料
-|   |   |   `-- secknowledge-skill/ # CTF/SRC/Web+AI 安全测试知识库集成
-|   |   |-- crypto_tools.py        # crypto_decode 内置工具实现
-|   |   |-- dispatcher.py          # 自然语言意图到 Skill 的路由
-|   |   `-- loader.py             # flat/directory Skill 加载与 reference 读取
-|   |-- target_state/            # 目标历史、preview、diff、rollback、resume plan
+|   |   |-- lifecycle.py         # attach / probe / call / degrade behavior
+|   |   |-- registry.py          # Service status, health, attach state, and tool registry
+|   |   `-- router.py            # Natural-language intent to MCP tool suggestions
+|   |-- report/                  # Report generation, filtering, and PoC generation
+|   |-- skills/                  # Built-in markdown skills, loader, and dispatcher
+|   |   |-- core/                # Core flat-format skills
+|   |   |-- specialized/         # Directory-format specialized skills
+|   |   |-- crypto_tools.py      # crypto_decode built-in tool implementation
+|   |   |-- dispatcher.py        # Natural-language intent to Skill routing
+|   |   `-- loader.py            # Flat and directory Skill loading plus reference reads
+|   |-- target_state/            # Target history, preview, diff, rollback, and resume plans
 |   |-- web/
-|   |   |-- app.py               # FastAPI 路由与静态前端服务
-|   |   |-- schemas.py           # Web API 请求/响应模型
-|   |   |-- task_manager.py      # Web 任务状态与历史持久化
-|   |   |-- stream.py            # SSE 事件编码
-|   |   |-- services/            # config / report / target / task / MCP 服务层
-|   |   `-- static/              # 当前端 dist 不存在时的 fallback 静态页
-|   `-- warstories/              # 内置案例 markdown 内容
+|   |   |-- app.py               # FastAPI routes and static frontend serving
+|   |   |-- schemas.py           # Web API request and response models
+|   |   |-- task_manager.py      # Web task status and history persistence
+|   |   |-- stream.py            # SSE event encoding
+|   |   |-- services/            # config / report / target / task / MCP service layer
+|   |   `-- static/              # Static fallback page when the frontend dist is absent
+|   `-- warstories/              # Built-in markdown case studies
 |-- frontend/
 |   |-- src/
 |   |   |-- pages/               # Dashboard / Tasks / Target / Snapshots / Reports / Settings
-|   |   |-- api/                 # 前端 API 请求封装
+|   |   |-- api/                 # Frontend API wrappers
 |   |   |-- hooks/               # React Query hooks
-|   |   `-- types/               # 前端共享类型
-|   `-- package.json             # 前端构建与开发脚本
-|-- scripts/                     # release preflight / dist 校验脚本
-|-- tests/                       # 后端、CLI、MCP、release、web、report 测试
-|-- .github/workflows/           # CI / preflight / release 工作流
-|-- README.md                    # 中文说明
-|-- README_EN.md                 # 英文说明
-|-- pyproject.toml               # 打包元数据与 Hatch 构建规则
-`-- CONTRIBUTING.md              # 本文件
+|   |   `-- types/               # Shared frontend types
+|   `-- package.json             # Frontend build and development scripts
+|-- scripts/                     # Release preflight and dist validation scripts
+|-- tests/                       # Backend, CLI, MCP, release, web, and report tests
+|-- .github/workflows/           # CI, preflight, and release workflows
+|-- README.md                    # Main project documentation
+|-- README_EN.md                 # English documentation mirror
+|-- pyproject.toml               # Package metadata and Hatch build rules
+`-- CONTRIBUTING.md              # This file
 ```
 
 ---
 
-## 如何快速定位代码
+## Finding The Right Code
 
-### 1. 修改 Agent 行为时，优先看 `vulnclaw/agent/`
+### 1. Agent Behavior
 
-适用场景：
-- 自主 / 持续渗透循环行为
-- 工具调用编排
-- LLM 请求与响应处理
-- recon / CTF / anti-loop 逻辑
-- finding 生命周期、证据等级、结果解析
+Start in `vulnbot/agent/` when changing autonomous or persistent penetration-testing loops, tool-call orchestration, LLM request and response handling, recon, CTF mode, anti-loop logic, finding lifecycle logic, evidence levels, or result parsing.
 
-当前架构里，`core.py` 更像协调壳层。除非确实是入口级逻辑，否则优先修改对应 helper/module，而不是继续把逻辑堆回 `core.py`。
+`core.py` is primarily a coordination shell. Unless the change is truly entrypoint-level behavior, prefer updating the focused helper module instead of adding more logic back into `core.py`.
 
-### 2. 修改共享任务流时，优先看 `vulnclaw/orchestrator.py` 和 `vulnclaw/repl_runner.py`
+### 2. Shared Task Flow
 
-适用场景：
-- CLI / Web / REPL 共享任务生命周期
-- restore -> run -> save -> summarize 流程
-- REPL 单次执行辅助
+Start in `vulnbot/orchestrator.py` and `vulnbot/repl_runner.py` when changing shared CLI, Web, or REPL task lifecycle behavior, including restore -> run -> save -> summarize flows.
 
-如果同一行为同时出现在 CLI 和 Web，通常应该收敛到这里，而不是分别在 `cli/main.py` 和 `web/services/task_service.py` 各写一份。
+When the same behavior appears in both CLI and Web code, consolidate it here instead of duplicating logic in `cli/main.py` and `web/services/task_service.py`.
 
-### 3. 修改命令行或 REPL 行为时，看 `vulnclaw/cli/main.py`
+### 3. CLI And REPL Behavior
 
-适用场景：
-- Typer 命令
-- REPL 体验
-- `doctor` 输出
-- `web` 启动器行为
-- `target-state` 子命令
+Use `vulnbot/cli/main.py` for Typer commands, REPL experience, `doctor` output, the `web` launcher, and `target-state` subcommands.
 
-这一层负责入口、参数绑定和用户输出，不适合承载核心渗透逻辑。
+This layer owns entrypoints, argument binding, and user output. It should not carry the core penetration-testing logic.
 
-### 3.1 修改 TUI 工作台时，看 `vulnclaw/cli/tui.py` 和 `vulnclaw/cli/tui_textual.py`
+### 3.1 TUI Workbench
 
-适用场景：
-- TUI 仪表盘布局与渲染
-- 斜杠命令系统（`/target`、`/mode`、`/start` 等）
-- 命令面板（Command Palette）交互
-- 提示/确认状态机
-- TUI 配色主题
+Use `vulnbot/cli/tui.py` and `vulnbot/cli/tui_textual.py` for TUI dashboard layout, slash commands, command-palette interactions, prompt and confirmation state machines, and terminal color themes.
 
-**架构关系：**
+Architecture:
 
-```
+```text
 main.py (Typer CLI)
-  └─ tui.py (run_tui → 委托)
-       └─ tui_textual.py (run_tui_textual → Textual App)
-            ├─ DashboardScreen
-            │   ├─ CommandPalette     (一级：斜杠补全下拉)
-            │   ├─ SecondaryPopup     (二级：参数输入弹窗)
-            │   └─ RichLog + spinner  (执行模式：输出区 + 拖尾动画)
-            └─ VulnClawApp
+  -> tui.py (run_tui delegation)
+       -> tui_textual.py (run_tui_textual -> Textual App)
+            -> DashboardScreen
+               -> CommandPalette
+               -> SecondaryPopup
+               -> RichLog + spinner
+            -> VulnbotApp
 ```
 
-| 文件 | 职责 |
-|------|------|
-| `tui.py` | 数据类（`TuiState`、`TuiMode`、`TuiTaskDraft`）、Rich 仪表盘渲染（`build_dashboard`）、颜色常量（`C_PRIMARY` 等）、斜杠命令注册表（`SLASH_COMMANDS`）、入口 `run_tui()` |
-| `tui_textual.py` | Textual App 实现：`DashboardScreen`（布局 + 执行模式）、`CommandPalette`（一级下拉面板）、`SecondaryPopup`（二级弹窗）、`VulnClawApp`（CSS）、斜杠命令处理器、提示状态机、子进程执行引擎 |
+| File | Responsibility |
+|------|----------------|
+| `tui.py` | `TuiState`, `TuiMode`, `TuiTaskDraft`, Rich dashboard rendering, color constants, slash command registry, and `run_tui()` |
+| `tui_textual.py` | Textual app implementation, dashboard layout, command palette, secondary popup, CSS, slash command handlers, prompt state machine, and subprocess execution engine |
 
-**斜杠命令系统：**
+Slash commands are registered with `@_register_handler("...")`. `_dispatch()` routes based on input. Handler signature: `fn(session: dict, args: str) -> str | None`.
 
-命令通过函数装饰器 `@_register_handler("...")` 注册，`_dispatch()` 根据输入分发。命令签名：`fn(session: dict, args: str) -> str | None`。
-`SLASH_COMMANDS` 字典（`tui.py`）决定命令面板中可见的命令列表。
+Return values:
 
-- 返回 `"quit"` → 退出 TUI
-- 返回 `"launch"` → 启动渗透任务（TUI 内子进程执行，不再退回 CLI）
-- 返回 `None` → 设置提示状态（触发二级弹窗）
+- `"quit"` exits the TUI.
+- `"launch"` starts a penetration-testing task inside the TUI subprocess runner.
+- `None` sets prompt state and opens a secondary popup.
 
-支持内联参数：`/target example.com`、`/mode deep`、`/scope host=1.2.3.4`，无参数时弹出二级弹窗进行交互式输入。
+Inline arguments are supported, for example `/target example.com`, `/mode deep`, and `/scope host=1.2.3.4`. Without arguments, a secondary popup collects interactive input.
 
-**提示状态机：**
+Prompt state uses `session["_prompt"]`:
 
-`session["_prompt"]` 元组类型（同时设置 `_show_popup = True` 触发二级弹窗）：
-- `("input", label, callback, default)` — 弹窗显示描述 + 输入框，Enter 确认
-- `("choice", label, choices, callback)` — 弹窗显示描述 + 选项列表，方向键选择 + Enter 确认
-- `("confirm", label, callback)` — 弹窗显示描述 + y/n，按键直接确认（y = True, n/esc = False）
-- `("message", text)` — 弹窗显示纯文本，Enter/Escape 关闭（回调为 None）
-- `("chain", fields, idx, callback)` — 弹窗显示链式多字段输入（如 scope 逐项设置），每步 Enter 进入下一字段，完成后触发 callback（可级联弹窗）
+- `("input", label, callback, default)` shows a label and input box.
+- `("choice", label, choices, callback)` shows a choice list.
+- `("confirm", label, callback)` shows a yes/no prompt.
+- `("message", text)` shows a dismissible message.
+- `("chain", fields, idx, callback)` collects multiple fields in sequence.
 
-**命令面板（CommandPalette）：**
+The command palette extends `ListView`. Typing `/` opens it above the input field. Arrow keys move the highlighted item, and `Tab` or `Enter` completes the command.
 
-继承 `ListView`，输入 `/` 时弹出在输入框上方。`↑↓` 移动高亮指针（不填入输入框），`Tab`/`Enter` 选中补全。`show_commands()` 使用 `query_children(ListItem).remove()` 清空旧条目 + `mount()` 挂载新条目（标准 Textual API，替代旧版私有 `_nodes` 操作）。CSS 含 `.-highlight` 高亮样式（`#fab283 30%` 背景 + 白色文字）。方向键导航通过 `DashboardScreen.on_key` 拦截 `up`/`down` 后调用 `action_cursor_up/down`。
+`SecondaryPopup` opens automatically when a slash command needs missing arguments. Escape closes the active popup, then the command palette, then the prompt state. Idle Escape no longer exits the TUI; use `/quit` or `Ctrl+C`.
 
-**二级弹窗（SecondaryPopup）：**
+Execution mode starts when `/run` or `/start` returns `"launch"`:
 
-继承 `Vertical`，当斜杠命令缺少参数时自动弹出。五种子模式：
-| 模式 | 示例 | 组件 |
-|------|------|------|
-| `input` | `/target` | `Static` 描述 + `Input` 输入框 |
-| `choice` | `/mode` | `Static` 描述 + `ListView` 选项列表（方向键 + Enter） |
-| `confirm` | `/start`（深度验证） | `Static` 描述 + y/n 提示（按键直接确认） |
-| `message` | `/diag` | `Static` 描述（Enter/Escape 关闭） |
-| `chain` | `/scope` | 逐字段输入 `[1/7] → [2/7] → ...`，完成后级联触发下一个弹窗 |
+1. Hide the dashboard and show the `RichLog` output area.
+2. Show the spinner beside the input.
+3. Disable input and start `python -m vulnbot.cli.main <cmd> <args>` with UTF-8 output decoding.
+4. Read subprocess stdout on a background thread and write it into `RichLog`.
+5. On completion, hide the spinner, enable input, and reload configuration.
+6. `Ctrl+Shift+C` copies the output log to the system clipboard.
 
-`_resolve(value)` 确认并调用回调修改状态，`_cancel()` 关闭弹窗不修改状态。Escape 键在弹窗打开时调用 `_cancel()`（不改变原值）。`_on_done` 回调确保弹窗关闭后仪表盘自动刷新。
+### 4. Configuration
 
-**Escape 键行为：**
+Use `vulnbot/config/` for configuration model definitions, load/save behavior, environment overrides, and directory paths. Avoid hand-written config parsing in business logic.
 
-逐层关闭：二级弹窗 `_cancel()` → 命令面板 `hide_palette()` → prompt `_cancel_prompt()`。空闲状态下不再退出 TUI（仅 `/quit` 或 `Ctrl+C` 退出）。
+### 5. Reports
 
-**执行模式：**
+Use `vulnbot/report/` for Markdown and HTML report rendering, report content filtering, PoC generation, verification summaries, and source-location information.
 
-`/run` 或 `/start` 返回 `"launch"` 时不退出 TUI，改为 TUI 内子进程执行：
-1. 隐藏仪表盘（`#dashboard.-hidden`），显示 `RichLog` 输出区（`#output-log.-active`）
-2. 输入框左侧显示**拖尾动画**：5 个方块无间距，领头 `[bold #fab283]■` 带两级拖尾（`[#fab283]■` + `[#808080]■`），0.12s 更新一帧，左右来回弹跳
-3. 禁用输入框，通过 `subprocess.Popen` 启动子进程（`python -m vulnclaw.cli.main <cmd> <args>`），`encoding="utf-8"` 避免 GBK 解码错误，实时流式读取 `stdout` 管道
-4. 后台线程读取子进程输出推入 `Queue`，主线程通过 `set_timer(0.3s)` 轮询写入 `RichLog`
-5. 执行完成：隐藏拖尾动画、启用输入框、重新加载配置
-6. `Ctrl+Shift+C` 复制输出日志到系统剪贴板（Windows: `clip`，macOS: `pbcopy`，Linux: `xclip`）
+`generator.py` is the main entrypoint, and it affects both target-state reports and persistent-cycle reports.
 
-**配色方案（opencode 风格）：**
+### 6. MCP Behavior
 
-| 变量 | 色值 | 用途 |
-|------|------|------|
-| `C_PRIMARY` | `#fab283` | 菜单键、高亮选择 |
-| `C_SECONDARY` | `#5c9cf5` | 模式标签、信息标识 |
-| `C_ACCENT` | `#9d7cd8` | 标题、Header |
-| `C_SUCCESS` | `#7fd88f` | 已配置/成功状态 |
-| `C_WARNING` | `#f5a742` | 未设置/需关注 |
-| `C_ERROR` | `#e06c75` | 错误/无效输入 |
-| `C_MUTED` | `#808080` | 次要文字、描述 |
-| `C_BORDER` | `#484848` | 面板边框 |
+Use `vulnbot/mcp/` for service status, health, attach state, tool registration, attach/probe/call/degrade logic, and natural-language intent to MCP tool suggestions.
 
-Textual CSS 中 UI 元素（Header、状态栏、输入框）使用终端自适应背景（`$background`、`$surface`、`$boost`），强调色硬编码上述色值。
+Current state:
 
-### 4. 修改配置时，看 `vulnclaw/config/`
+- `fetch` and `memory` run locally.
+- `chrome-devtools` and `burp` have real stdio attach support, dynamic tool discovery, and persistent-session scaffolding.
+- Other services mostly degrade to structured placeholders.
 
-- `schema.py`：配置模型定义
-- `settings.py`：加载、保存、环境变量覆盖、目录路径
+When changing MCP behavior, also check diagnostics display, `error_type` classification, and degraded behavior after attach failures.
 
-不要在业务逻辑里到处手写配置解析。
+### 7. Target State
 
-### 5. 修改报告逻辑时，看 `vulnclaw/report/`
+Use `vulnbot/target_state/` for target-state persistence, merge rules, preview, diff, rollback, resume strategy, and summary generation.
 
-适用场景：
-- Markdown / HTML 报告渲染
-- 报告内容过滤
-- PoC 生成
-- 验证摘要与定位信息
+This package owns sharing results across commands for the same target. Do not move this logic back into `core.py` or duplicate it in UI code.
 
-主入口是 `generator.py`，但要注意它现在会同时影响 target-state 报告和 persistent-cycle 报告。
+### 8. Web Backend
 
-### 6. 修改 MCP 行为时，看 `vulnclaw/mcp/`
+Use `vulnbot/web/` for FastAPI routes, request and response schemas, web task status, task history, and the config/report/target/task/MCP service layer.
 
-- `registry.py`：服务状态、健康度、attach 状态、工具注册
-- `lifecycle.py`：attach / probe / call / degrade 逻辑
-- `router.py`：自然语言意图到 MCP 工具建议
+Prefer putting logic in `web/services/` so route functions stay thin.
 
-当前状态：
-- `fetch` / `memory`：本地可执行
-- `chrome-devtools` / `burp`：已有真实 stdio attach、动态工具发现、持久会话骨架
-- 其他服务：大多仍然降级到结构化 placeholder
+### 9. Web UI
 
-如果改动 MCP，请同步考虑：
-- diagnostics 展示
-- error_type 分类
-- attach 失败后的降级行为
+Use `frontend/` for Dashboard, Task Console, Target State, Snapshots, Reports, Settings, React Query hooks, frontend API bindings, console interactions, and styling.
 
-### 7. 修改断点续测 / 成果继承时，看 `vulnclaw/target_state/`
+Keep frontend/backend contracts aligned with `vulnbot/web/schemas.py`.
 
-适用场景：
-- target-state 持久化
-- merge 规则
-- preview / diff / rollback
-- resume strategy 与 summary 生成
+### 10. Packaging And Release
 
-这里负责“同一目标跨命令共享成果”。不要把这类逻辑重新塞回 `core.py`，也不要在页面层重复写。
+Use `scripts/`, `.github/workflows/`, and `pyproject.toml` for local preflight, dist validation, CI/release workflows, build include/exclude rules, and package metadata.
 
-### 8. 修改 Web 后端时，看 `vulnclaw/web/`
+The version source of truth is `pyproject.toml`; `vulnbot/__init__.py` is a fallback.
 
-- `app.py`：FastAPI 路由与前端静态资源服务
-- `schemas.py`：请求/响应模型
-- `task_manager.py`：Web 任务状态与历史
-- `services/`：config / report / target / task / MCP 服务层
+### 11. Skills
 
-原则上优先把逻辑放进 `web/services/`，避免路由函数变成大杂烩。
+Use `vulnbot/skills/` when adding or changing core penetration-testing flows, specialized knowledge bases, reference documents, natural-language skill dispatch rules, or `load_skill_reference` datasets.
 
-### 9. 修改 Web UI 时，看 `frontend/`
+Skill formats:
 
-适用场景：
-- Dashboard / Task Console / Target State / Snapshots / Reports / Settings 页面
-- React Query hooks
-- 前端 API 绑定
-- 控制台交互与样式优化
+| Format | Location | Purpose |
+|--------|----------|---------|
+| flat-format | `vulnbot/skills/core/*.md` | Core flow skills such as `pentest-flow`, `recon`, and `reporting` |
+| directory-format | `vulnbot/skills/specialized/<skill-name>/` | Specialized skills with `SKILL.md` and optional references |
 
-前后端契约要和 `vulnclaw/web/schemas.py` 保持一致。
+Directory-format conventions:
 
-### 10. 修改打包 / 发布流程时，看 `scripts/`、`.github/workflows/`、`pyproject.toml`
+- `SKILL.md` uses YAML frontmatter with at least `name` and `description`.
+- `references/` may contain `.md`, `.yaml`, or `.yml` files.
+- References should be split by topic instead of putting an entire knowledge base into `SKILL.md`.
+- Add strong routing keywords in `dispatcher.py` when a new skill needs to trigger automatically.
+- Update `tests/test_skills.py` and the README skill table after adding or changing a skill.
 
-适用场景：
-- 本地 preflight
-- dist 产物校验
-- CI / release workflow
-- build include / exclude
-- 包元数据
+`secknowledge-skill` is the external knowledge-base integration example:
 
-版本真源以 `pyproject.toml` 为主，`vulnclaw/__init__.py` 是 fallback。
+- Location: `vulnbot/skills/specialized/secknowledge-skill/`
+- Source: `Pa55w0rd/secknowledge-skill`
+- Content: upstream references plus Vulnbot-specific routing notes
+- Triggers: SRC, vulnerability research, bug bounty, GAARM, OWASP LLM/ASI/WSTG, and Web+AI security testing signals
 
-### 11. 修改或新增 Skill 时，看 `vulnclaw/skills/`
-
-适用场景：
-- 新增核心渗透流程说明
-- 新增专项知识库或 reference 文档
-- 调整自然语言到 Skill 的自动调度规则
-- 更新 `load_skill_reference` 可读取的资料集
-
-当前 Skill 有两种格式：
-
-| 格式 | 位置 | 用途 |
-|------|------|------|
-| flat-format | `vulnclaw/skills/core/*.md` | 核心流程型 Skill，例如 `pentest-flow`、`recon`、`reporting` |
-| directory-format | `vulnclaw/skills/specialized/<skill-name>/` | 专项 Skill，必须包含 `SKILL.md`，可选但建议包含 `references/` |
-
-directory-format 约定：
-- `SKILL.md` 使用 YAML frontmatter，至少包含 `name` 和 `description`
-- `references/` 下放 `.md`、`.yaml`、`.yml` 文件，文件名会暴露给 Agent
-- reference 内容应按主题拆分，避免把大型知识库全部塞进 `SKILL.md`
-- 需要触发该 Skill 时，在 `dispatcher.py` 的 `SKILL_INTENT_MAP` 增加强信号关键词
-- 新增或修改 Skill 后，同步更新 `tests/test_skills.py` 和 README 的 Skill 表
-
-`secknowledge-skill` 是当前的外部知识库集成示例：
-- 位置：`vulnclaw/skills/specialized/secknowledge-skill/`
-- 来源：`Pa55w0rd/secknowledge-skill`
-- 内容：上游 `references/` 的 38 个文档 + VulnClaw 专用 `vulnclaw-ctf-src-routing.md`
-- 触发：`SRC`、`漏洞挖掘`、`众测`、`GAARM`、`OWASP LLM/ASI/WSTG`、`Web+AI` 等 CTF/SRC 实战安全测试信号
-
-如果同步外部 Skill，请保留来源、许可证和集成说明，并用文件列表对比确认 reference 没有漏项。
+When syncing external skills, preserve source, license, and integration notes, and compare file lists to ensure references are not missing.
 
 ---
 
 ## Contribution Tips
 
-- 尽量在正确模块里改代码，不要把已经拆出去的职责重新堆回 `core.py`
-- 如果改的是共享任务流，优先考虑 `orchestrator.py` / `repl_runner.py`
-- 改行为逻辑时，尽量同步补测试
-- 改打包/发布逻辑时，同时检查 `pyproject.toml`、`scripts/`、`.github/workflows/`
-- 改文档时，确保能力描述和当前真实实现一致，尤其是 MCP、sandbox、安全边界这类容易误导的部分
+- Change the right module instead of moving separated responsibilities back into `core.py`.
+- For shared task flow, prefer `orchestrator.py` or `repl_runner.py`.
+- Add or update tests when changing behavior.
+- For packaging or release changes, check `pyproject.toml`, `scripts/`, and `.github/workflows/`.
+- Keep documentation aligned with real implementation, especially around MCP, sandboxing, and security boundaries.
 
 ---
 
-## 提交 PR 前建议确认
+## Development Commands
 
-至少检查：
-1. 相关测试通过
-2. 文档和实现一致
-3. 新逻辑放在正确模块，而不是重新把职责塞回大文件
-4. 如果影响版本、CLI 输出、README、打包流程，相关文件已同步更新
+Use the root `Makefile` for common local workflows:
+
+```bash
+make install           # install Python dev extras and frontend dependencies
+make test              # run pytest
+make lint              # run Ruff checks
+make build             # build Python distributions and the frontend
+make dev-web           # start the Vite frontend dev server
+make release-preflight # run release validation
+make release-preflight-build # run release validation plus dist checks
+```
+
+The underlying commands remain standard Python and npm commands, so CI and manual debugging can run them directly when needed.
+
+---
+
+## Before Opening A PR
+
+Check at minimum:
+
+1. Relevant tests pass.
+2. Documentation matches the implementation.
+3. New logic lives in the right module instead of a large catch-all file.
+4. Version, CLI output, README, and packaging docs are updated when affected.
 
 ---
 
 ## Web UI Notes
 
-如果你在改 Web UI，优先看：
-- `vulnclaw/web/`
+When changing Web UI behavior, start with:
+
+- `vulnbot/web/`
 - `frontend/`
 
-当前 Web 侧已经不只是占位骨架，主要包括：
-- 后端 API
-- 任务状态持久化
-- target preview / diff
-- MCP diagnostics
-- Settings 安全模式配置
+The Web side includes backend APIs, task status persistence, target preview and diff, MCP diagnostics, and Settings safety-mode configuration.
 
-原则：
-- Web 层复用现有 agent / target_state / report 主干
-- 不在 Web 层复制一套新的恢复逻辑
-- 不让前端直接持有敏感密钥
+Principles:
+
+- Reuse the existing agent, target-state, and report layers.
+- Do not duplicate a separate recovery flow in the Web layer.
+- Do not let the frontend hold sensitive keys directly.
 
 ---
 
 ## Suggested Preflight
 
-提交前建议至少跑一遍：
+Before submitting, run at least:
 
 ```bash
-python scripts/release_preflight.py
-python scripts/release_preflight.py --build
+make test
+make lint
+make release-preflight
+# Before a release, use: make release-preflight-build
 ```
 
-它会检查：
-- `pyproject.toml` 与 `vulnclaw.__version__` 的版本一致性
-- 后端 `pytest -q`
-- 前端 `npx tsc -b`
-- 可选的 build 与 dist 产物校验
+The preflight checks:
+
+- Version consistency between `pyproject.toml` and `vulnbot.__version__`
+- Backend `pytest -q`
+- Frontend `npx tsc -b`
+- Optional build and dist artifact validation

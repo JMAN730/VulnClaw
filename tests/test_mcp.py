@@ -1,24 +1,24 @@
-"""VulnClaw MCP Module Tests — registry.py + router.py + lifecycle.py"""
+"""VulnBot MCP Module Tests - registry.py + router.py + lifecycle.py"""
 
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-# ── registry.py ──────────────────────────────────────────────────────
+# -- registry.py ------------------------------------------------------
 
 
 class TestMCPRegistry:
     """Test MCPRegistry."""
 
     def test_register_server(self):
-        from vulnclaw.mcp.registry import MCPRegistry
+        from vulnbot.mcp.registry import MCPRegistry
 
         registry = MCPRegistry()
         registry.register_server("fetch")
         assert registry.server_count == 1
 
     def test_register_multiple_servers(self):
-        from vulnclaw.mcp.registry import MCPRegistry
+        from vulnbot.mcp.registry import MCPRegistry
 
         registry = MCPRegistry()
         registry.register_server("fetch")
@@ -27,7 +27,7 @@ class TestMCPRegistry:
         assert registry.server_count == 3
 
     def test_register_tool(self):
-        from vulnclaw.mcp.registry import MCPRegistry
+        from vulnbot.mcp.registry import MCPRegistry
 
         registry = MCPRegistry()
         registry.register_server("fetch")
@@ -42,7 +42,7 @@ class TestMCPRegistry:
         assert registry.tool_count == 1
 
     def test_get_server_for_tool(self):
-        from vulnclaw.mcp.registry import MCPRegistry
+        from vulnbot.mcp.registry import MCPRegistry
 
         registry = MCPRegistry()
         registry.register_server("fetch")
@@ -57,7 +57,7 @@ class TestMCPRegistry:
         assert registry.get_server_for_tool("fetch") == "fetch"
 
     def test_get_tool_schemas(self):
-        from vulnclaw.mcp.registry import MCPRegistry
+        from vulnbot.mcp.registry import MCPRegistry
 
         registry = MCPRegistry()
         registry.register_server("fetch")
@@ -74,7 +74,7 @@ class TestMCPRegistry:
         assert schemas[0]["name"] == "fetch"
 
     def test_set_server_error(self):
-        from vulnclaw.mcp.registry import MCPRegistry
+        from vulnbot.mcp.registry import MCPRegistry
 
         registry = MCPRegistry()
         registry.register_server("burp")
@@ -84,7 +84,7 @@ class TestMCPRegistry:
         assert state.health_status == "degraded"
 
     def test_duplicate_server_register(self):
-        from vulnclaw.mcp.registry import MCPRegistry
+        from vulnbot.mcp.registry import MCPRegistry
 
         registry = MCPRegistry()
         registry.register_server("fetch")
@@ -93,133 +93,133 @@ class TestMCPRegistry:
         assert registry.server_count >= 1
 
     def test_tool_for_nonexistent_server(self):
-        from vulnclaw.mcp.registry import MCPRegistry
+        from vulnbot.mcp.registry import MCPRegistry
 
         registry = MCPRegistry()
         result = registry.get_server_for_tool("nonexistent")
         assert result is None
 
 
-# ── router.py ────────────────────────────────────────────────────────
+# -- router.py --------------------------------------------------------
 
 
 class TestMCPRouter:
     """Test MCPRouter."""
 
     def test_route_fetch(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        results = router.route("发请求访问这个接口")
+        results = router.route("send request to this endpoint")
         assert len(results) > 0
         assert any(r["server"] == "fetch" for r in results)
 
     def test_route_burp(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        results = router.route("帮我抓包看一下这个请求")
+        results = router.route("inspect request through proxy")
         assert len(results) > 0
         assert any(r["server"] == "burp" for r in results)
 
     def test_route_browser(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        results = router.route("打开网页看看")
+        results = router.route("open page")
         assert len(results) > 0
         assert any(r["server"] == "chrome-devtools" for r in results)
 
     def test_route_screenshot(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        results = router.route("截图")
+        results = router.route("take a screenshot")
         assert len(results) > 0
         assert any(r["tool"] == "screenshot" for r in results)
 
     def test_route_memory_save(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        results = router.route("记住这个发现")
+        results = router.route("remember this finding")
         assert len(results) > 0
         assert any(r["server"] == "memory" for r in results)
 
     def test_route_no_match(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        results = router.route("今天天气怎么样")
+        results = router.route("what is the weather today")
         assert len(results) == 0
 
     def test_extract_url(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        assert router.extract_url("访问 https://example.com/path") == "https://example.com/path"
-        assert router.extract_url("没有URL") is None
+        assert router.extract_url("visit https://example.com/path") == "https://example.com/path"
+        assert router.extract_url("no URL here") is None
 
     def test_extract_ip(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        assert router.extract_ip("扫描 192.168.1.100") == "192.168.1.100"
-        assert router.extract_ip("没有IP") is None
+        assert router.extract_ip("scan 192.168.1.100") == "192.168.1.100"
+        assert router.extract_ip("no IP here") is None
 
     def test_suggest_tools_for_phase(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        tools = router.suggest_tools_for_phase("信息收集")
+        tools = router.suggest_tools_for_phase("recon")
         assert len(tools) > 0
         assert any(t["server"] == "fetch" for t in tools)
 
     def test_suggest_tools_for_unknown_phase(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        tools = router.suggest_tools_for_phase("未知阶段")
+        tools = router.suggest_tools_for_phase("unknown phase")
         assert tools == []
 
     def test_route_confidence(self):
-        from vulnclaw.mcp.router import MCPRouter
+        from vulnbot.mcp.router import MCPRouter
 
         router = MCPRouter()
-        results = router.route("发请求")
+        results = router.route("send request")
         for r in results:
             assert "confidence" in r
             assert 0 < r["confidence"] <= 1
 
 
-# ── lifecycle.py ─────────────────────────────────────────────────────
+# -- lifecycle.py -----------------------------------------------------
 
 
 class TestMCPLifecycleManager:
     """Test MCPLifecycleManager."""
 
     def test_init(self):
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         assert manager.registry is not None
 
     def test_start_enabled_servers(self):
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        config = VulnClawConfig()
+        config = VulnBotConfig()
         manager = MCPLifecycleManager(config)
         started = manager.start_enabled_servers()
         # At least fetch and memory should be registered
         assert started >= 0  # May or may not actually start depending on env
 
     def test_get_tool_schemas(self):
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        config = VulnClawConfig()
+        config = VulnBotConfig()
         manager = MCPLifecycleManager(config)
         manager.start_enabled_servers()
         schemas = manager.get_tool_schemas()
@@ -229,10 +229,10 @@ class TestMCPLifecycleManager:
         """Calling an unknown tool should not crash."""
         import asyncio
 
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        config = VulnClawConfig()
+        config = VulnBotConfig()
         manager = MCPLifecycleManager(config)
         # Call with unknown tool name
         try:
@@ -243,10 +243,10 @@ class TestMCPLifecycleManager:
             pass  # Expected to fail for unknown tool
 
     def test_fetch_falls_back_to_local_mode_when_sdk_attach_fails(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("fetch")
         manager._try_attach_stdio_client = MagicMock(return_value=False)
         fetch_config = MCPServerConfig(**BUILTIN_MCP_SERVERS["fetch"])
@@ -257,10 +257,10 @@ class TestMCPLifecycleManager:
         assert state.attach_succeeded is True
 
     def test_fetch_starts_in_local_mode(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("fetch")
         fetch_config = MCPServerConfig(**BUILTIN_MCP_SERVERS["fetch"])
 
@@ -269,10 +269,10 @@ class TestMCPLifecycleManager:
         assert state.execution_mode == "local"
 
     def test_memory_falls_back_to_local_mode_when_sdk_attach_fails(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("memory")
         manager._try_attach_stdio_client = MagicMock(return_value=False)
         memory_config = MCPServerConfig(**BUILTIN_MCP_SERVERS["memory"])
@@ -282,10 +282,10 @@ class TestMCPLifecycleManager:
         assert state.execution_mode == "local"
 
     def test_memory_starts_in_local_mode(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("memory")
         memory_config = MCPServerConfig(**BUILTIN_MCP_SERVERS["memory"])
 
@@ -295,7 +295,7 @@ class TestMCPLifecycleManager:
         assert state.attach_succeeded is True
 
     def test_mcp_diagnostics_reports_execution_modes(self):
-        from vulnclaw.web.services.mcp_service import get_mcp_diagnostics
+        from vulnbot.web.services.mcp_service import get_mcp_diagnostics
 
         view = get_mcp_diagnostics()
         assert view.total_services >= 2
@@ -306,8 +306,8 @@ class TestMCPLifecycleManager:
         assert any(item.execution_mode in {"placeholder", "local"} for item in view.services)
 
     def test_render_mcp_call_result_parses_text_content(self):
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
         class TextItem:
             type = "text"
@@ -318,15 +318,15 @@ class TestMCPLifecycleManager:
             structuredContent = {"ok": True}
             isError = False
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         rendered, structured, is_error = manager._render_mcp_call_result(DummyResult())
         assert rendered == "hello from mcp"
         assert structured == {"ok": True}
         assert is_error is False
 
     def test_render_mcp_call_result_parses_error_content(self):
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
         class TextItem:
             type = "text"
@@ -337,17 +337,17 @@ class TestMCPLifecycleManager:
             structuredContent = None
             isError = True
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         rendered, structured, is_error = manager._render_mcp_call_result(DummyResult())
         assert rendered == "tool failed"
         assert structured is None
         assert is_error is True
 
     def test_stdio_placeholder_records_attach_attempt_and_error(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("chrome-devtools")
         cfg = MCPServerConfig(**BUILTIN_MCP_SERVERS["chrome-devtools"])
         assert manager._start_server("chrome-devtools", cfg) is True
@@ -358,10 +358,10 @@ class TestMCPLifecycleManager:
         assert state.last_error_type in {"sdk_unavailable", "config_error", "attach_failed", None}
 
     def test_attach_success_registers_runtime_tools(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("chrome-devtools")
         manager._probe_stdio_server = MagicMock(
             return_value=(
@@ -386,18 +386,12 @@ class TestMCPLifecycleManager:
         assert "navigate" not in tools
 
     def test_burp_attach_success_registers_runtime_tools(self):
-        import vulnclaw.mcp.lifecycle as lifecycle_mod
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("burp")
-        old_session = lifecycle_mod.ClientSession
-        old_sse = lifecycle_mod.sse_client
-        lifecycle_mod.ClientSession = object
-        lifecycle_mod.sse_client = object
-        manager._check_http_reachable = MagicMock(return_value=True)
-        manager._probe_sse_server = MagicMock(
+        manager._probe_stdio_server = MagicMock(
             return_value=(
                 True,
                 "ok",
@@ -413,21 +407,17 @@ class TestMCPLifecycleManager:
                 ],
             )
         )
-        try:
-            cfg = MCPServerConfig(**BUILTIN_MCP_SERVERS["burp"])
-            assert manager._start_server("burp", cfg) is True
-            tools = manager.registry.get_server_tools("burp")
-            assert "runtime_send_http1_request" in tools
-            assert "send_http1_request" not in tools
-        finally:
-            lifecycle_mod.ClientSession = old_session
-            lifecycle_mod.sse_client = old_sse
+        cfg = MCPServerConfig(**BUILTIN_MCP_SERVERS["burp"])
+        assert manager._start_server("burp", cfg) is True
+        tools = manager.registry.get_server_tools("burp")
+        assert "runtime_send_http1_request" in tools
+        assert "send_http1_request" not in tools
 
     def test_sse_placeholder_records_invalid_url_error(self):
-        from vulnclaw.config.schema import MCPServerConfig, MCPTransportConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import MCPServerConfig, MCPTransportConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("jadx")
         cfg = MCPServerConfig(
             name="jadx",
@@ -444,10 +434,10 @@ class TestMCPLifecycleManager:
 
     @pytest.mark.asyncio
     async def test_call_tool_returns_structured_result_for_local_tool(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("memory")
         manager._start_server("memory", MCPServerConfig(**BUILTIN_MCP_SERVERS["memory"]))
         result = await manager.call_tool("save", {"key": "demo", "value": "123"})
@@ -463,11 +453,11 @@ class TestMCPLifecycleManager:
 
     @pytest.mark.asyncio
     async def test_fetch_constraint_violation_returns_structured_error(self):
-        from vulnclaw.agent.context import TaskConstraints
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.agent.context import TaskConstraints
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("fetch")
         manager._start_server("fetch", MCPServerConfig(**BUILTIN_MCP_SERVERS["fetch"]))
 
@@ -481,11 +471,11 @@ class TestMCPLifecycleManager:
 
     @pytest.mark.asyncio
     async def test_fetch_host_constraint_violation_returns_structured_error(self):
-        from vulnclaw.agent.context import TaskConstraints
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.agent.context import TaskConstraints
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("fetch")
         manager._start_server("fetch", MCPServerConfig(**BUILTIN_MCP_SERVERS["fetch"]))
 
@@ -499,11 +489,11 @@ class TestMCPLifecycleManager:
 
     @pytest.mark.asyncio
     async def test_fetch_path_constraint_violation_returns_structured_error(self):
-        from vulnclaw.agent.context import TaskConstraints
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.agent.context import TaskConstraints
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("fetch")
         manager._start_server("fetch", MCPServerConfig(**BUILTIN_MCP_SERVERS["fetch"]))
 
@@ -517,15 +507,15 @@ class TestMCPLifecycleManager:
 
     @pytest.mark.asyncio
     async def test_call_tool_returns_structured_result_for_placeholder_tool(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("chrome-devtools")
         manager._start_server(
             "chrome-devtools", MCPServerConfig(**BUILTIN_MCP_SERVERS["chrome-devtools"])
         )
-        result = await manager.call_tool("chrome_navigate", {"url": "https://example.com"})
+        result = await manager.call_tool("navigate", {"url": "https://example.com"})
 
         assert result["ok"] is False
         assert result["server"] == "chrome-devtools"
@@ -538,8 +528,8 @@ class TestMCPLifecycleManager:
 
     @pytest.mark.asyncio
     async def test_call_tool_returns_success_for_chrome_when_stdio_call_succeeds(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
         class DummySession:
             async def call_tool(self, tool_name, arguments=None):
@@ -550,7 +540,7 @@ class TestMCPLifecycleManager:
                     "arguments": arguments,
                 }
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("chrome-devtools")
         manager._try_attach_stdio_client = MagicMock(return_value=True)
         manager._get_or_create_persistent_stdio_session = AsyncMock(return_value=DummySession())
@@ -576,8 +566,8 @@ class TestMCPLifecycleManager:
 
     @pytest.mark.asyncio
     async def test_chrome_devtools_reuses_persistent_session(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
         class DummySession:
             def __init__(self):
@@ -587,7 +577,7 @@ class TestMCPLifecycleManager:
                 self.calls += 1
                 return {"tool": tool_name, "arguments": arguments, "calls": self.calls}
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("chrome-devtools")
         manager._try_attach_stdio_client = MagicMock(return_value=True)
         session = DummySession()
@@ -614,8 +604,8 @@ class TestMCPLifecycleManager:
 
     @pytest.mark.asyncio
     async def test_call_tool_returns_success_for_burp_when_stdio_call_succeeds(self):
-        from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-        from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+        from vulnbot.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnBotConfig
+        from vulnbot.mcp.lifecycle import MCPLifecycleManager
 
         class DummySession:
             async def call_tool(self, tool_name, arguments=None):
@@ -626,7 +616,7 @@ class TestMCPLifecycleManager:
                     "arguments": arguments,
                 }
 
-        manager = MCPLifecycleManager(VulnClawConfig())
+        manager = MCPLifecycleManager(VulnBotConfig())
         manager.registry.register_server("burp")
         manager._try_attach_stdio_client = MagicMock(return_value=True)
         manager._get_or_create_persistent_stdio_session = AsyncMock(return_value=DummySession())
@@ -652,7 +642,7 @@ class TestMCPLifecycleManager:
 class TestStructuredToolResults:
     @pytest.mark.asyncio
     async def test_tool_call_manager_preserves_structured_content(self):
-        from vulnclaw.agent.tool_call_manager import handle_tool_calls_with_results
+        from vulnbot.agent.tool_call_manager import handle_tool_calls_with_results
 
         class DummyMcpManager:
             async def call_tool(self, tool_name, args):

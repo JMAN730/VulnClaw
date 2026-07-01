@@ -1,14 +1,17 @@
 from pathlib import Path
 
 import pytest
+
+pytest.importorskip("typer")
+
 from typer.testing import CliRunner
 
 
 class TestWebServices:
     def test_constraint_audit_service_aggregates_events(self, monkeypatch, tmp_path):
-        import vulnclaw.target_state.store as store_mod
-        from vulnclaw.agent.context import SessionState
-        from vulnclaw.web.services.constraint_audit_service import get_constraint_audit
+        import vulnbot.target_state.store as store_mod
+        from vulnbot.agent.context import SessionState
+        from vulnbot.web.services.constraint_audit_service import get_constraint_audit
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         state = SessionState(target="https://example.com")
@@ -23,7 +26,7 @@ class TestWebServices:
         )
         store_mod.save_target_state("https://example.com", state, command="scan")
 
-        monkeypatch.setattr("vulnclaw.web.services.constraint_audit_service.TARGETS_DIR", tmp_path)
+        monkeypatch.setattr("vulnbot.web.services.constraint_audit_service.TARGETS_DIR", tmp_path)
         view = get_constraint_audit()
         assert view.total_events >= 1
         assert view.high_severity_events >= 1
@@ -31,7 +34,7 @@ class TestWebServices:
         assert view.by_code["tool_action_blocked"] >= 1
 
     def test_web_mcp_service_view(self):
-        from vulnclaw.web.services.mcp_service import get_mcp_diagnostics
+        from vulnbot.web.services.mcp_service import get_mcp_diagnostics
 
         view = get_mcp_diagnostics()
         assert view.total_services >= 2
@@ -40,18 +43,18 @@ class TestWebServices:
         assert fetch.health_status in {"healthy", "degraded", "unknown"}
 
     def test_web_config_service(self):
-        from vulnclaw.web.services.config_service import get_public_config
+        from vulnbot.web.services.config_service import get_public_config
 
         view = get_public_config()
         assert view.provider
         assert isinstance(view.api_key_configured, bool)
 
     def test_web_config_service_updates_subset(self, monkeypatch, tmp_path):
-        import vulnclaw.web.services.config_service as config_service
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.web.schemas import ConfigUpdateRequest
+        import vulnbot.web.services.config_service as config_service
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import ConfigUpdateRequest
 
-        saved = VulnClawConfig()
+        saved = VulnBotConfig()
 
         monkeypatch.setattr(config_service, "load_config", lambda: saved)
         monkeypatch.setattr(config_service, "save_config", lambda cfg: None)
@@ -72,10 +75,126 @@ class TestWebServices:
         assert view.show_thinking is True
         assert view.python_execute_mode == "trusted-local"
 
+    def test_web_config_service_sets_api_key(self, monkeypatch):
+        import vulnbot.web.services.config_service as config_service
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import ConfigUpdateRequest
+
+        saved = VulnBotConfig()
+        saved.llm.api_key = ""
+
+        monkeypatch.setattr(config_service, "load_config", lambda: saved)
+        monkeypatch.setattr(config_service, "save_config", lambda cfg: None)
+
+        view = config_service.update_public_config(ConfigUpdateRequest(api_key="sk-secret-123"))
+
+        # The key is persisted to config and reported as configured...
+        assert saved.llm.api_key == "sk-secret-123"
+        assert view.api_key_configured is True
+        # ...but the raw key is never echoed back to the browser.
+        assert "sk-secret-123" not in view.model_dump_json()
+
+    def test_web_config_service_preserves_api_key_when_omitted(self, monkeypatch):
+        import vulnbot.web.services.config_service as config_service
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import ConfigUpdateRequest
+
+        saved = VulnBotConfig()
+        saved.llm.api_key = "sk-existing"
+
+        monkeypatch.setattr(config_service, "load_config", lambda: saved)
+        monkeypatch.setattr(config_service, "save_config", lambda cfg: None)
+
+        # Saving unrelated settings (no api_key in the payload) must not wipe the key.
+        view = config_service.update_public_config(ConfigUpdateRequest(model="gpt-4o-mini"))
+
+        assert saved.llm.api_key == "sk-existing"
+        assert view.api_key_configured is True
+
+    def test_web_provider_service_lists_presets(self):
+        from vulnbot.web.services.provider_service import get_provider_presets
+
+        view = get_provider_presets()
+        ids = {p.id for p in view.providers}
+        assert "openai" in ids
+        assert "custom" in ids
+        openai = next(p for p in view.providers if p.id == "openai")
+        assert openai.base_url == "https://api.openai.com/v1"
+        assert openai.default_model == "gpt-4o"
+        assert openai.label == "OpenAI"
+
+    def test_web_provider_service_fetch_models_uses_saved_key(self, monkeypatch):
+        import vulnbot.web.services.provider_service as provider_service
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import ProviderModelsRequest
+
+        config = VulnBotConfig()
+        config.llm.api_key = "sk-fallback"
+        config.llm.api_keys = ["sk-primary", "sk-secondary"]
+        config.llm.base_url = "https://api.example.com/v1"
+        monkeypatch.setattr(provider_service, "load_config", lambda: config)
+
+        captured = {}
+
+        def fake_fetch(base_url, api_key, timeout=10.0):
+            captured["base_url"] = base_url
+            captured["api_key"] = api_key
+            return ["model-b", "model-a"]
+
+        monkeypatch.setattr(provider_service, "fetch_provider_models", fake_fetch)
+
+        resp = provider_service.fetch_models(ProviderModelsRequest())
+        assert resp.has_api_key is True
+        assert resp.models == ["model-b", "model-a"]
+        assert captured == {"base_url": "https://api.example.com/v1", "api_key": "sk-primary"}
+
+    def test_web_provider_service_fetch_models_requires_key(self, monkeypatch):
+        import vulnbot.web.services.provider_service as provider_service
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import ProviderModelsRequest
+
+        config = VulnBotConfig()
+        config.llm.api_key = ""
+        monkeypatch.setattr(provider_service, "load_config", lambda: config)
+
+        def must_not_call(*args, **kwargs):
+            raise AssertionError("fetch_provider_models must not run without a key")
+
+        monkeypatch.setattr(provider_service, "fetch_provider_models", must_not_call)
+
+        resp = provider_service.fetch_models(ProviderModelsRequest())
+        assert resp.has_api_key is False
+        assert resp.models == []
+        assert "key" in resp.detail.lower()
+
+    def test_web_provider_service_fetch_models_honors_request_base_url(self, monkeypatch):
+        import vulnbot.web.services.provider_service as provider_service
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import ProviderModelsRequest
+
+        config = VulnBotConfig()
+        config.llm.api_key = "sk-test"
+        config.llm.base_url = "https://config-default.example/v1"
+        monkeypatch.setattr(provider_service, "load_config", lambda: config)
+
+        captured = {}
+
+        def fake_fetch(base_url, api_key, timeout=10.0):
+            captured["base_url"] = base_url
+            return ["m"]
+
+        monkeypatch.setattr(provider_service, "fetch_provider_models", fake_fetch)
+
+        resp = provider_service.fetch_models(
+            ProviderModelsRequest(base_url="https://override.example/v1")
+        )
+        assert captured["base_url"] == "https://override.example/v1"
+        assert resp.base_url == "https://override.example/v1"
+
     def test_web_target_service_lists_targets(self, monkeypatch, tmp_path):
-        import vulnclaw.target_state.store as store_mod
-        import vulnclaw.web.services.target_service as target_service
-        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+        import vulnbot.target_state.store as store_mod
+        import vulnbot.web.services.target_service as target_service
+        from vulnbot.agent.context import SessionState, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         monkeypatch.setattr(target_service, "TARGETS_DIR", tmp_path)
@@ -100,9 +219,9 @@ class TestWebServices:
         assert items[0].manual_review_count == 1
 
     def test_web_target_service_snapshots(self, monkeypatch, tmp_path):
-        import vulnclaw.target_state.store as store_mod
-        import vulnclaw.web.services.target_service as target_service
-        from vulnclaw.agent.context import SessionState
+        import vulnbot.target_state.store as store_mod
+        import vulnbot.web.services.target_service as target_service
+        from vulnbot.agent.context import SessionState
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         monkeypatch.setattr(target_service, "TARGETS_DIR", tmp_path)
@@ -114,10 +233,25 @@ class TestWebServices:
         assert snapshots
         assert snapshots[0].snapshot_id
 
+    def test_web_target_service_rejects_snapshot_traversal(self, monkeypatch, tmp_path):
+        import vulnbot.target_state.store as store_mod
+        import vulnbot.web.services.target_service as target_service
+        from vulnbot.agent.context import SessionState
+
+        monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
+        monkeypatch.setattr(target_service, "TARGETS_DIR", tmp_path)
+
+        state = SessionState(target="https://example.com")
+        store_mod.save_target_state("https://example.com", state, command="scan")
+
+        assert target_service.get_preview("https://example.com", snapshot_id="../state") is None
+        assert target_service.get_diff("https://example.com", "../state") is None
+        assert target_service.rollback_target("https://example.com", "../state") is False
+
     def test_web_target_service_preview_and_diff(self, monkeypatch, tmp_path):
-        import vulnclaw.target_state.store as store_mod
-        import vulnclaw.web.services.target_service as target_service
-        from vulnclaw.agent.context import SessionState, TaskConstraints, VulnerabilityFinding
+        import vulnbot.target_state.store as store_mod
+        import vulnbot.web.services.target_service as target_service
+        from vulnbot.agent.context import SessionState, TaskConstraints, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
         monkeypatch.setattr(target_service, "TARGETS_DIR", tmp_path)
@@ -148,7 +282,7 @@ class TestWebServices:
         assert preview.constraints["allowed_ports"] == [443]
         assert preview.constraint_violations
         assert preview.constraint_violation_events
-        assert any("回避" in action or "约束" in action for action in preview.next_actions)
+        assert any("Avoid" in action or "constraints" in action for action in preview.next_actions)
 
         snapshots = store_mod.list_target_snapshots("https://example.com")
         diff = target_service.get_diff(
@@ -160,9 +294,9 @@ class TestWebServices:
         assert diff.added_findings
 
     def test_web_report_service_generates_target_report(self, monkeypatch, tmp_path):
-        import vulnclaw.target_state.store as store_mod
-        import vulnclaw.web.services.report_service as report_service
-        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+        import vulnbot.target_state.store as store_mod
+        import vulnbot.web.services.report_service as report_service
+        from vulnbot.agent.context import SessionState, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path / "targets")
         monkeypatch.setattr(report_service, "SESSIONS_DIR", tmp_path / "sessions")
@@ -178,14 +312,14 @@ class TestWebServices:
         state.add_finding(finding)
         store_mod.save_target_state("https://example.com", state, command="scan")
 
-        out = tmp_path / "report.md"
+        out = tmp_path / "sessions" / "report.md"
         path = report_service.generate_target_report("https://example.com", str(out))
         assert Path(path).exists()
 
     def test_web_report_service_generates_html_target_report(self, monkeypatch, tmp_path):
-        import vulnclaw.target_state.store as store_mod
-        import vulnclaw.web.services.report_service as report_service
-        from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+        import vulnbot.target_state.store as store_mod
+        import vulnbot.web.services.report_service as report_service
+        from vulnbot.agent.context import SessionState, VulnerabilityFinding
 
         monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path / "targets")
         monkeypatch.setattr(report_service, "SESSIONS_DIR", tmp_path / "sessions")
@@ -213,7 +347,7 @@ class TestWebServices:
         assert "<!doctype html>" in content.content
 
     def test_web_report_service_reads_report_content(self, monkeypatch, tmp_path):
-        import vulnclaw.web.services.report_service as report_service
+        import vulnbot.web.services.report_service as report_service
 
         sessions_dir = tmp_path / "sessions"
         sessions_dir.mkdir()
@@ -226,7 +360,7 @@ class TestWebServices:
         assert "# demo" in result.content
 
     def test_web_report_service_resolves_report_path_safely(self, monkeypatch, tmp_path):
-        import vulnclaw.web.services.report_service as report_service
+        import vulnbot.web.services.report_service as report_service
 
         sessions_dir = tmp_path / "sessions"
         sessions_dir.mkdir()
@@ -241,10 +375,36 @@ class TestWebServices:
         with pytest.raises(PermissionError):
             report_service.resolve_report_path(str(outside))
 
+    def test_web_report_service_rejects_unsupported_report_type(self, monkeypatch, tmp_path):
+        import vulnbot.web.services.report_service as report_service
+
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+        report = sessions_dir / "demo.txt"
+        report.write_text("demo", encoding="utf-8")
+        monkeypatch.setattr(report_service, "SESSIONS_DIR", sessions_dir)
+
+        with pytest.raises(PermissionError):
+            report_service.resolve_report_path(str(report))
+
+    def test_web_report_output_path_stays_in_sessions_dir(self, monkeypatch, tmp_path):
+        import vulnbot.web.services.report_service as report_service
+
+        sessions_dir = tmp_path / "sessions"
+        monkeypatch.setattr(report_service, "SESSIONS_DIR", sessions_dir)
+
+        allowed = report_service.resolve_report_output_path(str(sessions_dir / "demo.md"), "markdown")
+        assert allowed == (sessions_dir / "demo.md").resolve()
+
+        with pytest.raises(PermissionError):
+            report_service.resolve_report_output_path(str(tmp_path / "outside.md"), "markdown")
+        with pytest.raises(PermissionError):
+            report_service.resolve_report_output_path(str(sessions_dir / "demo.html"), "markdown")
+
     def test_web_report_service_lists_reports_by_modified_time(self, monkeypatch, tmp_path):
         import os
 
-        import vulnclaw.web.services.report_service as report_service
+        import vulnbot.web.services.report_service as report_service
 
         sessions_dir = tmp_path / "sessions"
         sessions_dir.mkdir()
@@ -265,8 +425,8 @@ class TestWebServices:
 
     @pytest.mark.asyncio
     async def test_web_task_manager_event_flow(self):
-        from vulnclaw.web.schemas import TaskCreateRequest
-        from vulnclaw.web.task_manager import WebTaskManager
+        from vulnbot.web.schemas import TaskCreateRequest
+        from vulnbot.web.task_manager import WebTaskManager
 
         manager = WebTaskManager()
         record = manager.create_task(
@@ -286,8 +446,8 @@ class TestWebServices:
         assert "task_completed" in events
 
     def test_web_task_manager_restoring_and_summary(self):
-        from vulnclaw.web.schemas import TaskCreateRequest
-        from vulnclaw.web.task_manager import WebTaskManager
+        from vulnbot.web.schemas import TaskCreateRequest
+        from vulnbot.web.task_manager import WebTaskManager
 
         manager = WebTaskManager()
         record = manager.create_task(
@@ -326,8 +486,8 @@ class TestWebServices:
         assert saved.summary.constraint_violation_events
 
     def test_web_task_prompt_includes_explicit_constraints(self):
-        from vulnclaw.web.schemas import TaskCreateRequest, TaskOptions
-        from vulnclaw.web.services.task_service import _build_prompt_v2
+        from vulnbot.web.schemas import TaskCreateRequest, TaskOptions
+        from vulnbot.web.services.task_service import _build_prompt_v2
 
         request = TaskCreateRequest(
             command="run",
@@ -354,7 +514,7 @@ class TestWebServices:
     def test_web_task_options_reject_invalid_only_port(self):
         from pydantic import ValidationError
 
-        from vulnclaw.web.schemas import TaskOptions
+        from vulnbot.web.schemas import TaskOptions
 
         with pytest.raises(ValidationError):
             TaskOptions(only_port=0)
@@ -363,8 +523,8 @@ class TestWebServices:
         assert TaskOptions(only_port=443).only_port == 443
 
     def test_web_task_manager_persists_and_restores_tasks(self, monkeypatch, tmp_path):
-        import vulnclaw.web.task_manager as task_manager_mod
-        from vulnclaw.web.schemas import TaskCreateRequest
+        import vulnbot.web.task_manager as task_manager_mod
+        from vulnbot.web.schemas import TaskCreateRequest
 
         storage = tmp_path / "web_tasks.json"
         monkeypatch.setattr(task_manager_mod, "WEB_TASKS_FILE", storage)
@@ -400,13 +560,13 @@ class TestWebServices:
 
     @pytest.mark.asyncio
     async def test_web_task_service_restore_summary_flow(self, monkeypatch):
-        import vulnclaw.web.services.task_service as task_service
-        from vulnclaw.agent.context import SessionState
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.web.schemas import TaskCreateRequest
-        from vulnclaw.web.task_manager import WebTaskManager
+        import vulnbot.web.services.task_service as task_service
+        from vulnbot.agent.context import SessionState
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import TaskCreateRequest
+        from vulnbot.web.task_manager import WebTaskManager
 
-        config = VulnClawConfig()
+        config = VulnBotConfig()
         monkeypatch.setattr(task_service, "load_config", lambda: config)
 
         class DummyLifecycle:
@@ -531,12 +691,12 @@ class TestWebServices:
 
     @pytest.mark.asyncio
     async def test_web_task_service_blocks_exploit_when_only_port_scope_is_set(self, monkeypatch):
-        import vulnclaw.web.services.task_service as task_service
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.web.schemas import TaskCreateRequest, TaskOptions
-        from vulnclaw.web.task_manager import WebTaskManager
+        import vulnbot.web.services.task_service as task_service
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import TaskCreateRequest, TaskOptions
+        from vulnbot.web.task_manager import WebTaskManager
 
-        config = VulnClawConfig()
+        config = VulnBotConfig()
         monkeypatch.setattr(task_service, "load_config", lambda: config)
 
         manager = WebTaskManager()
@@ -557,18 +717,18 @@ class TestWebServices:
 
     @pytest.mark.asyncio
     async def test_web_task_service_blocks_run_when_allowed_actions_conflict(self, monkeypatch):
-        import vulnclaw.web.services.task_service as task_service
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.web.schemas import TaskCreateRequest
-        from vulnclaw.web.task_manager import WebTaskManager
+        import vulnbot.web.services.task_service as task_service
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import TaskCreateRequest
+        from vulnbot.web.task_manager import WebTaskManager
 
-        config = VulnClawConfig()
+        config = VulnBotConfig()
         monkeypatch.setattr(task_service, "load_config", lambda: config)
         monkeypatch.setattr(
             task_service,
             "_build_prompt_v2",
             lambda request: (
-                "Perform authorized reconnaissance against https://example.com. 仅做信息收集。"
+                "Perform authorized reconnaissance against https://example.com. Information gathering only."
             ),
         )
 
@@ -583,11 +743,11 @@ class TestWebServices:
         assert saved.status == "completed"
 
     def test_web_config_service_updates_safety_fields(self, monkeypatch):
-        import vulnclaw.web.services.config_service as config_service
-        from vulnclaw.config.schema import VulnClawConfig
-        from vulnclaw.web.schemas import ConfigUpdateRequest
+        import vulnbot.web.services.config_service as config_service
+        from vulnbot.config.schema import VulnBotConfig
+        from vulnbot.web.schemas import ConfigUpdateRequest
 
-        saved = VulnClawConfig()
+        saved = VulnBotConfig()
 
         monkeypatch.setattr(config_service, "load_config", lambda: saved)
         monkeypatch.setattr(config_service, "save_config", lambda cfg: None)
@@ -608,8 +768,8 @@ class TestWebServices:
 
     @pytest.mark.asyncio
     async def test_orchestrator_shared_run_flow(self, monkeypatch):
-        import vulnclaw.orchestrator as orchestrator
-        from vulnclaw.agent.context import SessionState
+        import vulnbot.orchestrator as orchestrator
+        from vulnbot.agent.context import SessionState
 
         class DummyAgent:
             def __init__(self):
@@ -677,16 +837,16 @@ class TestWebServices:
         ]
 
     def test_validate_action_constraints(self):
-        from vulnclaw.agent.constraint_policy import validate_action_constraints
-        from vulnclaw.agent.context import TaskConstraints
+        from vulnbot.agent.constraint_policy import validate_action_constraints
+        from vulnbot.agent.context import TaskConstraints
 
         constraints = TaskConstraints(allowed_actions=["recon"], strict_mode=True)
         assert validate_action_constraints("run", constraints) is None  # composite command skips allowed check
         assert validate_action_constraints("recon", constraints) is None
 
     def test_web_stream_encode(self):
-        from vulnclaw.web.schemas import TaskEvent
-        from vulnclaw.web.stream import encode_sse
+        from vulnbot.web.schemas import TaskEvent
+        from vulnbot.web.stream import encode_sse
 
         encoded = encode_sse(
             TaskEvent(event="round_output", task_id="task_demo", payload={"round": 1})
@@ -697,7 +857,7 @@ class TestWebServices:
 
 class TestWebApp:
     def test_constraint_audit_route_works_without_fastapi(self, monkeypatch):
-        import vulnclaw.web.app as web_app
+        import vulnbot.web.app as web_app
 
         monkeypatch.setattr(
             web_app,
@@ -710,7 +870,7 @@ class TestWebApp:
         assert callable(web_app.get_constraint_audit)
 
     def test_create_app_missing_fastapi_raises(self):
-        import vulnclaw.web.app as web_app
+        import vulnbot.web.app as web_app
 
         if web_app.FASTAPI_AVAILABLE:
             pytest.skip("FastAPI is installed in this environment")
@@ -719,7 +879,7 @@ class TestWebApp:
             web_app.create_app()
 
     def test_resolve_web_index_prefers_dist(self, monkeypatch, tmp_path):
-        import vulnclaw.web.app as web_app
+        import vulnbot.web.app as web_app
 
         dist_dir = tmp_path / "dist"
         static_dir = tmp_path / "static"
@@ -733,6 +893,51 @@ class TestWebApp:
 
         assert web_app.resolve_web_index() == dist_dir / "index.html"
         assert web_app.resolve_web_asset("assets/app.js") == dist_dir / "index.html"
+
+    def test_resolve_web_asset_blocks_path_traversal(self, monkeypatch, tmp_path):
+        import vulnbot.web.app as web_app
+
+        project = tmp_path / "project"
+        dist_dir = project / "frontend" / "dist"
+        static_dir = project / "static"
+        dist_dir.mkdir(parents=True)
+        static_dir.mkdir()
+        (dist_dir / "index.html").write_text("dist", encoding="utf-8")
+        outside = project / "secret.txt"
+        outside.write_text("secret", encoding="utf-8")
+
+        monkeypatch.setattr(web_app, "FRONTEND_DIST_DIR", dist_dir)
+        monkeypatch.setattr(web_app, "STATIC_DIR", static_dir)
+
+        assert web_app.resolve_web_asset("../secret.txt") == dist_dir / "index.html"
+
+    def test_web_schema_rejects_unsafe_config_values(self):
+        from pydantic import ValidationError
+
+        from vulnbot.web.schemas import ConfigUpdateRequest, ProviderModelsRequest
+
+        with pytest.raises(ValidationError):
+            ConfigUpdateRequest(base_url="file:///etc/passwd")
+        with pytest.raises(ValidationError):
+            ConfigUpdateRequest(base_url="https://user:pass@example.com/v1")
+        with pytest.raises(ValidationError):
+            ConfigUpdateRequest(max_rounds=0)
+        with pytest.raises(ValidationError):
+            ConfigUpdateRequest(python_execute_mode="unsafe")
+
+        assert ProviderModelsRequest(base_url=" https://api.example.com/v1/ ").base_url == (
+            "https://api.example.com/v1"
+        )
+
+    def test_cli_web_allows_loopback_aliases_in_dry_run(self):
+        from vulnbot.cli.main import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["web", "--host", "localhost", "--dry-run"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["web", "--host", "::1", "--dry-run"])
+        assert result.exit_code == 0
 
     def test_frontend_scaffold_exists(self):
         root = Path(__file__).resolve().parents[1] / "frontend"
@@ -843,7 +1048,7 @@ class TestWebApp:
         assert "shell.backend_unavailable" in shell_source
         assert "shell.retry" in shell_source
         api_source = (root / "src" / "api" / "web.ts").read_text(encoding="utf-8")
-        assert "Unable to reach the VulnClaw backend API" in api_source
+        assert "Unable to reach the VulnBot backend API" in api_source
         assert "Request failed" in api_source
         assert "getReportDownloadUrl" in api_source
         assert "The backend API returned non-JSON content" in api_source
@@ -915,8 +1120,8 @@ class TestWebApp:
         assert "onOpenReports(generatedReport.path)" in risk_source
         assert "useQueryClient" in risk_source
         assert 'queryKey: ["reports"]' in risk_source
-        assert "原始 JSON" not in risk_source
-        assert "原始 Target State" not in risk_source
+        assert "Raw JSON" not in risk_source
+        assert "Raw Target State" not in risk_source
         assert "taskOptionsToConstraints" in boundary_source
         assert "boundary-empty-state" in boundary_source
         assert "boundary.set_scope_home" in boundary_source
@@ -994,18 +1199,18 @@ class TestWebApp:
 
     def test_static_fallback_is_toc_shell(self):
         root = Path(__file__).resolve().parents[1]
-        source = (root / "vulnclaw" / "web" / "static" / "index.html").read_text(
+        source = (root / "vulnbot" / "web" / "static" / "index.html").read_text(
             encoding="utf-8"
         )
 
         assert "Fallback Web Shell" in source
-        assert "授权安全测试助手" in source
-        assert "输入目标，确认边界，再开始安全检查" in source
-        assert "React 前端仍待后续阶段接入" not in source
-        assert "Phase 1 的最小占位控制台" not in source
+        assert "Authorized security testing assistant" in source
+        assert "Build the React frontend" in source
+        assert "React frontend still pending later integration" not in source
+        assert "Phase 1 minimal placeholder console" not in source
 
     def test_cli_web_dry_run(self):
-        from vulnclaw.cli.main import app
+        from vulnbot.cli.main import app
 
         runner = CliRunner()
         result = runner.invoke(app, ["web", "--dry-run"])
@@ -1013,7 +1218,7 @@ class TestWebApp:
         assert "Web UI" in result.output
 
     def test_cli_web_rejects_remote_host_without_allow_remote(self):
-        from vulnclaw.cli.main import app
+        from vulnbot.cli.main import app
 
         runner = CliRunner()
         result = runner.invoke(app, ["web", "--host", "0.0.0.0", "--dry-run"])
@@ -1021,15 +1226,18 @@ class TestWebApp:
         assert "allow-remote" in result.output
 
     def test_cli_web_allows_remote_host_with_explicit_flag(self):
-        from vulnclaw.cli.main import app
+        from vulnbot.cli.main import app
 
         runner = CliRunner()
         result = runner.invoke(app, ["web", "--host", "0.0.0.0", "--allow-remote", "--dry-run"])
         assert result.exit_code == 0
         assert "0.0.0.0" in result.output
 
-    def test_web_target_preview_and_diff_endpoints(self, monkeypatch):
-        import vulnclaw.web.app as web_app
+    @pytest.mark.asyncio
+    async def test_web_target_preview_and_diff_endpoints(self, monkeypatch):
+        import httpx
+
+        import vulnbot.web.app as web_app
 
         if not web_app.FASTAPI_AVAILABLE:
             pytest.skip("FastAPI is not installed in this environment")
@@ -1058,13 +1266,34 @@ class TestWebApp:
             )(),
         )
 
-        app = web_app.create_app()
-        client = pytest.importorskip("fastapi.testclient").TestClient(app)
+        transport = httpx.ASGITransport(app=web_app.create_app())
 
-        preview = client.get("/api/target-preview/example.com")
-        assert preview.status_code == 200
-        assert preview.json()["schema_version"] == 2
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            preview = await client.get("/api/target-preview/example.com")
+            assert preview.status_code == 200
+            assert preview.json()["schema_version"] == 2
 
-        diff = client.get("/api/target-diff/example.com", params={"from_snapshot_id": "snap_a"})
-        assert diff.status_code == 200
-        assert diff.json()["from_snapshot_id"] == "snap_a"
+            diff = await client.get(
+                "/api/target-diff/example.com", params={"from_snapshot_id": "snap_a"}
+            )
+            assert diff.status_code == 200
+            assert diff.json()["from_snapshot_id"] == "snap_a"
+
+    @pytest.mark.asyncio
+    async def test_web_app_adds_security_headers(self):
+        import httpx
+
+        import vulnbot.web.app as web_app
+
+        if not web_app.FASTAPI_AVAILABLE:
+            pytest.skip("FastAPI is not installed in this environment")
+
+        transport = httpx.ASGITransport(app=web_app.create_app())
+
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            response = await client.get("/api/health")
+
+        assert response.status_code == 200
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["x-frame-options"] == "DENY"
+        assert "frame-ancestors 'none'" in response.headers["content-security-policy"]

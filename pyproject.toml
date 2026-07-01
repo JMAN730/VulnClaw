@@ -3,14 +3,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "vulnclaw"
-version = "0.3.2"
-description = "🦞 AI-powered penetration testing CLI tool for cybersecurity professionals"
+name = "vulnbot"
+version = "0.3.1"
+description = "AI-powered penetration testing CLI tool for cybersecurity professionals"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 authors = [
     { name = "UncleC", email = "iamloli@foxmail.com" },
+    { name = "Yashab Alam", email = "yashabalam707@gmail.com" },
 ]
 keywords = ["pentest", "security", "ai", "mcp", "cli", "vulnerability", "red-team"]
 classifiers = [
@@ -36,8 +37,8 @@ dependencies = [
     "toml>=0.10.0",
     "jinja2>=3.1.0",
     "textual>=0.40.0",
-    # ── 沙箱依赖（python_execute 运行时）──────────────────────────────
-    # LLM 在 python_execute 中可直接 import 以下库
+    # Sandbox runtime dependencies for python_execute
+    # Libraries available to LLM-generated code inside python_execute
     "beautifulsoup4>=4.12.0",
     "lxml>=4.9.0",
     "pycryptodome>=3.19.0",
@@ -57,14 +58,23 @@ web = [
 kb = [
     "chromadb>=0.4.0",
 ]
+osint = [
+    # Optional enhancement for the osint_recon tool's DNS resolution.
+    # Without it, DNS falls back to the stdlib socket resolver.
+    "dnspython>=2.5.0",
+]
+pdf = [
+    # Optional: render reports to PDF via report.pdf_exporter.
+    "reportlab>=4.0",
+]
 
 [project.urls]
-Homepage = "https://github.com/Unclecheng-li/VulnClaw"
-Repository = "https://github.com/Unclecheng-li/VulnClaw"
-Issues = "https://github.com/Unclecheng-li/VulnClaw/issues"
+Homepage = "https://github.com/Unclecheng-li/Vulnbot"
+Repository = "https://github.com/Unclecheng-li/Vulnbot"
+Issues = "https://github.com/Unclecheng-li/Vulnbot/issues"
 
 [project.scripts]
-vulnclaw = "vulnclaw.cli.main:app"
+vulnbot = "vulnbot.cli.main:app"
 
 [tool.hatch.build]
 exclude = [
@@ -79,11 +89,11 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["vulnclaw"]
+packages = ["vulnbot"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/vulnclaw",
+    "/vulnbot",
     "/frontend",
     "/tests",
     "/scripts",

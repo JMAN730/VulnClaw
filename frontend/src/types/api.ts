@@ -20,6 +20,7 @@ export interface ConfigUpdateRequest {
   provider?: string;
   model?: string;
   base_url?: string;
+  api_key?: string;
   output_dir?: string;
   max_rounds?: number;
   persistent_rounds_per_cycle?: number;
@@ -29,6 +30,29 @@ export interface ConfigUpdateRequest {
   python_execute_mode?: string;
   python_execute_max_lines?: number;
   python_execute_audit_enabled?: boolean;
+}
+
+export interface ProviderPresetView {
+  id: string;
+  label: string;
+  base_url: string;
+  default_model: string;
+}
+
+export interface ProvidersView {
+  providers: ProviderPresetView[];
+}
+
+export interface ProviderModelsRequest {
+  provider?: string;
+  base_url?: string;
+}
+
+export interface ProviderModelsResponse {
+  base_url: string;
+  models: string[];
+  has_api_key: boolean;
+  detail: string;
 }
 
 export interface TargetView {
