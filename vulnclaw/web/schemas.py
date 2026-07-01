@@ -238,6 +238,34 @@ class ConfigUpdateRequest(BaseModel):
         return _validate_http_base_url(value)
 
 
+class ProviderPresetView(BaseModel):
+    id: str
+    label: str
+    base_url: str
+    default_model: str
+
+
+class ProvidersView(BaseModel):
+    providers: list[ProviderPresetView] = Field(default_factory=list)
+
+
+class ProviderModelsRequest(BaseModel):
+    provider: Optional[str] = Field(default=None, min_length=1, max_length=64)
+    base_url: Optional[str] = Field(default=None, max_length=512)
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value: str | None) -> str | None:
+        return _validate_http_base_url(value)
+
+
+class ProviderModelsResponse(BaseModel):
+    base_url: str
+    models: list[str] = Field(default_factory=list)
+    has_api_key: bool = False
+    detail: str = ""
+
+
 class ReportContentView(BaseModel):
     path: str
     kind: str

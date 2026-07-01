@@ -4,10 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from vulnclaw.web.schemas import ConfigUpdateRequest, ReportGenerateRequest, TaskCreateRequest
+from vulnclaw.web.schemas import (
+    ConfigUpdateRequest,
+    ProviderModelsRequest,
+    ReportGenerateRequest,
+    TaskCreateRequest,
+)
 from vulnclaw.web.services.config_service import get_public_config, update_public_config
 from vulnclaw.web.services.constraint_audit_service import get_constraint_audit
 from vulnclaw.web.services.mcp_service import get_mcp_diagnostics
+from vulnclaw.web.services.provider_service import fetch_models, get_provider_presets
 from vulnclaw.web.services.report_service import (
     generate_target_report,
     list_reports,
@@ -102,6 +108,14 @@ def create_app():
     @app.post("/api/config")
     async def config_update(request: ConfigUpdateRequest):
         return update_public_config(request).model_dump(mode="json")
+
+    @app.get("/api/providers")
+    async def providers_view():
+        return get_provider_presets().model_dump(mode="json")
+
+    @app.post("/api/provider-models")
+    async def provider_models_view(request: ProviderModelsRequest):
+        return fetch_models(request).model_dump(mode="json")
 
     @app.get("/api/tasks")
     async def tasks():
