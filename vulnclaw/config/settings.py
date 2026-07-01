@@ -233,6 +233,20 @@ def _overlay_env(config: VulnClawConfig) -> VulnClawConfig:
             config.session.max_rounds = int(v)
     if v := os.environ.get("VULNCLAW_SESSION_SHOW_THINKING"):
         config.session.show_thinking = v.lower() in ("1", "true", "yes", "on")
+    if v := os.environ.get("VULNCLAW_SESSION_REPL_PARALLEL_ENABLED"):
+        config.session.repl_parallel_enabled = v.lower() in ("1", "true", "yes", "on")
+    if v := os.environ.get("VULNCLAW_SESSION_REPL_PARALLEL_AGENTS"):
+        with suppress(ValueError):
+            config.session.repl_parallel_agents = int(v)
+    if v := os.environ.get("VULNCLAW_SESSION_REPL_PARALLEL_DEPTH"):
+        with suppress(ValueError):
+            config.session.repl_parallel_depth = int(v)
+    if v := os.environ.get("VULNCLAW_SESSION_REPL_PARALLEL_WORKER_ROUNDS"):
+        with suppress(ValueError):
+            config.session.repl_parallel_worker_rounds = int(v)
+    if v := os.environ.get("VULNCLAW_SESSION_REPL_PARALLEL_SURFACE_LIMIT"):
+        with suppress(ValueError):
+            config.session.repl_parallel_surface_limit = int(v)
     if v := os.environ.get("VULNCLAW_SESSION_STALE_ROUNDS_THRESHOLD"):
         with suppress(ValueError):
             config.session.stale_rounds_threshold = int(v)
