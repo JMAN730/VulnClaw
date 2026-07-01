@@ -1600,6 +1600,12 @@ def report(
     target_mode: bool = typer.Option(
         False, "--target", help="Interpret argument as target and generate report from target state"
     ),
+    pdf: bool = typer.Option(
+        False, "--pdf", help="Also export the report to PDF (requires the vulnclaw[pdf] extra)"
+    ),
+    pdf_out: str = typer.Option(
+        "", "--pdf-out", help="PDF output path (default: the report path with a .pdf suffix)"
+    ),
 ) -> None:
     """Generate a report from a session file or target state."""
     if target_mode:
@@ -1609,12 +1615,26 @@ def report(
         if not state:
             err_console.print(f"[!] Target state not found: {session}")
             raise typer.Exit(1)
-        generate_report_from_target_state(state)
+        report_path = generate_report_from_target_state(state)
     else:
         from vulnclaw.report.generator import generate_report_from_file
 
-        generate_report_from_file(session)
-    console.print("[+] Report generated")
+        report_path = generate_report_from_file(session)
+    console.print(f"[+] Report generated: {report_path}")
+
+    if pdf:
+        from pathlib import Path
+
+        from vulnclaw.report.pdf_exporter import export_pdf
+
+        out = Path(pdf_out) if pdf_out else Path(report_path).with_suffix(".pdf")
+        try:
+            markdown = Path(report_path).read_text(encoding="utf-8")
+            export_pdf(markdown, out, title="VulnClaw Report")
+        except RuntimeError as exc:
+            err_console.print(f"[!] {exc}")
+            raise typer.Exit(1) from exc
+        console.print(f"[+] PDF exported: {out}")
 
 
 # 鈹€鈹€ Config sub-command group 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
