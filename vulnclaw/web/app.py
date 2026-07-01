@@ -31,6 +31,7 @@ from vulnclaw.web.task_manager import WebTaskManager
 try:
     from fastapi import FastAPI, HTTPException
     from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+    from starlette.middleware.base import BaseHTTPMiddleware
 
     FASTAPI_AVAILABLE = True
 except ImportError:  # pragma: no cover - exercised in CLI dry-run and tests
@@ -39,6 +40,7 @@ except ImportError:  # pragma: no cover - exercised in CLI dry-run and tests
     FileResponse = None  # type: ignore[assignment]
     JSONResponse = None  # type: ignore[assignment]
     StreamingResponse = None  # type: ignore[assignment]
+    BaseHTTPMiddleware = object  # type: ignore[assignment,misc]
     FASTAPI_AVAILABLE = False
 
 
@@ -58,7 +60,7 @@ def resolve_web_index() -> Path:
 
 def resolve_web_asset(path: str) -> Path:
     """Resolve a frontend asset path from dist or fallback static dir."""
-    normalized = path.lstrip("/").strip()
+    normalized = path.replace("\\", "/").lstrip("/").strip()
     if not normalized:
         return resolve_web_index()
 
@@ -79,6 +81,7 @@ def create_app():
         )
 
     app = FastAPI(title="VulnClaw Web UI", version="0.3.2")
+    app.add_middleware(SecurityHeadersMiddleware)
 
     @app.get("/api/health")
     async def health():
@@ -221,6 +224,8 @@ def create_app():
             )
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
         return {"status": "ok", "path": path}
 
     @app.get("/")
@@ -234,3 +239,26 @@ def create_app():
         return FileResponse(resolve_web_asset(full_path))
 
     return app
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add conservative browser security headers for the local Web UI."""
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self'; "
+            "frame-src 'self' about: data: blob:; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'",
+        )
+        return response

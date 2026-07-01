@@ -243,6 +243,47 @@ class TestWebServices:
         with pytest.raises(PermissionError):
             report_service.resolve_report_path(str(outside))
 
+    def test_web_report_service_rejects_unsupported_report_type(self, monkeypatch, tmp_path):
+        import vulnclaw.web.services.report_service as report_service
+
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+        report = sessions_dir / "demo.txt"
+        report.write_text("demo", encoding="utf-8")
+        monkeypatch.setattr(report_service, "SESSIONS_DIR", sessions_dir)
+
+        with pytest.raises(PermissionError):
+            report_service.resolve_report_path(str(report))
+
+    def test_web_report_output_path_stays_in_sessions_dir(self, monkeypatch, tmp_path):
+        import vulnclaw.web.services.report_service as report_service
+
+        sessions_dir = tmp_path / "sessions"
+        monkeypatch.setattr(report_service, "SESSIONS_DIR", sessions_dir)
+
+        allowed = report_service.resolve_report_output_path(str(sessions_dir / "demo.md"), "markdown")
+        assert allowed == (sessions_dir / "demo.md").resolve()
+
+        with pytest.raises(PermissionError):
+            report_service.resolve_report_output_path(str(tmp_path / "outside.md"), "markdown")
+        with pytest.raises(PermissionError):
+            report_service.resolve_report_output_path(str(sessions_dir / "demo.html"), "markdown")
+
+    def test_web_target_service_rejects_snapshot_traversal(self, monkeypatch, tmp_path):
+        import vulnclaw.target_state.store as store_mod
+        import vulnclaw.web.services.target_service as target_service
+        from vulnclaw.agent.context import SessionState
+
+        monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
+        monkeypatch.setattr(target_service, "TARGETS_DIR", tmp_path)
+
+        state = SessionState(target="https://example.com")
+        store_mod.save_target_state("https://example.com", state, command="scan")
+
+        assert target_service.get_preview("https://example.com", snapshot_id="../state") is None
+        assert target_service.get_diff("https://example.com", "../state") is None
+        assert target_service.rollback_target("https://example.com", "../state") is False
+
     def test_web_report_service_lists_reports_by_modified_time(self, monkeypatch, tmp_path):
         import os
 
@@ -735,6 +776,48 @@ class TestWebApp:
 
         assert web_app.resolve_web_index() == dist_dir / "index.html"
         assert web_app.resolve_web_asset("assets/app.js") == dist_dir / "index.html"
+
+    def test_resolve_web_asset_blocks_path_traversal(self, monkeypatch, tmp_path):
+        import vulnclaw.web.app as web_app
+
+        project = tmp_path / "project"
+        dist_dir = project / "frontend" / "dist"
+        static_dir = project / "static"
+        dist_dir.mkdir(parents=True)
+        static_dir.mkdir()
+        (dist_dir / "index.html").write_text("dist", encoding="utf-8")
+        outside = project / "secret.txt"
+        outside.write_text("secret", encoding="utf-8")
+
+        monkeypatch.setattr(web_app, "FRONTEND_DIST_DIR", dist_dir)
+        monkeypatch.setattr(web_app, "STATIC_DIR", static_dir)
+
+        assert web_app.resolve_web_asset("../secret.txt") == dist_dir / "index.html"
+        assert web_app.resolve_web_asset("..\\secret.txt") == dist_dir / "index.html"
+
+    def test_web_schema_rejects_unsafe_config_values(self):
+        from pydantic import ValidationError
+
+        from vulnclaw.web.schemas import ConfigUpdateRequest
+
+        with pytest.raises(ValidationError):
+            ConfigUpdateRequest(base_url="file:///etc/passwd")
+        with pytest.raises(ValidationError):
+            ConfigUpdateRequest(base_url="https://user:pass@example.com/v1")
+        with pytest.raises(ValidationError):
+            ConfigUpdateRequest(max_rounds=0)
+        with pytest.raises(ValidationError):
+            ConfigUpdateRequest(python_execute_mode="unsafe")
+
+    def test_cli_web_allows_loopback_aliases_in_dry_run(self):
+        from vulnclaw.cli.main import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["web", "--host", "localhost", "--dry-run"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["web", "--host", "::1", "--dry-run"])
+        assert result.exit_code == 0
 
     def test_frontend_scaffold_exists(self):
         root = Path(__file__).resolve().parents[1] / "frontend"
