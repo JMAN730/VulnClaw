@@ -49,6 +49,7 @@ from vulnclaw import __version__
 from vulnclaw.agent.constraint_policy import validate_action_constraints
 from vulnclaw.agent.input_analysis import extract_task_constraints
 from vulnclaw.agent.think_filter import format_think_tags, strip_think_tags
+from vulnclaw.cli.manual import available_topics, render_manual
 from vulnclaw.config.settings import (
     apply_provider_preset,
     list_providers,
@@ -1637,6 +1638,48 @@ def report(
         console.print(f"[+] PDF exported: {out}")
 
 
+def _print_cli_manual(topic: Optional[str], output_format: str) -> None:
+    """Print the packaged CLI manual, normalizing user-facing errors."""
+    try:
+        console.out(render_manual(output_format, topic), end="")
+    except ValueError as exc:
+        err_console.print(f"[!] {exc}")
+        err_console.print(f"    Available topics: {', '.join(available_topics())}")
+        raise typer.Exit(1) from exc
+
+
+@app.command("manual")
+def manual_command(
+    topic: Optional[str] = typer.Argument(
+        None, help="Optional manual topic, e.g. run, solve, network-scan, config"
+    ),
+    output_format: str = typer.Option(
+        "text",
+        "--format",
+        "-f",
+        help="Output format: text, markdown, man",
+    ),
+) -> None:
+    """Print the full VulnClaw CLI manual."""
+    _print_cli_manual(topic, output_format)
+
+
+@app.command("man")
+def man_command(
+    topic: Optional[str] = typer.Argument(
+        None, help="Optional manual topic, e.g. run, solve, network-scan, config"
+    ),
+    output_format: str = typer.Option(
+        "text",
+        "--format",
+        "-f",
+        help="Output format: text, markdown, man",
+    ),
+) -> None:
+    """Alias for 'vulnclaw manual'."""
+    _print_cli_manual(topic, output_format)
+
+
 # 鈹€鈹€ Config sub-command group 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 config_app = typer.Typer(help="Manage configuration")
@@ -2458,8 +2501,29 @@ def _extract_target_from_input(user_input: str) -> Optional[str]:
 
 
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context) -> None:
+def main(
+    ctx: typer.Context,
+    version: bool = typer.Option(
+        False,
+        "--version",
+        help="Show version and exit.",
+        is_eager=True,
+    ),
+    show_manual: bool = typer.Option(
+        False,
+        "--man",
+        "--manual",
+        help="Show the full CLI manual and exit.",
+        is_eager=True,
+    ),
+) -> None:
     """Open the classic CLI/REPL by default."""
+    if version:
+        console.print(__version__)
+        raise typer.Exit()
+    if show_manual:
+        _print_cli_manual(None, "text")
+        raise typer.Exit()
     if ctx.invoked_subcommand is None:
         _run_repl()
 
