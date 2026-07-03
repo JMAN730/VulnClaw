@@ -821,6 +821,41 @@ class TestCLI:
 
         assert session["state"].only_host == "example.com"
 
+    def test_tui_slash_palette_includes_available_skills(self):
+        import vulnclaw.cli.tui as tui_mod
+
+        entries = dict(tui_mod.build_slash_palette_entries())
+
+        assert "ctf-web" in entries
+        assert "secknowledge-skill" in entries
+        assert "target" in entries
+        assert "Skill" in entries["ctf-web"]
+
+    def test_tui_skill_slash_without_args_shows_skill_help(self):
+        import vulnclaw.cli.tui as tui_mod
+
+        session = {"state": tui_mod.TuiState(), "_message": "", "_prompt": None}
+
+        tui_mod._dispatch_slash("/ctf-web", session)
+
+        assert session["_prompt"][0] == "message"
+        assert "/ctf-web skill" in session["_prompt"][1]
+
+    def test_textual_skill_slash_with_args_launches_skill_prompt(self):
+        import vulnclaw.cli.tui as tui_mod
+        import vulnclaw.cli.tui_textual as textual_mod
+
+        session = {
+            "state": tui_mod.TuiState(target="https://example.com"),
+            "_message": "",
+            "_prompt": None,
+        }
+
+        result = textual_mod._dispatch(session, "/ctf-web find the flag")
+
+        assert result == "launch"
+        assert session["_nl_text"] == "Use VulnClaw skill ctf-web. find the flag"
+
     def test_tui_runtime_diagnostic_panel_renders_environment_summary(self, monkeypatch):
         import vulnclaw.cli.tui as tui_mod
         from vulnclaw.config.schema import VulnClawConfig
