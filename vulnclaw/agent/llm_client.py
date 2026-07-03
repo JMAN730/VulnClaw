@@ -265,8 +265,6 @@ async def call_llm(
     if stream_sink is not None:
         return await call_llm_stream(agent, system_prompt, stream_sink)
 
-    client = agent._get_client()
-
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(agent.context.get_messages())
     messages = _fit_context_window(agent, messages)
@@ -276,7 +274,7 @@ async def call_llm(
 
     response, retry_attempts = await _call_with_persistent_retries(
         agent,
-        lambda: client.chat.completions.create(**kwargs),
+        lambda: agent._get_client().chat.completions.create(**kwargs),
         "单轮",
     )
 
@@ -297,8 +295,6 @@ async def call_llm_auto(
     if stream_sink is not None:
         return await call_llm_auto_stream(agent, system_prompt, round_context, stream_sink)
 
-    client = agent._get_client()
-
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(agent.context.get_messages())
     messages.append({"role": "user", "content": round_context})
@@ -309,7 +305,7 @@ async def call_llm_auto(
 
     response, retry_attempts = await _call_with_persistent_retries(
         agent,
-        lambda: client.chat.completions.create(**kwargs),
+        lambda: agent._get_client().chat.completions.create(**kwargs),
         "自主循环",
     )
 
@@ -381,7 +377,7 @@ async def call_llm_auto(
             kwargs["messages"] = _fit_context_window(agent, messages)
             response2, second_retry_attempts = await _call_with_persistent_retries(
                 agent,
-                lambda: client.chat.completions.create(**kwargs),
+                lambda: agent._get_client().chat.completions.create(**kwargs),
                 "工具总结",
             )
             final_text = extract_response(response2.choices[0].message)
@@ -659,7 +655,7 @@ async def call_llm_stream(
     # Use existing call_llm as fallback
     response_fallback, _ = await _call_with_persistent_retries(
         agent,
-        lambda: client.chat.completions.create(**kwargs),
+        lambda: agent._get_client().chat.completions.create(**kwargs),
         "单轮",
     )
 

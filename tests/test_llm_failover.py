@@ -32,6 +32,11 @@ def _ok_response():
     return SimpleNamespace(choices=[object()])
 
 
+def _full_ok_response():
+    message = SimpleNamespace(content="ok", tool_calls=None, reasoning_content=None)
+    return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+
 class TestIsKeyExhaustedError:
     def test_detects_rate_limit_and_quota_signals(self):
         for text in [
@@ -110,6 +115,144 @@ class TestFailover:
 
         with pytest.raises(RuntimeError):
             await _call_with_persistent_retries(agent, request_fn, "test")
+
+
+class TestCallLlmUsesRotatedClient:
+    """Regression test: call_llm/call_llm_auto must not close over a stale client.
+
+    rotate_api_key() invalidates agent._client so the *next* _get_client() call
+    rebuilds with the new key. If call_llm_auto captured `client =
+    agent._get_client()` once and reused it across retries, every retry after a
+    rotation would still hit the old (failed) key's client. The retry loop must
+    call agent._get_client() fresh on every attempt.
+    """
+
+    async def test_call_llm_auto_retries_with_freshly_rotated_client(self, monkeypatch):
+        from vulnclaw.agent import llm_client
+
+        class DummyLoop:
+            async def run_in_executor(self, executor, fn):
+                return fn()
+
+        class DummyClient:
+            def __init__(self, key):
+                self.key = key
+                self.chat = SimpleNamespace(
+                    completions=SimpleNamespace(create=self._create)
+                )
+
+            def _create(self, **kwargs):
+                if self.key == "bad":
+                    raise RuntimeError("Error code: 429 - rate limit exceeded")
+                return _full_ok_response()
+
+        class DummyAgent:
+            _key_pool = ["bad", "good"]
+            _key_index = 0
+
+            class _Config:
+                class _LLM:
+                    model = "gpt-4o-mini"
+                    max_tokens = 256
+                    temperature = 0.1
+                    provider = "openai"
+                    reasoning_effort = "high"
+
+                llm = _LLM()
+
+            class _Context:
+                @staticmethod
+                def get_messages():
+                    return []
+
+                @staticmethod
+                def add_assistant_message(text):
+                    return None
+
+            config = _Config()
+            context = _Context()
+
+            def _build_openai_tools(self):
+                return []
+
+            def _get_client(self):
+                # Mirrors AgentCore._get_client(): reflects the *current*
+                # rotation index, not whatever was current when first called.
+                return DummyClient(self._key_pool[self._key_index])
+
+            def rotate_api_key(self) -> bool:
+                if len(self._key_pool) > 1:
+                    self._key_index = (self._key_index + 1) % len(self._key_pool)
+                    return True
+                return False
+
+        dummy = DummyAgent()
+        monkeypatch.setattr(llm_client.asyncio, "get_running_loop", lambda: DummyLoop())
+
+        result = await llm_client.call_llm_auto(dummy, "sys", "round")
+
+        assert dummy._key_index == 1
+        assert "ok" in result
+
+    async def test_call_llm_retries_with_freshly_rotated_client(self, monkeypatch):
+        from vulnclaw.agent import llm_client
+
+        class DummyLoop:
+            async def run_in_executor(self, executor, fn):
+                return fn()
+
+        class DummyClient:
+            def __init__(self, key):
+                self.key = key
+                self.chat = SimpleNamespace(
+                    completions=SimpleNamespace(create=self._create)
+                )
+
+            def _create(self, **kwargs):
+                if self.key == "bad":
+                    raise RuntimeError("invalid api key provided")
+                return _full_ok_response()
+
+        class DummyAgent:
+            _key_pool = ["bad", "good"]
+            _key_index = 0
+
+            class _Config:
+                class _LLM:
+                    model = "gpt-4o-mini"
+                    max_tokens = 256
+                    temperature = 0.1
+                    provider = "openai"
+                    reasoning_effort = "high"
+
+                llm = _LLM()
+
+            class _Context:
+                @staticmethod
+                def get_messages():
+                    return []
+
+            config = _Config()
+            context = _Context()
+
+            def _build_openai_tools(self):
+                return []
+
+            def _get_client(self):
+                return DummyClient(self._key_pool[self._key_index])
+
+            def rotate_api_key(self) -> bool:
+                if len(self._key_pool) > 1:
+                    self._key_index = (self._key_index + 1) % len(self._key_pool)
+                    return True
+                return False
+
+        dummy = DummyAgent()
+        monkeypatch.setattr(llm_client.asyncio, "get_running_loop", lambda: DummyLoop())
+
+        await llm_client.call_llm(dummy, "sys")
+
+        assert dummy._key_index == 1
 
 
 class TestAgentCoreRotation:
