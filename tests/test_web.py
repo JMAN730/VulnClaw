@@ -146,11 +146,36 @@ class TestWebServices:
 
         monkeypatch.setattr(provider_service, "fetch_provider_models", fake_fetch)
 
+        # A known provider preset base_url is trusted and gets the saved key.
         resp = provider_service.fetch_models(
-            ProviderModelsRequest(base_url="https://override.example/v1")
+            ProviderModelsRequest(base_url="https://api.openai.com/v1")
         )
-        assert captured["base_url"] == "https://override.example/v1"
-        assert resp.base_url == "https://override.example/v1"
+        assert captured["base_url"] == "https://api.openai.com/v1"
+        assert resp.base_url == "https://api.openai.com/v1"
+        assert resp.models == ["m"]
+
+    def test_web_provider_service_fetch_models_rejects_untrusted_base_url(self, monkeypatch):
+        """An arbitrary client-supplied base_url must never receive the saved API key."""
+        import vulnclaw.web.services.provider_service as provider_service
+        from vulnclaw.config.schema import VulnClawConfig
+        from vulnclaw.web.schemas import ProviderModelsRequest
+
+        config = VulnClawConfig()
+        config.llm.api_key = "sk-test"
+        config.llm.base_url = "https://config-default.example/v1"
+        monkeypatch.setattr(provider_service, "load_config", lambda: config)
+
+        def must_not_call(*args, **kwargs):
+            raise AssertionError("fetch_provider_models must not run for an untrusted base_url")
+
+        monkeypatch.setattr(provider_service, "fetch_provider_models", must_not_call)
+
+        resp = provider_service.fetch_models(
+            ProviderModelsRequest(base_url="https://attacker.example/v1")
+        )
+        assert resp.models == []
+        assert resp.has_api_key is True
+        assert "base url" in resp.detail.lower() or "base_url" in resp.detail.lower()
 
     def test_web_target_service_lists_targets(self, monkeypatch, tmp_path):
         import vulnclaw.target_state.store as store_mod
