@@ -940,6 +940,123 @@ class TestCLI:
         assert "API Key: 已更新" in output
 
 
+class TestClassicReplSlashPalette:
+    """Classic `vulnclaw` REPL: '/' skill palette and '/.' flag-skill wiring."""
+
+    def test_skill_entries_are_skills_only(self):
+        import vulnclaw.cli.tui as tui_mod
+
+        entries = dict(tui_mod.list_skill_palette_entries())
+
+        assert "ctf-web" in entries
+        assert "recon" in entries
+        # Textual-only slash commands must not leak into the classic REPL menu.
+        assert "target" not in entries
+        assert "mode" not in entries
+
+    def test_skill_entries_filter_by_prefix(self):
+        import vulnclaw.cli.tui as tui_mod
+
+        names = {name for name, _ in tui_mod.list_skill_palette_entries("re")}
+
+        assert "recon" in names
+        assert "reporting" in names
+        assert all(name.startswith("re") for name in names)
+
+    def test_bare_slash_prompts_for_a_skill_name(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/")
+
+        assert result.kind == "message"
+        assert "skill name" in result.text
+
+    def test_unknown_skill_reports_error(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/not-a-real-skill")
+
+        assert result.kind == "message"
+        assert "Unknown skill" in result.text
+
+    def test_skill_without_task_shows_help(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/recon")
+
+        assert result.kind == "message"
+        assert "recon" in result.text
+
+    def test_skill_with_task_rewrites_to_agent_prompt(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/recon scan the box")
+
+        assert result.kind == "run"
+        assert result.text == "Use VulnClaw skill recon. scan the box"
+
+    def test_flag_target_sets_target(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/.target example.com")
+
+        assert result.kind == "target"
+        assert result.value == "example.com"
+
+    def test_flag_target_without_value_asks_for_host(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/.target")
+
+        assert result.kind == "message"
+        assert "host value" in result.text
+
+    def test_non_target_flag_is_guidance_only(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        # B1 wiring: mode/scope flags render guidance, they do not mutate state.
+        result = dispatch_repl_slash("/.mode")
+
+        assert result.kind == "message"
+        assert "/.mode" in result.text
+
+    def test_unknown_flag_skill_reports_error(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/.zzz-not-a-flag")
+
+        assert result.kind == "message"
+        assert "Unknown flag skill" in result.text
+
+    def test_completer_offers_all_skills_on_bare_slash(self):
+        from prompt_toolkit.document import Document
+
+        from vulnclaw.cli.tui import build_repl_slash_completer, list_skill_palette_entries
+
+        completer = build_repl_slash_completer()
+        completions = list(completer.get_completions(Document("/", 1), None))
+
+        assert len(completions) == len(list_skill_palette_entries())
+
+    def test_completer_stops_after_skill_is_chosen(self):
+        from prompt_toolkit.document import Document
+
+        from vulnclaw.cli.tui import build_repl_slash_completer
+
+        completer = build_repl_slash_completer()
+        text = "/recon scan"
+        completions = list(completer.get_completions(Document(text, len(text)), None))
+
+        assert completions == []
+
+    def test_prompt_session_is_none_without_a_tty(self, monkeypatch):
+        import vulnclaw.cli.main as main_mod
+
+        monkeypatch.setattr(main_mod.sys.stdin, "isatty", lambda: False)
+
+        assert main_mod._make_repl_prompt_session() is None
+
+
 class TestCLISubCommands:
     """Test CLI sub-command help messages."""
 
