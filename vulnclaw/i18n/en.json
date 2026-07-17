@@ -277,6 +277,7 @@
   "tui.no_models_available": "No models available from this provider",
   "skill.exploitation.description": "Exploitation workflow — build PoCs to verify and exploit discovered vulnerabilities",
   "skill.pentest-flow.description": "End-to-end pentest orchestration — from recon through report generation",
+  "skill.hackerone.description": "HackerOne bounty scope-guard flow — reads the program scope, enforces scope and program rules, then hands each in-scope asset to pentest-flow",
   "skill.post-exploitation.description": "Post-exploitation workflow — internal recon and lateral movement",
   "skill.recon.description": "Reconnaissance workflow — passive and active recon",
   "skill.reporting.description": "Reporting workflow — generate structured pentest reports and PoCs",
