@@ -626,9 +626,14 @@ class TestPromptBuilder:
 
     def test_prompt_with_phase(self):
         from vulnclaw.agent.prompts import build_system_prompt
+        from vulnclaw.i18n import init_i18n
 
-        prompt = build_system_prompt(phase="信息收集")
-        assert "信息收集" in prompt
+        init_i18n(lang="zh")
+        try:
+            prompt = build_system_prompt(phase="信息收集")
+            assert "## 当前阶段：信息收集" in prompt
+        finally:
+            init_i18n()
 
     def test_prompt_with_skill_context(self):
         from vulnclaw.agent.prompts import build_system_prompt
@@ -670,11 +675,16 @@ class TestPromptBuilder:
 
     def test_all_phases_render(self):
         from vulnclaw.agent.prompts import build_system_prompt
+        from vulnclaw.i18n import init_i18n
 
         phases = ["信息收集", "漏洞发现", "漏洞利用", "后渗透", "报告生成"]
-        for phase in phases:
-            prompt = build_system_prompt(phase=phase)
-            assert phase in prompt
+        init_i18n(lang="zh")
+        try:
+            for phase in phases:
+                prompt = build_system_prompt(phase=phase)
+                assert f"## 当前阶段：{phase}" in prompt
+        finally:
+            init_i18n()
 
 
 # ── core.py ──────────────────────────────────────────────────────────

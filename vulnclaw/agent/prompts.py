@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
+
+from vulnclaw.i18n.phases import canonical_phase_id, localized_prompt_phase_heading
 
 # ── Base Identity ───────────────────────────────────────────────────
 
@@ -84,44 +86,34 @@ CORE_CONTRACT = """\
 # ── Phase Descriptions ──────────────────────────────────────────────
 
 PHASE_DESCRIPTIONS = {
-    "信息收集": """\
-## 当前阶段：信息收集
-
+    "recon": """\
 执行被动+主动信息收集：
 1. 被动：WHOIS/DNS/子域名/技术栈指纹/WAF检测
 2. 主动：端口扫描/服务识别/目录枚举/API端点发现
 3. 输出目标画像和攻击面地图
 """,
-    "漏洞发现": """\
-## 当前阶段：漏洞发现
-
+    "vuln_discovery": """\
 基于信息收集结果发现漏洞：
 1. 已知 CVE 匹配（基于服务版本）
 2. Web 漏洞扫描（SQLi/XSS/SSRF/RCE/LFI/RFI）
 3. 配置缺陷检测（默认凭据/信息泄露/未授权访问）
 4. 输出漏洞列表（含严重等级）
 """,
-    "漏洞利用": """\
-## 当前阶段：漏洞利用
-
+    "exploitation": """\
 验证和利用已发现的漏洞：
 1. PoC 构造与验证
 2. WAF 绕过（如需要）
 3. 命令执行/文件读取/数据提取
 4. 输出利用证据 + PoC 脚本
 """,
-    "后渗透": """\
-## 当前阶段：后渗透
-
+    "post_exploitation": """\
 在已获取权限的基础上进一步操作：
 1. 内网信息收集
 2. 横向移动
 3. 权限维持
 4. 输出后渗透报告
 """,
-    "报告生成": """\
-## 当前阶段：报告生成
-
+    "reporting": """\
 整理渗透测试结果生成报告：
 1. 结构化渗透报告
 2. PoC 脚本打包
@@ -517,7 +509,7 @@ AUTO_PENTEST_INSTRUCTION = """\
 
 def build_system_prompt(
     target: Optional[str] = None,
-    phase: Optional[str] = None,
+    phase: Optional[Any] = None,
     skill_context: Optional[str] = None,
     mcp_tools: Optional[list[dict]] = None,
     enable_personnel_dim: bool = True,
@@ -526,7 +518,7 @@ def build_system_prompt(
 
     Args:
         target: Current target identifier (IP/URL).
-        phase: Current pentest phase name.
+        phase: Current pentest phase enum, canonical ID, or legacy display name.
         skill_context: Additional context from loaded Skill.
         mcp_tools: List of available MCP tool schemas.
         enable_personnel_dim: Whether to include dimension 4 (personnel/social eng)
@@ -543,8 +535,11 @@ def build_system_prompt(
         parts.append(f"\n## 当前目标\n当前渗透测试目标: {target}\n")
 
     # Phase description
-    if phase and phase in PHASE_DESCRIPTIONS:
-        parts.append(PHASE_DESCRIPTIONS[phase])
+    phase_id = canonical_phase_id(phase)
+    if phase_id in PHASE_DESCRIPTIONS:
+        parts.append(
+            f"{localized_prompt_phase_heading(phase_id)}\n\n{PHASE_DESCRIPTIONS[phase_id]}"
+        )
 
     # Skill context
     if skill_context:

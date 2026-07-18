@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from vulnclaw.i18n.phases import localized_phase_name
+
 if TYPE_CHECKING:
     from vulnclaw.agent.agent_context import AgentContext
 
@@ -294,7 +296,7 @@ def build_round_context(agent: AgentContext, round_num: int, max_rounds: int) ->
     return (
         f"\n\n[自主循环 Round {round_num}/{max_rounds}]"
         f"\n当前目标: {state.target or '未设置'}"
-        f"\n当前阶段: {state.phase.value}"
+        f"\n当前阶段: {localized_phase_name(state.phase)}"
         f"\n输出目录: {agent.config.session.output_dir.resolve()}"
         f"{constraints_summary}"
         f"{reasoning_summary}"
@@ -346,7 +348,7 @@ async def generate_attack_summary(agent: AgentContext) -> str:
         findings_text = "无"
 
     prompt = (
-        f"目标：{state.target or '?'}  |  当前阶段：{state.phase.value}\n"
+        f"目标：{state.target or '?'}  |  当前阶段：{localized_phase_name(state.phase)}\n"
         f"\n=== 已执行步骤 ===\n{steps_text}\n"
         f"\n=== 关键观察/结果 ===\n{notes_text}\n"
         f"\n=== 漏洞发现 ===\n{findings_text}\n\n"
