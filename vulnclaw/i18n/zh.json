@@ -429,5 +429,10 @@
   "agent.recon.dir_error": "[!] dir_enum 执行错误: {error}",
   "agent.recon.dir_heading": "# 目录枚举 — {base}  请求 {requests} 条，命中 {hits}",
   "agent.recon.dir_baseline": "  (404 基线长度 ≈ {length})",
-  "agent.recon.no_valid_hits": "  (无有效命中)"
+  "agent.recon.no_valid_hits": "  (无有效命中)",
+  "agent.recon.dimension.server": "维度一(服务器)",
+  "agent.recon.dimension.website": "维度二(网站)",
+  "agent.recon.dimension.domain": "维度三(域名)",
+  "agent.recon.dimension.personnel": "维度四(人员)",
+  "agent.recon.status_incomplete_instruction": "→ 还有 {count} 个维度未检查，继续收集，不要标记 [DONE]"
 }

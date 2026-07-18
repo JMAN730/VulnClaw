@@ -146,11 +146,14 @@ class FindingParser:
             evidence_pool = clean_response
 
         for pattern, severity, vuln_type in NATURAL_LANG_PATTERNS:
+            # Use stable vuln_type for dedup, not the localized title
+            # (same vuln_type from different languages must dedupe correctly)
+            if vuln_type in {f.vuln_type for f in self.context.state.findings if f.vuln_type}:
+                continue
+
             canonical_title = _(
                 "agent.finding.auto_title", vuln_type=_display_vuln_type(vuln_type)
             )
-            if canonical_title in existing_titles:
-                continue
 
             vuln_matches = re.findall(pattern, clean_response, re.IGNORECASE)
             if not vuln_matches:
