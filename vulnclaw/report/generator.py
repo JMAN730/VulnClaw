@@ -14,6 +14,13 @@ from jinja2 import Template
 # 修改原因: 消除 V2 违规 — 叶子类型已移至 config/domain_models.py。
 from vulnclaw.agent.context import SessionState
 from vulnclaw.config.domain_models import VulnerabilityFinding
+from vulnclaw.i18n import current_lang
+
+
+def _rl(zh: str, en: str) -> str:
+    """Return the English or Chinese variant based on the active UI language."""
+    return en if current_lang() == "en" else zh
+
 
 # ── Report Template ─────────────────────────────────────────────────
 
@@ -518,6 +525,132 @@ CYCLE_REPORT_TEMPLATE = """\
 """
 
 
+CYCLE_REPORT_TEMPLATE_EN = """\
+# Persistent Penetration Test — Cycle Report
+
+## Cycle Information
+
+| Item | Details |
+|------|------|
+| **Target** | {{ target }} |
+| **Current Cycle** | Cycle {{ cycle_num }} |
+| **Rounds per Cycle** | {{ rounds_per_cycle }} |
+| **New Verified Findings This Cycle** | {{ new_findings }} |
+| **Cumulative Verified Findings** | {{ total_findings }} |
+| **Cumulative Executed Steps** | {{ total_steps }} |
+| **Report Generated At** | {{ generated_at }} |
+
+{% if cycle_findings %}
+## Findings This Cycle
+
+{% for finding in cycle_findings %}
+### {{ loop.index }}. {{ finding.title }} — [{{ finding.severity }}]
+{% if finding.verification_status == "pending" %}
+> ⚠️ **Pending verification** — auto-detected, not yet confirmed via PoC.
+{% elif finding.lifecycle_status == "needs_manual_review" %}
+> 🔎 **Needs manual review** — indirect evidence exists but manual review is required before promoting to a confirmed finding.
+{% endif %}
+- **Vulnerability Type**: {{ finding.vuln_type or "Uncategorized" }}
+- **Lifecycle**: {{ finding.lifecycle_status or "pending_verification" }}
+- **Evidence Level**: {{ finding.evidence_level or "L1" }}
+- **CVE**: {{ finding.cve or "N/A" }}
+- **Impact**: {{ finding.description or "None" }}
+{% if finding.evidence %}
+- **Verification Evidence**: {{ finding.evidence }}
+{% endif %}
+- **Remediation**: {{ finding.remediation or "Apply remediation appropriate to the vulnerability type." }}
+{% if finding.verified_at %}
+- **Verified At**: {{ finding.verified_at }}
+{% endif %}
+
+{% endfor %}
+{% else %}
+## Findings This Cycle
+
+No new findings this cycle.
+{% endif %}
+
+## Cumulative Findings Summary
+
+| # | Title | Severity | Type | Evidence/URL | Status |
+|---|---------|------|------|---------|------|
+{% for finding in all_findings %}
+{% set ev = (finding.evidence or finding.description or "")[:80] %}
+| {{ loop.index }} | {{ finding.title }} | {{ finding.severity }} | {{ finding.vuln_type or "—" }} | {{ ev if ev else "—" }} | {% if finding.verification_status == "verified" %}✅ Verified{% elif finding.lifecycle_status == "needs_manual_review" %}🔎 Needs manual review{% elif finding.verification_status == "pending" %}⚠️ Pending{% else %}❌ Excluded{% endif %} |
+{% endfor %}
+
+{% if not all_findings %}
+No findings yet.
+{% endif %}
+
+## Risk Severity Distribution
+
+| Severity | Count |
+|------|------|
+| Critical | {{ critical_count }} |
+| High | {{ high_count }} |
+| Medium | {{ medium_count }} |
+| Low/Info | {{ low_count }} |
+
+{% if llm_attack_summary %}
+## Attack Path Summary
+
+{{ llm_attack_summary }}
+
+{% elif step_summary and step_summary.total_steps > 0 %}
+## Attack Path Summary
+
+{% for phase_name, phase_data in step_summary.phases.items() %}
+### {{ phase_name }} ({{ phase_data.count }} steps)
+
+| Status | Count |
+|------|------|
+| ✅ Success | {{ phase_data.success_count }} |
+| ❌ Failure | {{ phase_data.failure_count }} |
+
+**Key Actions**: {{ phase_data.actions[:5]|join(', ') }}
+
+{% if phase_data.key_results %}
+**Key Findings**:
+{% for result in phase_data.key_results %}
+- {{ result }}
+{% endfor %}
+{% endif %}
+
+---
+{% endfor %}
+
+**Total**: {{ step_summary.total_steps }} steps
+
+{% if step_summary.key_findings %}
+### Key Findings Timeline
+
+{% for finding in step_summary.key_findings %}
+- {{ finding }}
+{% endfor %}
+{% endif %}
+
+{% elif recent_steps %}
+## Attack Path Summary
+
+{% for step in recent_steps %}
+{{ loop.index }}. {{ step }}
+{% endfor %}
+{% endif %}
+
+## Key Recommendations
+
+{% for rec in recommendations %}
+{{ loop.index }}. {{ rec }}
+{% endfor %}
+
+---
+
+> 🦞 Persistent Penetration Test Cycle Report | VulnClaw | {{ generated_at }}
+> **Principle**: Unverified vulnerability = false positive = not written to the report
+"""
+
+
 def _generate_attack_summary_from_session(session: SessionState) -> str:
     """Generate a readable attack-path summary using VulnClaw's configured LLM."""
     try:
@@ -562,13 +695,14 @@ def _generate_attack_summary_from_session(session: SessionState) -> str:
             else "No findings"
         )
 
+        summary_language = "English" if current_lang() == "en" else "Chinese"
         prompt = (
             f"Target: {session.target or 'unknown'}\n"
             f"Phase: {getattr(session.phase, 'value', str(session.phase))}\n\n"
             f"=== Executed Steps ===\n{steps_text}\n\n"
             f"=== Key Observations ===\n{notes_text}\n\n"
             f"=== Findings ===\n{findings_text}\n\n"
-            "Please write a readable Chinese attack-path summary. Requirements:\n"
+            f"Please write a readable {summary_language} attack-path summary. Requirements:\n"
             "1. Clearly explain how the testing progressed, not generic filler.\n"
             "2. Mention URLs, paths, parameters, stack, and verification actions when available.\n"
             "3. Explicitly call out false positives or findings that failed to reproduce.\n"
@@ -667,14 +801,19 @@ def generate_persistent_cycle_report(
     recommendations = []
     for finding in verified_findings:
         if finding.severity in ("Critical", "High"):
-            vt = finding.vuln_type or "未分类"
+            vt = finding.vuln_type or _rl("未分类", "Uncategorized")
             if vt in seen_vuln_types:
                 continue
             seen_vuln_types.add(vt)
-            rec = finding.remediation or f"修复 {vt} 漏洞: {finding.title}"
+            rec = finding.remediation or _rl(
+                f"修复 {vt} 漏洞: {finding.title}",
+                f"Remediate {vt} finding: {finding.title}",
+            )
             recommendations.append(rec)
     if not recommendations:
-        recommendations.append("暂无高危发现，继续深入测试")
+        recommendations.append(
+            _rl("暂无高危发现，继续深入测试", "No high-severity findings yet; continue deeper testing.")
+        )
 
     if output_path is None:
         from vulnclaw.config.settings import SESSIONS_DIR
@@ -705,7 +844,7 @@ def generate_persistent_cycle_report(
     filtered_summary = ReportContentFilter.filter(llm_attack_summary) if llm_attack_summary else ""
 
     context = {
-        "target": session.target or "未指定",
+        "target": session.target or _rl("未指定", "Unspecified"),
         "cycle_num": cycle_num,
         "rounds_per_cycle": rounds_per_cycle,
         "new_findings": len(cycle_findings),
@@ -724,12 +863,17 @@ def generate_persistent_cycle_report(
     }
 
     # Render report
-    template = Template(CYCLE_REPORT_TEMPLATE)
+    template = Template(
+        CYCLE_REPORT_TEMPLATE_EN if current_lang() == "en" else CYCLE_REPORT_TEMPLATE
+    )
     report_content = template.render(**context)
     if verified_findings:
         report_content += "\n\n" + _render_verified_finding_details_clean(
             verified_findings,
-            heading="## 已验证漏洞定位与复现信息",
+            heading=_rl(
+                "## 已验证漏洞定位与复现信息",
+                "## Verified Findings — Location & Reproduction",
+            ),
             traffic_store=_resolve_traffic_store(output.parent),
         )
     output.write_text(report_content, encoding="utf-8")
@@ -822,14 +966,22 @@ def _extract_location_summary_clean(finding: VulnerabilityFinding) -> str:
 def _build_repro_summary_clean(finding: VulnerabilityFinding) -> str:
     parts: list[str] = []
     if finding.poc_script:
-        parts.append(f"运行 PoC 脚本: {finding.poc_script}")
+        parts.append(_rl(f"运行 PoC 脚本: {finding.poc_script}", f"Run PoC script: {finding.poc_script}"))
     if finding.verification_note:
-        parts.append(f"验证说明: {finding.verification_note}")
+        parts.append(
+            _rl(f"验证说明: {finding.verification_note}", f"Verification note: {finding.verification_note}")
+        )
     elif finding.evidence:
-        parts.append(f"根据已验证证据复现: {finding.evidence[:160]}")
+        parts.append(
+            _rl(
+                f"根据已验证证据复现: {finding.evidence[:160]}",
+                f"Reproduce from verified evidence: {finding.evidence[:160]}",
+            )
+        )
     if finding.verified_at:
-        parts.append(f"验证时间: {finding.verified_at}")
-    return "；".join(parts) if parts else "暂无可用复现说明"
+        parts.append(_rl(f"验证时间: {finding.verified_at}", f"Verified at: {finding.verified_at}"))
+    sep = _rl("；", "; ")
+    return sep.join(parts) if parts else _rl("暂无可用复现说明", "No reproduction notes available.")
 
 
 def _resolve_traffic_store(output_dir: Path) -> Any | None:
@@ -862,18 +1014,21 @@ def _render_http_captures(finding: VulnerabilityFinding, traffic_store: Any) -> 
         view = traffic_store.view(request_id) if request_id else None
         if not view:
             continue
-        header = f"  - 抓包证据 `{request_id}` — {view.get('method')} {view.get('url')} → {view.get('status')}"
+        header = _rl(
+            f"  - 抓包证据 `{request_id}` — {view.get('method')} {view.get('url')} → {view.get('status')}",
+            f"  - Captured traffic `{request_id}` — {view.get('method')} {view.get('url')} → {view.get('status')}",
+        )
         lines.append(header)
         request_text = (view.get("request_text") or "").strip()
         response_text = (view.get("response_text") or "").strip()
         if request_text:
-            lines.append("    - 原始请求:")
+            lines.append(_rl("    - 原始请求:", "    - Raw request:"))
             lines.append("")
             lines.append("```http")
             lines.append(request_text)
             lines.append("```")
         if response_text:
-            lines.append("    - 原始响应:")
+            lines.append(_rl("    - 原始响应:", "    - Raw response:"))
             lines.append("")
             lines.append("```http")
             lines.append(response_text)
@@ -886,18 +1041,20 @@ def _render_verified_finding_details_clean(
 ) -> str:
     lines = [heading, ""]
     for idx, finding in enumerate(findings, 1):
-        location = _extract_location_summary_clean(finding) or "未定位 / 未提取到 URL"
+        location = _extract_location_summary_clean(finding) or _rl(
+            "未定位 / 未提取到 URL", "No location / no URL extracted"
+        )
         lines.append(f"### {idx}. {finding.title} [{finding.severity}]")
-        lines.append(f"- 漏洞类型: {finding.vuln_type or '未分类'}")
-        lines.append(f"- 生命周期: {finding.lifecycle_status or 'verified'}")
-        lines.append(f"- 证据等级: {finding.evidence_level or 'L4'}")
-        lines.append(f"- 位置 / URL: {location}")
+        lines.append(_rl("- 漏洞类型: ", "- Vulnerability type: ") + (finding.vuln_type or _rl("未分类", "Uncategorized")))
+        lines.append(_rl("- 生命周期: ", "- Lifecycle: ") + (finding.lifecycle_status or "verified"))
+        lines.append(_rl("- 证据等级: ", "- Evidence level: ") + (finding.evidence_level or "L4"))
+        lines.append(_rl("- 位置 / URL: ", "- Location / URL: ") + location)
         if finding.evidence:
-            lines.append(f"- 验证证据: {finding.evidence}")
-        lines.append(f"- 复现 / PoC: {_build_repro_summary_clean(finding)}")
+            lines.append(_rl("- 验证证据: ", "- Verification evidence: ") + finding.evidence)
+        lines.append(_rl("- 复现 / PoC: ", "- Reproduction / PoC: ") + _build_repro_summary_clean(finding))
         capture_lines = _render_http_captures(finding, traffic_store)
         if capture_lines:
-            lines.append("- 抓包复现证据:")
+            lines.append(_rl("- 抓包复现证据:", "- Captured-traffic reproduction evidence:"))
             lines.extend(capture_lines)
         lines.append("")
     return "\n".join(lines).rstrip()

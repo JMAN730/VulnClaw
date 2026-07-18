@@ -614,9 +614,20 @@ class TestPromptBuilder:
     def test_basic_prompt(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt()
+        prompt = build_system_prompt(lang="zh")
         assert "VulnClaw" in prompt
         assert "渗透测试" in prompt
+
+    def test_basic_prompt_english(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        prompt = build_system_prompt(lang="en")
+        assert "VulnClaw" in prompt
+        assert "penetration" in prompt.lower()
+        # The English contract must instruct the model to reply in English.
+        assert "reply in english" in prompt.lower()
+        # No stray Chinese should leak into the English prompt.
+        assert not any("一" <= c <= "鿿" for c in prompt)
 
     def test_prompt_with_target(self):
         from vulnclaw.agent.prompts import build_system_prompt
@@ -627,8 +638,16 @@ class TestPromptBuilder:
     def test_prompt_with_phase(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt(phase="信息收集")
+        prompt = build_system_prompt(phase="信息收集", lang="zh")
         assert "信息收集" in prompt
+
+    def test_prompt_with_phase_english(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        # Phase lookup keys stay Chinese in every language bundle; the English
+        # bundle renders an English phase heading for the same key.
+        prompt = build_system_prompt(phase="信息收集", lang="en")
+        assert "Current Phase" in prompt
 
     def test_prompt_with_skill_context(self):
         from vulnclaw.agent.prompts import build_system_prompt
@@ -664,7 +683,7 @@ class TestPromptBuilder:
     def test_core_contract_included(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt()
+        prompt = build_system_prompt(lang="zh")
         assert "沙盒模式" in prompt
         assert "证据冲突" in prompt
 
@@ -673,8 +692,17 @@ class TestPromptBuilder:
 
         phases = ["信息收集", "漏洞发现", "漏洞利用", "后渗透", "报告生成"]
         for phase in phases:
-            prompt = build_system_prompt(phase=phase)
+            prompt = build_system_prompt(phase=phase, lang="zh")
             assert phase in prompt
+
+    def test_all_phases_render_english(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        # Every Chinese phase key must resolve in the English bundle too.
+        phases = ["信息收集", "漏洞发现", "漏洞利用", "后渗透", "报告生成"]
+        for phase in phases:
+            prompt = build_system_prompt(phase=phase, lang="en")
+            assert "Current Phase" in prompt
 
 
 # ── core.py ──────────────────────────────────────────────────────────
@@ -804,11 +832,32 @@ class TestAgentCore:
         assert "VulnClaw" in prompt
 
     def test_build_system_prompt_auto_mode(self):
+        from vulnclaw.i18n import init_i18n
+
         agent = self._make_agent()
-        prompt = agent._build_system_prompt(
-            target="10.0.0.1", auto_mode=True, user_input="渗透测试"
-        )
+        init_i18n(lang="zh")
+        try:
+            prompt = agent._build_system_prompt(
+                target="10.0.0.1", auto_mode=True, user_input="渗透测试"
+            )
+        finally:
+            init_i18n()
         assert "自主渗透" in prompt
+
+    def test_build_system_prompt_auto_mode_english(self):
+        from vulnclaw.i18n import init_i18n
+
+        agent = self._make_agent()
+        init_i18n(lang="en")
+        try:
+            prompt = agent._build_system_prompt(
+                target="10.0.0.1", auto_mode=True, user_input="pentest"
+            )
+        finally:
+            init_i18n()
+        # The auto-pentest instruction block is rendered in English.
+        assert "Autonomous" in prompt
+        assert "自主渗透" not in prompt
 
     def test_recon_personnel_dimension_requires_confirmed_facts(self):
         agent = self._make_agent()
