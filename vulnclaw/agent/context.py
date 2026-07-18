@@ -31,6 +31,9 @@ from vulnclaw.config.domain_models import (  # noqa: F401 — re-export
     TaskConstraints,
     VulnerabilityFinding,
     normalize_action_name,
+    phase_canonical_id,
+    phase_display_name,
+    phase_from_canonical_id,
     validate_action_constraints,
 )
 
@@ -519,14 +522,15 @@ class ExecutionHistory(BaseModel):
         """从结构化 step_records 构建摘要。"""
         phases: dict[str, list[StepRecord]] = {}
         for record in self.step_records:
-            phase_name = record.phase.value
-            if phase_name not in phases:
-                phases[phase_name] = []
-            phases[phase_name].append(record)
+            phase_id = record.phase.value
+            if phase_id not in phases:
+                phases[phase_id] = []
+            phases[phase_id].append(record)
 
         phase_summaries = {}
-        for phase_name, records in phases.items():
-            phase_summaries[phase_name] = {
+        for phase_id, records in phases.items():
+            phase_summaries[phase_id] = {
+                "display": phase_display_name(phase_id),
                 "count": len(records),
                 "actions": list(set(r.action for r in records)),
                 "success_count": len([r for r in records if r.status == StepStatus.SUCCESS]),
@@ -1028,12 +1032,14 @@ class SessionState(BaseModel):
         """切换到新阶段。"""
         old_phase = self.phase
         self.phase = phase
+        old_display = phase_display_name(old_phase)
+        new_display = phase_display_name(phase)
         # 记录阶段切换
         self.add_step(
-            step=f"阶段切换 → {phase.value}",
+            step=f"阶段切换 → {new_display}",
             action="阶段切换",
-            target=f"{old_phase.value} → {phase.value}",
-            result=f"进入{phase.value}阶段",
+            target=f"{old_display} → {new_display}",
+            result=f"进入{new_display}阶段",
             status=StepStatus.INFO,
         )
         self._notify_checkpoint("phase_transition")

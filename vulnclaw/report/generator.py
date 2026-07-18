@@ -126,8 +126,8 @@ REPORT_TEMPLATE = """\
 {% elif step_summary and step_summary.total_steps > 0 %}
 ## 4. 攻击路径摘要
 
-{% for phase_name, phase_data in step_summary.phases.items() %}
-### {{ phase_name }}（共 {{ phase_data.count }} 步）
+{% for phase_id, phase_data in step_summary.phases.items() %}
+### {{ phase_data.display }}（共 {{ phase_data.count }} 步）
 
 | 状态 | 数量 |
 |------|------|
@@ -467,8 +467,8 @@ CYCLE_REPORT_TEMPLATE = """\
 {% elif step_summary and step_summary.total_steps > 0 %}
 ## 攻击路径摘要
 
-{% for phase_name, phase_data in step_summary.phases.items() %}
-### {{ phase_name }}（共 {{ phase_data.count }} 步）
+{% for phase_id, phase_data in step_summary.phases.items() %}
+### {{ phase_data.display }}（共 {{ phase_data.count }} 步）
 
 | 状态 | 数量 |
 |------|------|

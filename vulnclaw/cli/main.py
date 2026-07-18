@@ -64,6 +64,7 @@ from vulnclaw.cli._helpers import (
     err_console,
 )
 from vulnclaw.cli.manual import available_topics, render_manual
+from vulnclaw.config.domain_models import phase_display_name
 from vulnclaw.config.settings import (
     RUNS_DIR,
     apply_provider_preset,
@@ -113,29 +114,10 @@ async def _run_repl_agent_call(agent, *, call, after_result) -> None:
     await run_repl_call(call=call, after_result=after_result)
 
 
-_PHASE_LABEL_KEYS = {
-    "就绪": "phase.idle",
-    "ready": "phase.idle",
-    "信息收集": "phase.recon",
-    "recon": "phase.recon",
-    "漏洞发现": "phase.vuln_discovery",
-    "vulnerability discovery": "phase.vuln_discovery",
-    "漏洞利用": "phase.exploitation",
-    "exploitation": "phase.exploitation",
-    "后渗透": "phase.post_exploitation",
-    "post-exploitation": "phase.post_exploitation",
-    "post exploitation": "phase.post_exploitation",
-    "报告生成": "phase.reporting",
-    "reporting": "phase.reporting",
-}
-
-
 def _localized_phase_label(phase: Any) -> str:
     """Return a display-only phase label for the active UI language."""
     raw = getattr(phase, "value", phase)
-    text = str(raw or "").strip()
-    key = _PHASE_LABEL_KEYS.get(text) or _PHASE_LABEL_KEYS.get(text.lower())
-    return _(key) if key else text
+    return phase_display_name(str(raw or "").strip())
 
 
 def _make_repl_prompt_session() -> Any:
