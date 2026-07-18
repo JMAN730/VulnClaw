@@ -14,6 +14,7 @@ from jinja2 import Template
 # 修改原因: 消除 V2 违规 — 叶子类型已移至 config/domain_models.py。
 from vulnclaw.agent.context import SessionState
 from vulnclaw.config.domain_models import VulnerabilityFinding
+from vulnclaw.i18n import _
 
 # ── Report Template ─────────────────────────────────────────────────
 
@@ -248,15 +249,15 @@ def generate_report(
     recommendations = []
     for finding in verified_findings:
         if finding.severity in ("Critical", "High"):
-            vt = finding.vuln_type or "未分类"
+            vt = finding.vuln_type or _("report.rec.uncategorized")
             if vt in seen_vuln_types:
                 continue
             seen_vuln_types.add(vt)
-            rec = finding.remediation or f"请优先修复 {vt} 风险: {finding.title}"
+            rec = finding.remediation or _("report.rec.fix_priority", vt=vt, title=finding.title)
             recommendations.append(rec)
 
     if not recommendations:
-        recommendations.append("优先复核攻击面并补充验证链路，确认高风险入口已完成修复。")
+        recommendations.append(_("report.rec.review_surface"))
 
     if output_path is None:
         from vulnclaw.config.settings import SESSIONS_DIR
@@ -667,14 +668,14 @@ def generate_persistent_cycle_report(
     recommendations = []
     for finding in verified_findings:
         if finding.severity in ("Critical", "High"):
-            vt = finding.vuln_type or "未分类"
+            vt = finding.vuln_type or _("report.rec.uncategorized")
             if vt in seen_vuln_types:
                 continue
             seen_vuln_types.add(vt)
-            rec = finding.remediation or f"修复 {vt} 漏洞: {finding.title}"
+            rec = finding.remediation or _("report.rec.fix_vuln", vt=vt, title=finding.title)
             recommendations.append(rec)
     if not recommendations:
-        recommendations.append("暂无高危发现，继续深入测试")
+        recommendations.append(_("report.rec.none_high"))
 
     if output_path is None:
         from vulnclaw.config.settings import SESSIONS_DIR

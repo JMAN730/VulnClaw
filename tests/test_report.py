@@ -427,6 +427,157 @@ class TestReportGenerator:
         assert "来自 LLM 的持续渗透周期摘要" in content
 
 
+# ── i18n: report recommendations (issue #63) ─────────────────────────
+
+
+class TestReportRecommendationI18n:
+    """Recommendation text is language-aware; zh output unchanged (issue #63)."""
+
+    def _session_with_unremediated_high(self):
+        from vulnclaw.agent.context import PentestPhase, SessionState, VulnerabilityFinding
+
+        state = SessionState(target="192.168.1.100")
+        state.advance_phase(PentestPhase.RECON)
+        state.advance_phase(PentestPhase.VULN_DISCOVERY)
+        # High finding with NO remediation → triggers the localized fallback.
+        f = VulnerabilityFinding(
+            title="Reflected XSS",
+            severity="High",
+            vuln_type="XSS",
+            description="Reflected XSS in search",
+        )
+        f.verified = True
+        f.verification_status = "verified"
+        state.add_finding(f)
+        return state
+
+    def _session_no_high(self):
+        from vulnclaw.agent.context import PentestPhase, SessionState, VulnerabilityFinding
+
+        state = SessionState(target="192.168.1.100")
+        state.advance_phase(PentestPhase.RECON)
+        f = VulnerabilityFinding(
+            title="Server banner",
+            severity="Medium",
+            vuln_type="Info Leak",
+            description="Version header exposed",
+        )
+        f.verified = True
+        f.verification_status = "verified"
+        state.add_finding(f)
+        return state
+
+    def test_standard_report_recommendation_english(self, tmp_path):
+        from vulnclaw.i18n import init_i18n
+        from vulnclaw.report.generator import generate_report
+
+        session = self._session_with_unremediated_high()
+        try:
+            init_i18n(lang="en")
+            out = generate_report(session, str(tmp_path / "en.md"))
+        finally:
+            init_i18n()
+        content = out.read_text(encoding="utf-8")
+        assert "Prioritize fixing XSS risk: Reflected XSS" in content
+
+    def test_standard_report_recommendation_chinese_unchanged(self, tmp_path):
+        from vulnclaw.i18n import init_i18n
+        from vulnclaw.report.generator import generate_report
+
+        session = self._session_with_unremediated_high()
+        try:
+            init_i18n(lang="zh")
+            out = generate_report(session, str(tmp_path / "zh.md"))
+        finally:
+            init_i18n()
+        content = out.read_text(encoding="utf-8")
+        assert "请优先修复 XSS 风险: Reflected XSS" in content
+
+    def test_standard_report_empty_recommendation_localized(self, tmp_path):
+        from vulnclaw.i18n import init_i18n
+        from vulnclaw.report.generator import generate_report
+
+        session = self._session_no_high()
+        try:
+            init_i18n(lang="en")
+            en = generate_report(session, str(tmp_path / "en.md")).read_text(encoding="utf-8")
+            init_i18n(lang="zh")
+            zh = generate_report(session, str(tmp_path / "zh.md")).read_text(encoding="utf-8")
+        finally:
+            init_i18n()
+        assert "Prioritize reviewing the attack surface" in en
+        assert "优先复核攻击面并补充验证链路" in zh
+
+    def test_cycle_report_recommendation_english(self, tmp_path):
+        from vulnclaw.i18n import init_i18n
+        from vulnclaw.report.generator import generate_persistent_cycle_report
+
+        session = self._session_with_unremediated_high()
+        try:
+            init_i18n(lang="en")
+            out = generate_persistent_cycle_report(
+                session=session,
+                cycle_num=1,
+                total_findings=1,
+                new_findings=1,
+                total_steps=5,
+                rounds_per_cycle=100,
+                output_path=str(tmp_path / "cycle_en.md"),
+            )
+        finally:
+            init_i18n()
+        content = out.read_text(encoding="utf-8")
+        assert "Fix XSS vulnerability: Reflected XSS" in content
+
+    def test_cycle_report_recommendation_chinese_unchanged(self, tmp_path):
+        from vulnclaw.i18n import init_i18n
+        from vulnclaw.report.generator import generate_persistent_cycle_report
+
+        session = self._session_with_unremediated_high()
+        try:
+            init_i18n(lang="zh")
+            out = generate_persistent_cycle_report(
+                session=session,
+                cycle_num=1,
+                total_findings=1,
+                new_findings=1,
+                total_steps=5,
+                rounds_per_cycle=100,
+                output_path=str(tmp_path / "cycle_zh.md"),
+            )
+        finally:
+            init_i18n()
+        content = out.read_text(encoding="utf-8")
+        assert "修复 XSS 漏洞: Reflected XSS" in content
+
+    def test_cycle_report_empty_recommendation_localized(self, tmp_path):
+        from vulnclaw.i18n import init_i18n
+        from vulnclaw.report.generator import generate_persistent_cycle_report
+
+        session = self._session_no_high()
+
+        def _run(path):
+            return generate_persistent_cycle_report(
+                session=session,
+                cycle_num=1,
+                total_findings=1,
+                new_findings=1,
+                total_steps=5,
+                rounds_per_cycle=100,
+                output_path=str(path),
+            ).read_text(encoding="utf-8")
+
+        try:
+            init_i18n(lang="en")
+            en = _run(tmp_path / "cycle_en.md")
+            init_i18n(lang="zh")
+            zh = _run(tmp_path / "cycle_zh.md")
+        finally:
+            init_i18n()
+        assert "No high-risk findings yet" in en
+        assert "暂无高危发现，继续深入测试" in zh
+
+
 # ── poc_builder.py ───────────────────────────────────────────────────
 
 
