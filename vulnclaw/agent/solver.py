@@ -63,6 +63,25 @@ _ADVANCE_MARKERS = [
     "xss",
     "sql inject",
 ]
+
+# Display strings emitted by recon tools that count as evidence even when a weak
+# conclude model reports no progress. Keep both supported languages because an
+# in-flight session can change its display language between tool calls.
+_EVIDENCE_PROGRESS_MARKERS = [
+    "status: 200",
+    "200 ok",
+    '"success"',
+    "'success'",
+    "未授权",
+    "疑似未授权",
+    "返回数据",
+    "接口/路径",
+    "命中",
+    "possible unauthorized data access",
+    "unauthorized access confirmed",
+    "endpoints / paths",
+    " hits",
+]
 # 探索阶段判定「该方向走不通」的信号
 _DEAD_END_MARKERS = [
     "不存在",
@@ -567,11 +586,7 @@ async def explore_step(
     # 强制提升为 advanced=true（防止弱模型的 conclude 丢弃有价值的发现）。
     if not advanced and intent_evidence:
         evidence_lower = intent_evidence.lower()
-        has_data = any(marker in evidence_lower for marker in [
-            "status: 200", "200 ok", '"success"', "'success'",
-            "未授权", "疑似未授权", "返回数据",
-            "接口/路径", "命中",
-        ])
+        has_data = any(marker in evidence_lower for marker in _EVIDENCE_PROGRESS_MARKERS)
         if has_data and fact:
             advanced = True
 
