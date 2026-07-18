@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from enum import Enum
+from functools import lru_cache
 from typing import Any
 
-from vulnclaw.i18n import _
+from vulnclaw.i18n import I18nLoader, _
 
 PHASE_IDS = frozenset(
     {
@@ -53,22 +54,26 @@ def canonical_phase_id(phase: Any) -> str | None:
     return _LEGACY_PHASE_IDS.get(str(phase).strip())
 
 
-def localized_phase_name(phase: Any) -> str:
+def localized_phase_name(phase: Any, *, lang: str | None = None) -> str:
     """Resolve a canonical phase ID to its display name in the active language."""
     phase_id = canonical_phase_id(phase)
     if phase_id is not None:
-        return _(f"phase.{phase_id}")
+        return _translate(f"phase.{phase_id}", lang=lang)
     if isinstance(phase, Enum):
         return str(phase.value)
     return "" if phase is None else str(phase)
 
 
-def localized_prompt_phase_heading(phase: Any) -> str:
+def localized_prompt_phase_heading(phase: Any, *, lang: str | None = None) -> str:
     """Render the prompt heading for a known phase in the active language."""
     phase_id = canonical_phase_id(phase)
     if phase_id is None:
         return ""
-    return _("prompt.phase_heading", phase=localized_phase_name(phase_id))
+    return _translate(
+        "prompt.phase_heading",
+        lang=lang,
+        phase=localized_phase_name(phase_id, lang=lang),
+    )
 
 
 def localized_report_phase_heading(phase: Any, count: int) -> str:
@@ -84,3 +89,14 @@ def _normalize_token(value: Any) -> str:
     if isinstance(value, Enum):
         value = value.value
     return str(value).strip().lower().replace("-", "_").replace(" ", "_")
+
+
+def _translate(key: str, *, lang: str | None = None, **kwargs: Any) -> str:
+    if lang is None:
+        return _(key, **kwargs)
+    return _loader(lang).t(key, **kwargs)
+
+
+@lru_cache(maxsize=2)
+def _loader(lang: str) -> I18nLoader:
+    return I18nLoader(lang)
