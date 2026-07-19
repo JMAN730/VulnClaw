@@ -8,7 +8,7 @@ import pytest
 
 from vulnclaw.agent.context import PentestPhase, SessionState
 from vulnclaw.agent.prompts import build_system_prompt
-from vulnclaw.i18n import init_i18n
+from vulnclaw.i18n import current_lang, init_i18n
 from vulnclaw.i18n.phases import canonical_phase_id, localized_phase_name
 from vulnclaw.report.generator import generate_persistent_cycle_report, generate_report
 
@@ -55,6 +55,7 @@ def test_phase_lookup_uses_canonical_id_for_enum_and_legacy_value(phase, phase_i
     ],
 )
 def test_all_prompt_phase_headings_follow_explicit_language(language, expected_names, monkeypatch):
+    previous_lang = current_lang()
     monkeypatch.setenv("LANG", "fr_FR.UTF-8")
     init_i18n(lang=language)
     try:
@@ -68,7 +69,7 @@ def test_all_prompt_phase_headings_follow_explicit_language(language, expected_n
                 assert "## Current Phase:" not in prompt
             assert localized_phase_name(phase.name.lower()) == expected_name
     finally:
-        init_i18n()
+        init_i18n(lang=previous_lang)
 
 
 @pytest.mark.parametrize(
@@ -89,6 +90,7 @@ def test_all_prompt_phase_headings_follow_explicit_language(language, expected_n
 def test_standard_and_cycle_report_phase_headings_follow_explicit_language(
     language, expected_headings, unexpected_heading, monkeypatch, tmp_path
 ):
+    previous_lang = current_lang()
     monkeypatch.setenv("LANG", "fr_FR.UTF-8")
     monkeypatch.setattr(
         "vulnclaw.report.generator._generate_attack_summary_from_session",
@@ -122,4 +124,4 @@ def test_standard_and_cycle_report_phase_headings_follow_explicit_language(
                 assert expected_heading in content
             assert unexpected_heading not in content
     finally:
-        init_i18n()
+        init_i18n(lang=previous_lang)
