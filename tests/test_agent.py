@@ -13,18 +13,45 @@ class TestPentestPhase:
     def test_phase_values(self):
         from vulnclaw.agent.context import PentestPhase
 
-        assert PentestPhase.IDLE.value == "就绪"
-        assert PentestPhase.RECON.value == "信息收集"
-        assert PentestPhase.VULN_DISCOVERY.value == "漏洞发现"
-        assert PentestPhase.EXPLOITATION.value == "漏洞利用"
-        assert PentestPhase.POST_EXPLOITATION.value == "后渗透"
-        assert PentestPhase.REPORTING.value == "报告生成"
+        assert PentestPhase.IDLE.value == "idle"
+        assert PentestPhase.RECON.value == "recon"
+        assert PentestPhase.VULN_DISCOVERY.value == "vuln_discovery"
+        assert PentestPhase.EXPLOITATION.value == "exploitation"
+        assert PentestPhase.POST_EXPLOITATION.value == "post_exploitation"
+        assert PentestPhase.REPORTING.value == "reporting"
 
     def test_phase_is_str(self):
         from vulnclaw.agent.context import PentestPhase
 
         # PentestPhase inherits from str, Enum
         assert isinstance(PentestPhase.RECON, str)
+
+    def test_phase_display_is_localized_from_canonical_id(self):
+        from vulnclaw.agent.context import PentestPhase, phase_display_name
+
+        assert phase_display_name(PentestPhase.RECON, "zh") == "信息收集"
+        assert phase_display_name("recon", "en") == "Recon"
+        assert phase_display_name("vuln_discovery", "en") == "Vulnerability Discovery"
+
+    def test_legacy_localized_phase_deserializes_to_canonical_identity(self):
+        from vulnclaw.agent.context import PentestPhase, SessionState
+
+        for legacy_label in ("信息收集", "Recon"):
+            restored = SessionState(phase=legacy_label)
+            assert restored.phase is PentestPhase.RECON
+            assert restored.model_dump(mode="json")["phase"] == "recon"
+
+    def test_canonicalizer_rejects_localized_labels(self):
+        """Migration of localized labels stays at the persistence boundary only."""
+        from vulnclaw.agent.context import PentestPhase, SessionState
+        from vulnclaw.config.domain_models import phase_canonical_id
+
+        # SessionState still migrates a persisted Chinese label to its identity...
+        assert SessionState(phase="信息收集").phase is PentestPhase.RECON
+        # ...but the runtime canonicalizer must not treat display text as identity.
+        assert phase_canonical_id("信息收集") is None
+        assert phase_canonical_id("recon") == "recon"
+        assert phase_canonical_id(PentestPhase.RECON) == "recon"
 
 
 class TestVulnerabilityFinding:
@@ -84,14 +111,18 @@ class TestSessionState:
         assert state.executed_steps == []
 
     def test_advance_phase(self):
-        from vulnclaw.agent.context import PentestPhase, SessionState
+        from vulnclaw.agent.context import PentestPhase, SessionState, phase_display_name
 
         state = SessionState()
         state.advance_phase(PentestPhase.RECON)
         assert state.phase == PentestPhase.RECON
         # Should record the phase change in steps
         assert len(state.executed_steps) == 1
-        assert "信息收集" in state.executed_steps[0]
+        assert phase_display_name(PentestPhase.RECON) in state.executed_steps[0]
+
+        summary = state.get_step_summary()
+        assert set(summary["phases"]) == {"recon"}
+        assert summary["phases"]["recon"]["display"] == phase_display_name("recon")
 
     def test_add_finding(self):
         from vulnclaw.agent.context import SessionState, VulnerabilityFinding
@@ -286,7 +317,7 @@ class TestTargetState:
         restored = store_mod.hydrate_session_from_target_state("https://example.com")
         assert restored is not None
         assert restored.resume_meta["resume_strategy"] == "verify_pending_findings"
-        assert restored.phase.value == "漏洞发现"
+        assert restored.phase.value == "vuln_discovery"
         raw = store_mod.load_target_state("https://example.com")
         assert raw is not None
         assert "finding_meta" in raw
@@ -335,7 +366,7 @@ class TestTargetState:
         restored = store_mod.hydrate_session_from_target_state("https://example.com")
         assert restored is not None
         assert restored.resume_meta["resume_strategy"] == "exploit_expand"
-        assert restored.phase.value == "漏洞利用"
+        assert restored.phase.value == "exploitation"
         assert "priority_findings" in restored.resume_meta
         assert "next_actions" in restored.resume_meta
 
@@ -1829,7 +1860,7 @@ class TestAgentCoreLoop:
         assert len(results) == 1
         assert results[0].should_continue is False
         assert "constraint_violation" in results[0].output
-        assert agent.context.state.phase.value == "信息收集"
+        assert agent.context.state.phase.value == "recon"
 
     def test_constraint_policy_normalizes_actions_and_validates_phase(self):
         from vulnclaw.agent.constraint_policy import (
