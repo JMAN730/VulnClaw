@@ -82,6 +82,10 @@
   "phase.post_exploitation": "后渗透",
   "phase.reporting": "报告生成",
 
+  "prompt.phase_heading": "## 当前阶段：{phase}",
+  "report.phase_heading_one": "### {phase}（共 {count} 步）",
+  "report.phase_heading_many": "### {phase}（共 {count} 步）",
+
   "auto_pentest.title": "自主渗透测试结果",
   "auto_pentest.finished": "[*] 自主渗透测试完成",
   "auto_pentest.rounds": "    总轮数: {rounds}",

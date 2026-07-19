@@ -7,10 +7,11 @@ translator and assembles the final system prompt from the chosen bundle.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from vulnclaw.agent import prompts_en, prompts_zh
 from vulnclaw.i18n import current_lang
+from vulnclaw.i18n.phases import canonical_phase_id, localized_prompt_phase_heading
 
 
 def _bundle(lang: Optional[str] = None):
@@ -21,7 +22,7 @@ def _bundle(lang: Optional[str] = None):
 
 def build_system_prompt(
     target: Optional[str] = None,
-    phase: Optional[str] = None,
+    phase: Optional[Any] = None,
     skill_context: Optional[str] = None,
     mcp_tools: Optional[list[dict]] = None,
     enable_personnel_dim: bool = True,
@@ -31,8 +32,7 @@ def build_system_prompt(
 
     Args:
         target: Current target identifier (IP/URL).
-        phase: Current pentest phase name. Looked up against the (Chinese)
-            phase keys shared by every language bundle.
+        phase: Current pentest phase enum, canonical ID, or legacy display name.
         skill_context: Additional context from a loaded Skill.
         mcp_tools: List of available MCP tool schemas.
         enable_personnel_dim: Kept for backward compatibility; the recon
@@ -43,24 +43,29 @@ def build_system_prompt(
     Returns:
         Assembled system prompt string.
     """
-    b = _bundle(lang)
-    parts = [b.BASE_IDENTITY, b.CORE_CONTRACT]
+    resolved_lang = lang or current_lang()
+    bundle = _bundle(resolved_lang)
+    parts = [bundle.BASE_IDENTITY, bundle.CORE_CONTRACT]
 
     if target:
-        parts.append(b.LABELS["target_section"].format(target=target))
+        parts.append(bundle.LABELS["target_section"].format(target=target))
 
-    if phase and phase in b.PHASE_DESCRIPTIONS:
-        parts.append(b.PHASE_DESCRIPTIONS[phase])
+    phase_id = canonical_phase_id(phase)
+    if phase_id in bundle.PHASE_DESCRIPTIONS:
+        parts.append(
+            f"{localized_prompt_phase_heading(phase_id, lang=resolved_lang)}\n\n"
+            f"{bundle.PHASE_DESCRIPTIONS[phase_id]}"
+        )
 
     if skill_context:
-        parts.append(b.LABELS["skill_section"].format(context=skill_context))
+        parts.append(bundle.LABELS["skill_section"].format(context=skill_context))
 
     # WAF bypass knowledge (always included)
-    parts.append(b.WAF_BYPASS_KNOWLEDGE)
+    parts.append(bundle.WAF_BYPASS_KNOWLEDGE)
 
     if mcp_tools:
         tools_desc = _format_mcp_tools(mcp_tools)
-        parts.append(b.LABELS["mcp_section"].format(tools=tools_desc))
+        parts.append(bundle.LABELS["mcp_section"].format(tools=tools_desc))
 
     return "\n".join(parts)
 
@@ -73,14 +78,17 @@ def get_auto_pentest_instruction(lang: Optional[str] = None) -> str:
 def get_recon_instruction(
     enable_personnel_dim: bool = True, lang: Optional[str] = None
 ) -> str:
-    """Return the recon instruction, optionally with the personnel dimension
-    disabled, in the active language."""
-    b = _bundle(lang)
-    return b.RECON_INSTRUCTION if enable_personnel_dim else b.RECON_INSTRUCTION_NO_PERSONNEL
+    """Return the recon instruction with its optional personnel dimension."""
+    bundle = _bundle(lang)
+    return (
+        bundle.RECON_INSTRUCTION
+        if enable_personnel_dim
+        else bundle.RECON_INSTRUCTION_NO_PERSONNEL
+    )
 
 
 def _format_mcp_tools(tools: list[dict]) -> str:
-    """Format MCP tool schemas into a readable description for the LLM."""
+    """Format MCP tool schemas into readable description for the LLM."""
     lines = []
     for tool in tools:
         name = tool.get("name", "unknown")

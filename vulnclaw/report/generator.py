@@ -15,12 +15,12 @@ from jinja2 import Template
 from vulnclaw.agent.context import SessionState
 from vulnclaw.config.domain_models import VulnerabilityFinding
 from vulnclaw.i18n import _, current_lang
+from vulnclaw.i18n.phases import localized_phase_name, localized_report_phase_heading
 
 
 def _rl(zh: str, en: str) -> str:
     """Return the English or Chinese variant based on the active UI language."""
     return en if current_lang() == "en" else zh
-
 
 # ── Report Template ─────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ REPORT_TEMPLATE = """\
 ## 4. 攻击路径摘要
 
 {% for phase_name, phase_data in step_summary.phases.items() %}
-### {{ phase_name }}（共 {{ phase_data.count }} 步）
+{{ phase_heading(phase_name, phase_data.count) }}
 
 | 状态 | 数量 |
 |------|------|
@@ -314,6 +314,7 @@ def generate_report(
         "manual_review_count": len(manual_review_findings),
         "rejected_findings": rejected_findings,
         "step_summary": session.get_step_summary(),
+        "phase_heading": localized_report_phase_heading,
         "llm_attack_summary": filtered_summary,
     }
 
@@ -475,7 +476,7 @@ CYCLE_REPORT_TEMPLATE = """\
 ## 攻击路径摘要
 
 {% for phase_name, phase_data in step_summary.phases.items() %}
-### {{ phase_name }}（共 {{ phase_data.count }} 步）
+{{ phase_heading(phase_name, phase_data.count) }}
 
 | 状态 | 数量 |
 |------|------|
@@ -601,7 +602,7 @@ No findings yet.
 ## Attack Path Summary
 
 {% for phase_name, phase_data in step_summary.phases.items() %}
-### {{ phase_name }} ({{ phase_data.count }} steps)
+{{ phase_heading(phase_name, phase_data.count) }}
 
 | Status | Count |
 |------|------|
@@ -698,7 +699,7 @@ def _generate_attack_summary_from_session(session: SessionState) -> str:
         summary_language = "English" if current_lang() == "en" else "Chinese"
         prompt = (
             f"Target: {session.target or 'unknown'}\n"
-            f"Phase: {getattr(session.phase, 'value', str(session.phase))}\n\n"
+            f"Phase: {localized_phase_name(session.phase)}\n\n"
             f"=== Executed Steps ===\n{steps_text}\n\n"
             f"=== Key Observations ===\n{notes_text}\n\n"
             f"=== Findings ===\n{findings_text}\n\n"
@@ -854,6 +855,7 @@ def generate_persistent_cycle_report(
         "recommendations": recommendations,
         "manual_review_count": len(manual_review_findings),
         "step_summary": step_summary,
+        "phase_heading": localized_report_phase_heading,
         "llm_attack_summary": filtered_summary,
     }
 

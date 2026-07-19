@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from vulnclaw.i18n import _
+from vulnclaw.i18n.phases import localized_phase_name
 
 if TYPE_CHECKING:
     from vulnclaw.agent.agent_context import AgentContext
@@ -224,7 +225,7 @@ def build_round_context(agent: AgentContext, round_num: int, max_rounds: int) ->
     return (
         _("agent.runtime.loop_header", round=round_num, total=max_rounds)
         + _("agent.runtime.current_target", target=state.target or _("agent.common.not_set"))
-        + _("agent.runtime.current_phase", phase=state.phase.value)
+        + _("agent.runtime.current_phase", phase=localized_phase_name(state.phase))
         + _("agent.runtime.output_dir", path=agent.config.session.output_dir.resolve())
         + constraints_summary
         + reasoning_summary
@@ -287,7 +288,7 @@ async def generate_attack_summary(agent: AgentContext) -> str:
     prompt = _(
         "agent.summary.prompt",
         target=state.target or "?",
-        phase=state.phase.value,
+        phase=localized_phase_name(state.phase),
         steps=steps_text,
         notes=notes_text,
         findings=findings_text,

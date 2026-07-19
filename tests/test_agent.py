@@ -638,16 +638,14 @@ class TestPromptBuilder:
     def test_prompt_with_phase(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt(phase="信息收集", lang="zh")
-        assert "信息收集" in prompt
+        prompt = build_system_prompt(phase="recon", lang="zh")
+        assert "## 当前阶段：信息收集" in prompt
 
     def test_prompt_with_phase_english(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        # Phase lookup keys stay Chinese in every language bundle; the English
-        # bundle renders an English phase heading for the same key.
-        prompt = build_system_prompt(phase="信息收集", lang="en")
-        assert "Current Phase" in prompt
+        prompt = build_system_prompt(phase="recon", lang="en")
+        assert "## Current Phase: Recon" in prompt
 
     def test_prompt_with_skill_context(self):
         from vulnclaw.agent.prompts import build_system_prompt
@@ -690,19 +688,30 @@ class TestPromptBuilder:
     def test_all_phases_render(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        phases = ["信息收集", "漏洞发现", "漏洞利用", "后渗透", "报告生成"]
-        for phase in phases:
-            prompt = build_system_prompt(phase=phase, lang="zh")
-            assert phase in prompt
+        phases = {
+            "recon": "信息收集",
+            "vuln_discovery": "漏洞发现",
+            "exploitation": "漏洞利用",
+            "post_exploitation": "后渗透",
+            "reporting": "报告生成",
+        }
+        for phase_id, phase_name in phases.items():
+            prompt = build_system_prompt(phase=phase_id, lang="zh")
+            assert f"## 当前阶段：{phase_name}" in prompt
 
     def test_all_phases_render_english(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        # Every Chinese phase key must resolve in the English bundle too.
-        phases = ["信息收集", "漏洞发现", "漏洞利用", "后渗透", "报告生成"]
-        for phase in phases:
-            prompt = build_system_prompt(phase=phase, lang="en")
-            assert "Current Phase" in prompt
+        phases = {
+            "recon": "Recon",
+            "vuln_discovery": "Vulnerability Discovery",
+            "exploitation": "Exploitation",
+            "post_exploitation": "Post-exploitation",
+            "reporting": "Reporting",
+        }
+        for phase_id, phase_name in phases.items():
+            prompt = build_system_prompt(phase=phase_id, lang="en")
+            assert f"## Current Phase: {phase_name}" in prompt
 
 
 # ── core.py ──────────────────────────────────────────────────────────

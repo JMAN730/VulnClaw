@@ -83,44 +83,34 @@ CORE_CONTRACT = """\
 # ── Phase Descriptions ──────────────────────────────────────────────
 
 PHASE_DESCRIPTIONS = {
-    "信息收集": """\
-## Current Phase: Reconnaissance
-
+    "recon": """\
 Perform passive + active information gathering:
 1. Passive: WHOIS/DNS/subdomains/tech-stack fingerprinting/WAF detection
 2. Active: port scanning/service identification/directory enumeration/API endpoint discovery
 3. Output a target profile and attack-surface map
 """,
-    "漏洞发现": """\
-## Current Phase: Vulnerability Discovery
-
+    "vuln_discovery": """\
 Discover vulnerabilities based on reconnaissance results:
 1. Known CVE matching (based on service version)
 2. Web vulnerability scanning (SQLi/XSS/SSRF/RCE/LFI/RFI)
 3. Misconfiguration detection (default credentials/information disclosure/unauthorized access)
 4. Output a vulnerability list (with severity ratings)
 """,
-    "漏洞利用": """\
-## Current Phase: Exploitation
-
+    "exploitation": """\
 Verify and exploit discovered vulnerabilities:
 1. PoC construction and verification
 2. WAF bypass (if needed)
 3. Command execution/file read/data extraction
 4. Output exploitation evidence + PoC scripts
 """,
-    "后渗透": """\
-## Current Phase: Post-Exploitation
-
+    "post_exploitation": """\
 Operate further on top of already-obtained access:
 1. Internal-network information gathering
 2. Lateral movement
 3. Persistence
 4. Output a post-exploitation report
 """,
-    "报告生成": """\
-## Current Phase: Reporting
-
+    "reporting": """\
 Compile the penetration-test results into a report:
 1. Structured penetration-test report
 2. PoC script packaging
