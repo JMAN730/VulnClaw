@@ -1978,6 +1978,14 @@ def report(
     ),
 ) -> None:
     """Generate a report from a session file or target state."""
+    # Report bodies call _() for localized text; initialize i18n from the
+    # configured language so non-interactive runs honor session.language
+    # instead of falling back to the process locale (VULNCLAW_LANG/LANG).
+    from vulnclaw.i18n import init_i18n
+
+    report_config = load_config()
+    init_i18n(config=report_config)
+
     if target_mode:
         from vulnclaw.report.generator import generate_report_from_target_state
 
