@@ -587,6 +587,52 @@ class TestReportRecommendationI18n:
         assert "No high-risk findings yet" in en
         assert "暂无高危发现，继续深入测试" in zh
 
+    def _session_uncategorized_high(self):
+        from vulnclaw.agent.context import PentestPhase, SessionState, VulnerabilityFinding
+
+        state = SessionState(target="192.168.1.100")
+        state.advance_phase(PentestPhase.RECON)
+        state.advance_phase(PentestPhase.VULN_DISCOVERY)
+        # High finding with empty vuln_type and no remediation → exercises the
+        # report.rec.uncategorized fallback inside the recommendation string.
+        f = VulnerabilityFinding(
+            title="Unknown Issue",
+            severity="High",
+            vuln_type="",
+            description="Some unclassified high-severity finding",
+        )
+        f.verified = True
+        f.verification_status = "verified"
+        state.add_finding(f)
+        return state
+
+    def test_cycle_report_uncategorized_fallback_localized(self, tmp_path):
+        from vulnclaw.i18n import init_i18n
+        from vulnclaw.report.generator import generate_persistent_cycle_report
+
+        session = self._session_uncategorized_high()
+
+        def _run(path):
+            return generate_persistent_cycle_report(
+                session=session,
+                cycle_num=1,
+                total_findings=1,
+                new_findings=1,
+                total_steps=5,
+                rounds_per_cycle=100,
+                output_path=str(path),
+            ).read_text(encoding="utf-8")
+
+        try:
+            init_i18n(lang="en")
+            en = _run(tmp_path / "cycle_uncat_en.md")
+            init_i18n(lang="zh")
+            zh = _run(tmp_path / "cycle_uncat_zh.md")
+        finally:
+            init_i18n()
+        assert "Uncategorized" in en
+        assert "未分类" in zh
+
 
 # ── poc_builder.py ───────────────────────────────────────────────────
 
