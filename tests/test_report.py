@@ -322,6 +322,7 @@ class TestReportGenerator:
 
     def test_persistent_cycle_report_includes_verified_location_and_poc(self, tmp_path):
         from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+        from vulnclaw.i18n import init_i18n
         from vulnclaw.report.generator import generate_persistent_cycle_report
 
         session = SessionState(target="https://example.com")
@@ -335,15 +336,19 @@ class TestReportGenerator:
         finding.mark_verified(note="whoami 返回 www-data")
         session.add_finding(finding)
 
-        output = generate_persistent_cycle_report(
-            session=session,
-            cycle_num=1,
-            total_findings=1,
-            new_findings=1,
-            total_steps=10,
-            rounds_per_cycle=100,
-            output_path=str(tmp_path / "cycle.md"),
-        )
+        init_i18n(lang="zh")  # pin the Chinese report bundle for this assertion
+        try:
+            output = generate_persistent_cycle_report(
+                session=session,
+                cycle_num=1,
+                total_findings=1,
+                new_findings=1,
+                total_steps=10,
+                rounds_per_cycle=100,
+                output_path=str(tmp_path / "cycle.md"),
+            )
+        finally:
+            init_i18n()  # restore auto-detected default
         content = Path(output).read_text(encoding="utf-8")
         assert "已验证漏洞定位与复现信息" in content
         assert "https://example.com/admin/exec" in content
@@ -353,6 +358,7 @@ class TestReportGenerator:
         """Regression: with prev_verified_ids, prior verified findings are not
         counted as new this cycle even when the all-findings delta is larger."""
         from vulnclaw.agent.context import SessionState, VulnerabilityFinding
+        from vulnclaw.i18n import init_i18n
         from vulnclaw.report.generator import generate_persistent_cycle_report
 
         session = SessionState(target="https://example.com")
@@ -390,16 +396,20 @@ class TestReportGenerator:
             )
         )
 
-        output = generate_persistent_cycle_report(
-            session=session,
-            cycle_num=2,
-            total_findings=3,
-            new_findings=2,  # all-findings delta — would over-count without prev ids
-            total_steps=10,
-            rounds_per_cycle=100,
-            output_path=str(tmp_path / "cycle2.md"),
-            prev_verified_ids=prev_verified_ids,
-        )
+        init_i18n(lang="zh")  # pin the Chinese report bundle for this assertion
+        try:
+            output = generate_persistent_cycle_report(
+                session=session,
+                cycle_num=2,
+                total_findings=3,
+                new_findings=2,  # all-findings delta — would over-count without prev ids
+                total_steps=10,
+                rounds_per_cycle=100,
+                output_path=str(tmp_path / "cycle2.md"),
+                prev_verified_ids=prev_verified_ids,
+            )
+        finally:
+            init_i18n()  # restore auto-detected default
         content = Path(output).read_text(encoding="utf-8")
         # Only the one newly-verified finding counts as new this cycle.
         assert "本周期新增已验证漏洞** | 1 个" in content
