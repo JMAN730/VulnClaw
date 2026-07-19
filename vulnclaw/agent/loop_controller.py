@@ -21,6 +21,7 @@ from vulnclaw.agent.reasoning_state import (
 )
 from vulnclaw.agent.reflexion import FailureCategory, classify_failure
 from vulnclaw.agent.runtime_state import AgentResult, PersistentCycleResult
+from vulnclaw.i18n import _
 
 RECON_MIN_ROUNDS = 8
 
@@ -122,7 +123,9 @@ async def auto_pentest(
         try:
             response_text = await call_llm_auto(agent, system_prompt, round_context, stream_sink=stream_sink)
             result.output = response_text
-            agent.context.add_assistant_message(f"[Round {round_num} 分析] {response_text}")
+            agent.context.add_assistant_message(
+                _("agent.loop.round_analysis", round=round_num, response=response_text)
+            )
             agent._finding_parser.parse(response_text)
 
             if agent.runtime.is_recon_phase:
@@ -265,7 +268,7 @@ async def auto_pentest(
             agent.context.state.save()
 
         except Exception as e:
-            result.output = f"[!] Round {round_num} 错误: {e}"
+            result.output = _("agent.loop.round_error", round=round_num, error=e)
             agent.runtime.consecutive_errors += 1
             if agent.runtime.consecutive_errors >= 3:
                 result.should_continue = False
@@ -345,9 +348,12 @@ async def persistent_pentest(
                     constraints_block = f"\n\n{rendered}"
             results = await agent.auto_pentest(
                 user_input=(
-                    f"[Persistent Cycle {cycle_num}] 继续对目标 {agent.context.state.target or '未知'} 进行渗透测试。"
-                    f"这是第 {cycle_num} 个周期，保持之前的所有发现继续深入。"
-                    f"{constraints_block}"
+                    _(
+                        "agent.loop.persistent_cycle",
+                        cycle=cycle_num,
+                        target=agent.context.state.target or _("agent.loop.unknown"),
+                    )
+                    + constraints_block
                     if cycle_num > 1
                     else user_input
                 ),
@@ -389,7 +395,7 @@ async def persistent_pentest(
                     prev_verified_ids=prev_verified_ids,
                 )
             except Exception as e:
-                report_path = f"报告生成失败: {e}"
+                report_path = _("agent.loop.report_failed", error=e)
 
         cycle_result = PersistentCycleResult(
             cycle_num=cycle_num,

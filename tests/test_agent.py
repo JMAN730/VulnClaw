@@ -1031,9 +1031,10 @@ class TestAgentCore:
         assert agent.runtime.is_ctf_mode is False
         assert agent.runtime.consecutive_errors == 0
 
-    def test_build_round_context_consumes_user_vuln_hint_rounds(self):
+    def test_build_round_context_consumes_user_vuln_hint_rounds(self, i18n_language):
         from vulnclaw.agent.context import PentestPhase
 
+        i18n_language("zh")
         agent = self._make_agent()
         agent.context.state.advance_phase(PentestPhase.VULN_DISCOVERY)
         agent._reset_runtime_state(
