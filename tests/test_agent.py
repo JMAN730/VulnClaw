@@ -36,10 +36,22 @@ class TestPentestPhase:
     def test_legacy_localized_phase_deserializes_to_canonical_identity(self):
         from vulnclaw.agent.context import PentestPhase, SessionState
 
-        restored = SessionState(phase="信息收集")
+        for legacy_label in ("信息收集", "Recon"):
+            restored = SessionState(phase=legacy_label)
+            assert restored.phase is PentestPhase.RECON
+            assert restored.model_dump(mode="json")["phase"] == "recon"
 
-        assert restored.phase is PentestPhase.RECON
-        assert restored.model_dump(mode="json")["phase"] == "recon"
+    def test_canonicalizer_rejects_localized_labels(self):
+        """Migration of localized labels stays at the persistence boundary only."""
+        from vulnclaw.agent.context import PentestPhase, SessionState
+        from vulnclaw.config.domain_models import phase_canonical_id
+
+        # SessionState still migrates a persisted Chinese label to its identity...
+        assert SessionState(phase="信息收集").phase is PentestPhase.RECON
+        # ...but the runtime canonicalizer must not treat display text as identity.
+        assert phase_canonical_id("信息收集") is None
+        assert phase_canonical_id("recon") == "recon"
+        assert phase_canonical_id(PentestPhase.RECON) == "recon"
 
 
 class TestVulnerabilityFinding:
@@ -633,9 +645,20 @@ class TestPromptBuilder:
     def test_basic_prompt(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt()
+        prompt = build_system_prompt(lang="zh")
         assert "VulnClaw" in prompt
         assert "渗透测试" in prompt
+
+    def test_basic_prompt_english(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        prompt = build_system_prompt(lang="en")
+        assert "VulnClaw" in prompt
+        assert "penetration" in prompt.lower()
+        # The English contract must instruct the model to reply in English.
+        assert "reply in english" in prompt.lower()
+        # No stray Chinese should leak into the English prompt.
+        assert not any("一" <= c <= "鿿" for c in prompt)
 
     def test_prompt_with_target(self):
         from vulnclaw.agent.prompts import build_system_prompt
@@ -644,11 +667,16 @@ class TestPromptBuilder:
         assert "192.168.1.100" in prompt
 
     def test_prompt_with_phase(self):
-        from vulnclaw.agent.context import phase_display_name
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt(phase="recon")
-        assert phase_display_name("recon") in prompt
+        prompt = build_system_prompt(phase="recon", lang="zh")
+        assert "## 当前阶段：信息收集" in prompt
+
+    def test_prompt_with_phase_english(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        prompt = build_system_prompt(phase="recon", lang="en")
+        assert "## Current Phase: Recon" in prompt
 
     def test_prompt_with_skill_context(self):
         from vulnclaw.agent.prompts import build_system_prompt
@@ -684,19 +712,37 @@ class TestPromptBuilder:
     def test_core_contract_included(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt()
+        prompt = build_system_prompt(lang="zh")
         assert "沙盒模式" in prompt
         assert "证据冲突" in prompt
 
     def test_all_phases_render(self):
-        from vulnclaw.agent.context import PentestPhase
-        from vulnclaw.agent.prompts import PHASE_DESCRIPTIONS, build_system_prompt
+        from vulnclaw.agent.prompts import build_system_prompt
 
-        for phase in PentestPhase:
-            if phase is PentestPhase.IDLE:
-                continue
-            prompt = build_system_prompt(phase=phase.value)
-            assert PHASE_DESCRIPTIONS[phase.value] in prompt
+        phases = {
+            "recon": "信息收集",
+            "vuln_discovery": "漏洞发现",
+            "exploitation": "漏洞利用",
+            "post_exploitation": "后渗透",
+            "reporting": "报告生成",
+        }
+        for phase_id, phase_name in phases.items():
+            prompt = build_system_prompt(phase=phase_id, lang="zh")
+            assert f"## 当前阶段：{phase_name}" in prompt
+
+    def test_all_phases_render_english(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        phases = {
+            "recon": "Recon",
+            "vuln_discovery": "Vulnerability Discovery",
+            "exploitation": "Exploitation",
+            "post_exploitation": "Post-exploitation",
+            "reporting": "Reporting",
+        }
+        for phase_id, phase_name in phases.items():
+            prompt = build_system_prompt(phase=phase_id, lang="en")
+            assert f"## Current Phase: {phase_name}" in prompt
 
 
 # ── core.py ──────────────────────────────────────────────────────────
@@ -826,11 +872,32 @@ class TestAgentCore:
         assert "VulnClaw" in prompt
 
     def test_build_system_prompt_auto_mode(self):
+        from vulnclaw.i18n import init_i18n
+
         agent = self._make_agent()
-        prompt = agent._build_system_prompt(
-            target="10.0.0.1", auto_mode=True, user_input="渗透测试"
-        )
+        init_i18n(lang="zh")
+        try:
+            prompt = agent._build_system_prompt(
+                target="10.0.0.1", auto_mode=True, user_input="渗透测试"
+            )
+        finally:
+            init_i18n()
         assert "自主渗透" in prompt
+
+    def test_build_system_prompt_auto_mode_english(self):
+        from vulnclaw.i18n import init_i18n
+
+        agent = self._make_agent()
+        init_i18n(lang="en")
+        try:
+            prompt = agent._build_system_prompt(
+                target="10.0.0.1", auto_mode=True, user_input="pentest"
+            )
+        finally:
+            init_i18n()
+        # The auto-pentest instruction block is rendered in English.
+        assert "Autonomous" in prompt
+        assert "自主渗透" not in prompt
 
     def test_recon_personnel_dimension_requires_confirmed_facts(self):
         agent = self._make_agent()
@@ -1004,9 +1071,10 @@ class TestAgentCore:
         assert agent.runtime.is_ctf_mode is False
         assert agent.runtime.consecutive_errors == 0
 
-    def test_build_round_context_consumes_user_vuln_hint_rounds(self):
+    def test_build_round_context_consumes_user_vuln_hint_rounds(self, i18n_language):
         from vulnclaw.agent.context import PentestPhase
 
+        i18n_language("zh")
         agent = self._make_agent()
         agent.context.state.advance_phase(PentestPhase.VULN_DISCOVERY)
         agent._reset_runtime_state(

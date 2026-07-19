@@ -62,15 +62,21 @@ class PentestPhase(str, Enum):
 
 
 def phase_canonical_id(phase: PentestPhase | str | None) -> Optional[str]:
-    """Return the canonical id for a phase-like value, if valid."""
+    """Return the canonical id for a phase-like value, if valid.
+
+    Only accepts canonical ids and enum members. Localized display labels are
+    migrated to identities exclusively at the persistence boundary (see
+    ``PentestPhase._missing_``); routing this runtime canonicalizer through
+    that migration would leak translations back into phase identity.
+    """
     if phase is None:
         return None
     if isinstance(phase, PentestPhase):
         return phase.value
-    try:
-        return PentestPhase(phase).value
-    except ValueError:
+    if not isinstance(phase, str):
         return None
+    resolved = phase_from_canonical_id(phase)
+    return resolved.value if resolved else None
 
 
 def phase_from_canonical_id(canonical_id: str) -> Optional[PentestPhase]:
