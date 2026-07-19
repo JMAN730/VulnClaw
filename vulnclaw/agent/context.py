@@ -292,17 +292,14 @@ class ReconState(BaseModel):
 
     def get_recon_status_text(self) -> str:
         """获取人类可读的侦察维度完成状态。"""
+        from vulnclaw.i18n import _
+
         parts = []
-        dim_names = {
-            "server": "维度一(服务器)",
-            "website": "维度二(网站)",
-            "domain": "维度三(域名)",
-            "personnel": "维度四(人员)",
-        }
         for dim, completed in self.recon_dimensions_completed.items():
             if dim == "personnel" and not self.recon_dimension4_active:
                 continue
-            name = dim_names.get(dim, dim)
+            # Use i18n catalog for dimension names so they localize properly
+            name = _(f"agent.recon.dimension.{dim}")
             parts.append(f"{'✅' if completed else '❌'} {name}")
         incomplete = [
             dim
@@ -311,7 +308,8 @@ class ReconState(BaseModel):
         ]
         status = " | ".join(parts)
         if incomplete:
-            status += f"\n→ 还有 {len(incomplete)} 个维度未检查，继续收集，不要标记 [DONE]"
+            # Localize the incomplete status instruction
+            status += "\n" + _("agent.recon.status_incomplete_instruction", count=len(incomplete))
         return status
 
 
