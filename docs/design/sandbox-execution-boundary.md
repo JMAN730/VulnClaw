@@ -9,9 +9,10 @@ provides.
 ## 1. Goal and scope
 
 Give Tier A active tools a disposable, isolated execution boundary. By default they run
-inside a **per-run Docker container** that is destroyed at run end; the host filesystem
-is never touched. Target material enters at `/workspace`. Every sandboxed command leaves
-an **evidence bundle** under `evidence/sandbox/` that findings can reference by
+inside a **per-run Docker container** that is destroyed at run end; sandboxed commands
+cannot write to the host target (though the target may be read-only mounted, and evidence
+is written to the host). Target material enters at `/workspace`. Every sandboxed command
+leaves an **evidence bundle** under `evidence/sandbox/` that findings can reference by
 `EvidenceRef{kind: "sandbox_output", path: ...}`.
 
 `--trusted-local` preserves today's host execution. The boundary is **opt-out, not
@@ -94,18 +95,24 @@ Two implementations:
 
 The boundary is created once per run, carried on the session (alongside `run_dir` /
 `evidence_dir`, the seam tool code already reads), and `close()`d in `run_agent_task`'s
-teardown — success **and** interrupt — mirroring the checkpoint/summary funnel #35 added.
+teardown unconditionally — on success, interruption, exceptions, and cancellation — via
+a cancellation-safe cleanup mechanism (e.g. `try/finally` or equivalent). If container
+removal fails, the failure is logged best-effort; it does not change run status or trigger
+additional retry/cleanup handlers. This mirrors the checkpoint/summary funnel #35 added.
 
 ### Call-site changes
 
 Each of the four seams stops calling `subprocess.run` / host httpx directly and calls
 `boundary.run(...)` instead. Concretely:
 
-- `execute_python`: build the tempfile as now, then
-  `boundary.run([interp, "/workspace/.tmp/x.py"], workspace=…, timeout=…, label="python_execute")`.
+- `execute_python`: build the tempfile as now, then copy or mount it into
+  `/workspace/.tmp/x.py` in the container and invoke the image-owned Python interpreter
+  (not host `sys.executable`):
+  `boundary.run(["/usr/bin/python3", "/workspace/.tmp/x.py"], workspace=…, timeout=…, label="python_execute")`.
   Mode gating (`_resolve_python_execute_mode`, blocklists) is unchanged — it runs
   *before* dispatch and is orthogonal to where the code executes.
-- `verifier.VerifierExecutor.execute_poc`: same shape; additionally stamp an
+- `verifier.VerifierExecutor.execute_poc`: same shape (generate tempfile, copy/mount to
+  `/workspace/.tmp/x.py`, invoke image-owned interpreter); additionally stamp an
   `EvidenceRef(kind="sandbox_output", path=bundle_ref.path)` onto the finding's
   `evidence_refs` (closing the `:680` gap).
 - `execute_nmap` / active-HTTP tools: route the subprocess/request through the container.
@@ -118,7 +125,12 @@ Each of the four seams stops calling `subprocess.run` / host httpx directly and 
 issues many Tier A calls. Create one container when the run's first Tier A tool fires
 (lazy) or at run start (eager) — lazy chosen, so passive-only runs never pay for Docker.
 
-```
+`/workspace` ingress is isolated per `local_repo` target, since `ingress_mode` is
+target-specific. The container boundary is either scoped per-target (one container per
+local_repo target), or `/workspace` is cleared/namespaced before switching targets,
+ensuring copy-mode files cannot leak across targets and mount-based targets remain safe.
+
+```text
 run start ──▶ (first Tier A tool) ──▶ DockerBoundary.ensure_container()
                                           docker run -d --name vulnclaw-<run_id>
                                           --network <policy> --workspace ingress (§5)
@@ -164,7 +176,7 @@ run tools that reach out over the network and need no `/workspace` population.
 
 Each `boundary.run()` writes a bundle under `evidence/sandbox/<bundle_id>/`:
 
-```
+```text
 evidence/sandbox/<bundle_id>/
   meta.json     # label, argv, workspace ingress mode, exit code, started/ended, timeout hit?
   stdout.txt
@@ -172,9 +184,23 @@ evidence/sandbox/<bundle_id>/
   artifacts/    # files the command produced under a designated out dir, copied out
 ```
 
+**Evidence controls:**
+- **Redaction**: `stdout.txt`, `stderr.txt`, and copied artifacts are written as-is;
+  credential scrubbing or other redaction is out of scope for this PRD.
+- **Access controls**: Evidence bundles inherit the run directory's filesystem permissions;
+  no additional access control layer is introduced.
+- **Size limits**: Per-stream (`stdout.txt`, `stderr.txt`) and per-artifact file writes are
+  capped at a configurable limit (default 10 MB per file); exceeding files are truncated
+  and truncation is noted in `meta.json`.
+- **Retention**: Evidence bundles under `evidence/sandbox/<bundle_id>` persist for the
+  lifetime of the run directory; cleanup follows the run directory retention policy (out
+  of scope for this PRD, owned by persistence foundation #35).
+
 - `<bundle_id>` = `<label>-<NNNN>` (monotonic per run) so bundles sort by call order and
-  never collide. No timestamps in the id (deterministic; `run_context` forbids wall-clock
-  in ids, matching #35 style).
+  never collide. Allocation is atomic across concurrent Tier A calls via a run-level lock
+  or atomic counter, preventing duplicate IDs and directory overwrites while preserving
+  deterministic ordering. No timestamps in the id (deterministic; `run_context` forbids
+  wall-clock in ids, matching #35 style).
 - Written with the existing atomic writers (`atomic_write_json` / `atomic_write_text`)
   via a new `RunContext.evidence_dir(*subdirs)` accessor — the one missing helper (§2).
   `evidence_dir("sandbox", bundle_id)` returns the path and `mkdir -p`s it.
@@ -189,10 +215,13 @@ New knobs on `SafetyConfig` (mirroring `python_execute_mode`):
 ```python
 sandbox_mode: str = Field(default="docker",
     description="Execution boundary for Tier A tools: docker | trusted-local")
-sandbox_image: str = Field(default="vulnclaw/sandbox:latest",
+sandbox_image: str = Field(default="vulnclaw/sandbox@sha256:<digest>",
     description="Image for the per-run sandbox container")
-sandbox_network: str = Field(default="…",   # decide in review (§9)
-    description="Container network policy")
+sandbox_network: str = Field(default="none",
+    description="Container network policy: none | bridge | host. Default 'none' (fail-closed); "
+                "bridge enables HTTP/nmap with enforcement of private/loopback/metadata "
+                "(169.254.169.254) blocks, DNS restrictions, and IPv6 policy; host grants "
+                "full network access (unsafe, requires explicit opt-in)")
 ```
 
 CLI: add `--trusted-local` (Typer flag, default off) threaded like `--mount`
@@ -239,8 +268,10 @@ Out of test scope: real exploit payloads against live targets.
 3. **Lazy vs eager container** — lazy (first Tier A tool) proposed; confirm no ordering
    assumption in the orchestrator breaks from deferring creation.
 4. **Interpreter parity** — `python_execute` uses `sys.executable` on host; in-container
-   it must be the image's Python. Pin the image Python to the supported matrix so PoC
-   behavior matches host runs.
+   the generated tempfile must be copied or mounted into `/workspace/.tmp/x.py` and the
+   image-owned Python interpreter (e.g. `/usr/bin/python3`) must be invoked, not host
+   `sys.executable`. Pin the image Python to the supported matrix so PoC behavior matches
+   host runs. (See §3 call-site contracts for full ingress and interpreter selection.)
 5. **Bundle artifact capture** — which in-container dir is the "artifacts" out-dir, and
    how large before we truncate/skip? Define a cap and log truncation (no silent drop).
 
@@ -259,4 +290,5 @@ Out of test scope: real exploit payloads against live targets.
    boundary once network policy (§9.2) is decided.
 
 The VulnClaw-maintained sandbox `Dockerfile` (no Strix runtime vendoring) is authored in
-phase 2 and pinned in phase 9.4.
+phase 2; the image is pinned to an immutable digest (see §7 `sandbox_image` default) once
+stable.
