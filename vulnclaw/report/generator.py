@@ -198,6 +198,180 @@ REPORT_TEMPLATE = """\
 """
 
 
+REPORT_TEMPLATE_EN = """\
+# Penetration Test Report
+
+## 1. Project Overview
+
+| Item | Details |
+|------|------|
+| **Target** | {{ target }} |
+| **Test Time** | {{ started_at }} |
+| **Report Generated** | {{ generated_at }} |
+| **Testing Tool** | VulnClaw v{{ version }} |
+| **Task Constraints** | {{ task_constraints_summary }} |
+
+## 2. Executive Summary
+
+{% if verified_count > 0 %}
+- **Verified Findings**: {{ verified_count }} (including {{ critical_count }} Critical, {{ high_count }} High)
+{% else %}
+- **Verified Findings**: 0
+{% endif %}
+- **False Positives Excluded**: {{ rejected_count }}
+- **Pending Verification**: {{ pending_count }} (not shown in this report)
+- **Candidates**: {{ candidate_count }}
+- **Pending Verification Items**: {{ pending_verification_count }}
+- **Needs Manual Review**: {{ manual_review_count }}
+- **Attack Surface**: {{ attack_surface_summary }}
+{% if constraint_violation_events or constraint_violations %}
+- **Constraint Violations Blocked**: {{ constraint_violations|length }}
+{% endif %}
+
+{% if rejected_count > 0 %}
+### Excluded False Positives
+
+The following vulnerability hypotheses failed PoC verification and were excluded from the report:
+
+{% for f in rejected_findings %}
+- {{ f.title }} — {{ f.verification_note }}
+{% endfor %}
+{% endif %}
+
+### Risk Severity Distribution
+
+| Severity | Count |
+|------|------|
+| Critical | {{ critical_count }} |
+| High | {{ high_count }} |
+| Medium | {{ medium_count }} |
+| Low/Info | {{ low_count }} |
+
+{% if verified_findings %}
+### Key Recommendations
+
+{% for rec in key_recommendations %}
+{{ loop.index }}. {{ rec }}
+{% endfor %}
+{% else %}
+### Findings
+
+**No valid vulnerabilities were found during this test.**
+
+Possible reasons:
+- The target system's security posture is relatively solid
+- Insufficient testing depth (not enough recon rounds)
+- Exploitation preconditions were not met
+
+Recommendations:
+- Increase the number of pentest rounds
+- Try more vulnerability classes
+- Check whether special authentication or access is required
+{% endif %}
+
+## 3. Detailed Findings
+
+{% for finding in findings %}
+### 3.{{ loop.index }} {{ finding.title }} — [{{ finding.severity }}]
+{% if finding.verification_status == "pending" %}
+> ⚠️ **Pending verification** — auto-detected, not yet confirmed via PoC. Manual review required.
+{% elif finding.verification_status == "rejected" %}
+> ❌ **Excluded (false positive)** — {{ finding.verification_note or "Verified as a false positive" }}
+{% elif finding.lifecycle_status == "needs_manual_review" %}
+> 🔎 **Needs manual review** — indirect evidence exists but manual review is required before promoting to a confirmed finding.
+{% endif %}
+
+- **Vulnerability Type**: {{ finding.vuln_type or "Uncategorized" }}
+- **Lifecycle**: {{ finding.lifecycle_status or "pending_verification" }}
+- **Evidence Level**: {{ finding.evidence_level or "L1" }}
+- **CVE**: {{ finding.cve or "N/A" }}
+- **Impact**: {{ finding.description or "None" }}
+{% if finding.evidence %}
+- **Verification Evidence**: {{ finding.evidence }}
+{% endif %}
+{% if finding.poc_script %}
+- **PoC Script**: see attachment `{{ finding.poc_script }}`
+{% endif %}
+- **Remediation**: {{ finding.remediation or "Apply remediation appropriate to the vulnerability type." }}
+{% if finding.verified and finding.verified_at %}
+- **Verified At**: {{ finding.verified_at }}
+{% endif %}
+
+{% endfor %}
+
+{% if llm_attack_summary %}
+## 4. Attack Path Summary
+
+{{ llm_attack_summary }}
+
+{% elif step_summary and step_summary.total_steps > 0 %}
+## 4. Attack Path Summary
+
+{% for phase_name, phase_data in step_summary.phases.items() %}
+{{ phase_heading(phase_name, phase_data.count) }}
+
+| Status | Count |
+|------|------|
+| ✅ Success | {{ phase_data.success_count }} |
+| ❌ Failure | {{ phase_data.failure_count }} |
+
+**Key Actions**: {{ phase_data.actions[:5]|join(', ') }}
+
+{% if phase_data.key_results %}
+**Key Findings**:
+{% for result in phase_data.key_results %}
+- {{ result }}
+{% endfor %}
+{% endif %}
+
+---
+{% endfor %}
+
+**Total**: {{ step_summary.total_steps }} steps
+
+{% if step_summary.key_findings %}
+### Key Findings Timeline
+
+{% for finding in step_summary.key_findings %}
+- {{ finding }}
+{% endfor %}
+{% endif %}
+
+{% elif findings %}
+## 4. Attack Path
+
+{% for step in executed_steps %}
+{{ loop.index }}. {{ step }}
+{% endfor %}
+{% endif %}
+
+{% if constraint_violation_events or constraint_violations %}
+## 5. Constraint Violation Audit
+
+{% if constraint_violation_events %}
+{% for item in constraint_violation_events %}
+- [{{ item.source or "unknown" }}] {{ item.summary }}
+{% endfor %}
+{% else %}
+{% for item in constraint_violations %}
+- {{ item }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+## 6. Attachments
+
+- PoC scripts: see the `pocs/` directory
+- Captured traffic: see the `evidence/traffic/` directory (requests.jsonl index + raw request/response per request)
+- Screenshot evidence: see the `screenshots/` directory
+
+---
+
+> 🦞 Report auto-generated by VulnClaw | {{ generated_at }}
+> **Principle**: Unverified vulnerability = false positive = not written to the report
+"""
+
+
 def _severity_count_context(verified_findings: list[VulnerabilityFinding]) -> dict[str, int]:
     """Tally verified findings by severity into report context keys.
 
@@ -318,12 +492,15 @@ def generate_report(
         "llm_attack_summary": filtered_summary,
     }
 
-    template = Template(REPORT_TEMPLATE)
+    template = Template(REPORT_TEMPLATE_EN if current_lang() == "en" else REPORT_TEMPLATE)
     report_content = template.render(**context)
     if verified_findings:
         report_content += "\n\n" + _render_verified_finding_details_clean(
             verified_findings,
-            heading="## 6. 已验证漏洞定位与复现信息",
+            heading=_rl(
+                "## 6. 已验证漏洞定位与复现信息",
+                "## 6. Verified Findings — Location & Reproduction",
+            ),
             traffic_store=_resolve_traffic_store(output.parent),
         )
     if target_state_context:
@@ -383,19 +560,21 @@ def _summarize_attack_surface(session: SessionState) -> str:
     recon = session.recon_data
 
     if "subdomains" in recon and recon["subdomains"]:
-        parts.append(f"子域名: {', '.join(recon['subdomains'][:10])}")
+        joined = ", ".join(recon["subdomains"][:10])
+        parts.append(_rl(f"子域名: {joined}", f"Subdomains: {joined}"))
     if "ports" in recon:
-        parts.append(f"开放端口: {recon['ports']}")
+        parts.append(_rl(f"开放端口: {recon['ports']}", f"Open ports: {recon['ports']}"))
     if "services" in recon:
-        parts.append(f"服务: {recon['services']}")
+        parts.append(_rl(f"服务: {recon['services']}", f"Services: {recon['services']}"))
     if "technologies" in recon:
-        parts.append(f"技术栈: {recon['technologies']}")
+        parts.append(_rl(f"技术栈: {recon['technologies']}", f"Technologies: {recon['technologies']}"))
     if "waf" in recon:
-        parts.append(f"WAF: {recon['waf']}")
+        parts.append(_rl(f"WAF: {recon['waf']}", f"WAF: {recon['waf']}"))
     if "domains" in recon:
-        parts.append(f"关联域名: {', '.join(recon['domains'][:5])}")
+        joined = ", ".join(recon["domains"][:5])
+        parts.append(_rl(f"关联域名: {joined}", f"Related domains: {joined}"))
 
-    return "; ".join(parts) if parts else "未收集"
+    return "; ".join(parts) if parts else _rl("未收集", "Not collected")
 
 
 # ── Persistent Pentest Cycle Report ──────────────────────────────────
@@ -892,42 +1071,65 @@ def _render_target_state_context(target_state_context: dict[str, Any]) -> str:
     runtime_meta = target_state_context.get("runtime_meta") or {}
     resume_summary = target_state_context.get("resume_summary") or ""
 
-    lines = ["## 6. 目标历史治理上下文"]
+    lines = [_rl("## 6. 目标历史治理上下文", "## 6. Target Historical Governance Context")]
 
     if resume_meta:
         lines.extend(
             [
                 "",
-                f"- 恢复策略: {resume_meta.get('resume_strategy', 'unknown')}",
-                f"- 策略原因: {resume_meta.get('resume_strategy_reason', 'N/A')}",
+                _rl(
+                    f"- 恢复策略: {resume_meta.get('resume_strategy', 'unknown')}",
+                    f"- Resume strategy: {resume_meta.get('resume_strategy', 'unknown')}",
+                ),
+                _rl(
+                    f"- 策略原因: {resume_meta.get('resume_strategy_reason', 'N/A')}",
+                    f"- Strategy reason: {resume_meta.get('resume_strategy_reason', 'N/A')}",
+                ),
             ]
         )
         if resume_meta.get("priority_targets"):
-            lines.append(f"- 恢复优先目标: {', '.join(resume_meta['priority_targets'][:5])}")
+            joined = ", ".join(resume_meta["priority_targets"][:5])
+            lines.append(_rl(f"- 恢复优先目标: {joined}", f"- Resume priority targets: {joined}"))
         if resume_meta.get("priority_recon_assets"):
+            joined = ", ".join(resume_meta["priority_recon_assets"][:5])
             lines.append(
-                f"- 恢复优先侦察资产: {', '.join(resume_meta['priority_recon_assets'][:5])}"
+                _rl(
+                    f"- 恢复优先侦察资产: {joined}",
+                    f"- Resume priority recon assets: {joined}",
+                )
             )
         if resume_meta.get("blocked_targets"):
-            lines.append(f"- 已阻塞目标: {', '.join(resume_meta['blocked_targets'][:5])}")
+            joined = ", ".join(resume_meta["blocked_targets"][:5])
+            lines.append(_rl(f"- 已阻塞目标: {joined}", f"- Blocked targets: {joined}"))
         if resume_meta.get("failed_targets"):
-            lines.append(f"- 历史失败目标: {', '.join(resume_meta['failed_targets'][:5])}")
+            joined = ", ".join(resume_meta["failed_targets"][:5])
+            lines.append(_rl(f"- 历史失败目标: {joined}", f"- Historically failed targets: {joined}"))
         if resume_meta.get("recent_failed_steps"):
-            lines.append("- 最近失败路径/步骤:")
+            lines.append(_rl("- 最近失败路径/步骤:", "- Recent failed paths/steps:"))
             for item in resume_meta["recent_failed_steps"][:5]:
                 lines.append(f"  - {item}")
 
     top_assets = _top_recon_assets_for_report(recon_meta)
     if top_assets:
-        lines.extend(["", "### 高价值侦察资产"])
+        lines.extend(["", _rl("### 高价值侦察资产", "### High-Value Recon Assets")])
         for item in top_assets[:8]:
             lines.append(f"- {item}")
 
     if runtime_meta.get("current_attack_path"):
-        lines.extend(["", f"- 最近攻击路径: {runtime_meta['current_attack_path']}"])
+        lines.extend(
+            [
+                "",
+                _rl(
+                    f"- 最近攻击路径: {runtime_meta['current_attack_path']}",
+                    f"- Most recent attack path: {runtime_meta['current_attack_path']}",
+                ),
+            ]
+        )
 
     if resume_summary:
-        lines.extend(["", "### 恢复摘要", "```text", resume_summary.strip(), "```"])
+        lines.extend(
+            ["", _rl("### 恢复摘要", "### Resume Summary"), "```text", resume_summary.strip(), "```"]
+        )
 
     return "\n".join(lines)
 
@@ -1089,22 +1291,29 @@ def _build_repro_summary(finding: VulnerabilityFinding) -> str:
 def _format_task_constraints_summary(session: SessionState) -> str:
     constraints = getattr(session, "task_constraints", None)
     if constraints is None or constraints.is_empty():
-        return "未指定"
+        return _rl("未指定", "Unspecified")
 
     parts: list[str] = []
     if constraints.allowed_ports:
-        parts.append(f"仅端口 {','.join(str(p) for p in constraints.allowed_ports)}")
+        joined = ",".join(str(p) for p in constraints.allowed_ports)
+        parts.append(_rl(f"仅端口 {joined}", f"Ports only: {joined}"))
     if constraints.blocked_ports:
-        parts.append(f"禁端口 {','.join(str(p) for p in constraints.blocked_ports)}")
+        joined = ",".join(str(p) for p in constraints.blocked_ports)
+        parts.append(_rl(f"禁端口 {joined}", f"Blocked ports: {joined}"))
     if constraints.allowed_hosts:
-        parts.append(f"仅主机 {','.join(constraints.allowed_hosts)}")
+        joined = ",".join(constraints.allowed_hosts)
+        parts.append(_rl(f"仅主机 {joined}", f"Hosts only: {joined}"))
     if constraints.allowed_paths:
-        parts.append(f"仅路径 {','.join(constraints.allowed_paths)}")
+        joined = ",".join(constraints.allowed_paths)
+        parts.append(_rl(f"仅路径 {joined}", f"Paths only: {joined}"))
     if constraints.allowed_actions:
-        parts.append(f"仅动作 {','.join(constraints.allowed_actions)}")
+        joined = ",".join(constraints.allowed_actions)
+        parts.append(_rl(f"仅动作 {joined}", f"Actions only: {joined}"))
     if constraints.blocked_actions:
-        parts.append(f"禁动作 {','.join(constraints.blocked_actions)}")
-    return "；".join(parts) if parts else "已启用约束"
+        joined = ",".join(constraints.blocked_actions)
+        parts.append(_rl(f"禁动作 {joined}", f"Blocked actions: {joined}"))
+    sep = _rl("；", "; ")
+    return sep.join(parts) if parts else _rl("已启用约束", "Constraints enabled")
 
 
 def _build_report_finding(finding: VulnerabilityFinding) -> dict[str, Any]:
