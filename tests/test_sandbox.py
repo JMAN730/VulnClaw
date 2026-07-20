@@ -202,8 +202,8 @@ def test_sandbox_http_transport_executes_request_through_boundary():
 
 
 def test_sandbox_is_default_and_trusted_local_is_explicit(tmp_path):
-    from vulnclaw.sandbox.runtime import create_execution_boundary
     from vulnclaw.sandbox import DockerBoundary, LocalBoundary
+    from vulnclaw.sandbox.runtime import create_execution_boundary
 
     context, target, _workspace = _run_context(tmp_path)
     config = VulnClawConfig()

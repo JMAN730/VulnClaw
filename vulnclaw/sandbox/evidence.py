@@ -7,7 +7,6 @@ import re
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from vulnclaw.config.domain_models import EvidenceRef
 from vulnclaw.run_context import RunContext, atomic_write_json, atomic_write_text
