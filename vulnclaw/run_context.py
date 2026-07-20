@@ -103,6 +103,27 @@ class RunContext:
             raise RunCorruptError(self.run_dir, "target id is missing")
         return self.run_dir / "targets" / target_id / "target.json"
 
+    def evidence_dir(self, *subdirs: str) -> Path:
+        """Return a created directory below this run's evidence root.
+
+        Every segment must be a single relative path component.  Keeping path
+        validation at this persistence boundary prevents labels or tool input
+        from escaping the run directory.
+        """
+        path = self.run_dir / "evidence"
+        for subdir in subdirs:
+            component = Path(str(subdir))
+            if (
+                not str(subdir)
+                or component.is_absolute()
+                or component.parts != (str(subdir),)
+                or str(subdir) in {".", ".."}
+            ):
+                raise ValueError(f"invalid evidence path component: {subdir!r}")
+            path /= str(subdir)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
     def append_event(self, kind: str, payload: dict[str, Any] | None = None) -> None:
         event = {
             "timestamp": _now_iso(),

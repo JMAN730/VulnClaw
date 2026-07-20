@@ -12,19 +12,18 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from vulnclaw.sandbox import ExecutionBoundary
 
 # 修改者: Nyaecho
 # 修改时间: 2026-07-08
 # 修改原因: 消除 V2 违规 — 叶子类型已移至 config/domain_models.py。
-from vulnclaw.config.domain_models import VulnerabilityFinding
+from vulnclaw.config.domain_models import EvidenceRef, VulnerabilityFinding
 
 
 class VerificationStatus(str, Enum):
@@ -69,6 +68,7 @@ class VerifiedFinding:
     poc_code: Optional[str] = None
     poc_output: Optional[str] = None
     poc_executed_at: Optional[str] = None
+    evidence_ref: EvidenceRef | None = None
 
     # 验证结论
     verified_description: str = ""
@@ -431,12 +431,41 @@ except Exception as e:
 class VerifierExecutor:
     """执行 PoC 验证并判定结果."""
 
-    # Python 解释器路径：使用当前运行的解释器，避免 "python" 在仅有
-    # "python3" 的环境中缺失而被误判为漏洞验证失败。
-    PYTHON_CMD = sys.executable or "python"
+    @classmethod
+    def execute_poc_result(
+        cls,
+        poc_code: str,
+        timeout: int = 30,
+        *,
+        boundary: ExecutionBoundary | None = None,
+    ):
+        from vulnclaw.sandbox import ExecResult
+
+        if boundary is None:
+            return ExecResult(
+                -3,
+                "",
+                "[ERROR] An execution boundary is required for PoC verification",
+                None,
+            )
+        try:
+            return boundary.run(
+                [boundary.python_executable, "-c", poc_code],
+                timeout=timeout,
+                label="poc_verification",
+                env={"PYTHONIOENCODING": "utf-8"},
+            )
+        except Exception as exc:
+            return ExecResult(-3, "", f"[ERROR] PoC execution failed: {exc}", None)
 
     @classmethod
-    def execute_poc(cls, poc_code: str, timeout: int = 30) -> tuple[int, str]:
+    def execute_poc(
+        cls,
+        poc_code: str,
+        timeout: int = 30,
+        *,
+        boundary: ExecutionBoundary | None = None,
+    ) -> tuple[int, str]:
         """执行 PoC 代码.
 
         Args:
@@ -446,40 +475,10 @@ class VerifierExecutor:
         Returns:
             (返回码, 输出内容)
         """
-        # 写入临时文件
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".py",
-            delete=False,
-            encoding="utf-8",
-        ) as f:
-            f.write(poc_code)
-            temp_path = f.name
-
-        try:
-            # 执行 PoC
-            result = subprocess.run(
-                [cls.PYTHON_CMD, temp_path],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-            )
-
-            output = result.stdout + result.stderr
-            return result.returncode, output
-
-        except subprocess.TimeoutExpired:
+        result = cls.execute_poc_result(poc_code, timeout, boundary=boundary)
+        if result.timed_out:
             return -1, "[TIMEOUT] PoC 执行超时"
-        except FileNotFoundError:
-            return -2, f"[ERROR] Python 解释器未找到: {cls.PYTHON_CMD}"
-        except Exception as e:
-            return -3, f"[ERROR] 执行失败: {e}"
-        finally:
-            # 清理临时文件
-            try:
-                Path(temp_path).unlink()
-            except Exception:
-                pass
+        return result.returncode, result.stdout + result.stderr
 
     @classmethod
     def parse_result(cls, output: str, returncode: int) -> VerificationResult:
@@ -533,7 +532,13 @@ class VerifierExecutor:
 class VulnerabilityVerifier:
     """漏洞验证器 — 核心验证流程."""
 
-    def __init__(self, target: str, baseline_len: int = 0) -> None:
+    def __init__(
+        self,
+        target: str,
+        baseline_len: int = 0,
+        *,
+        boundary: ExecutionBoundary | None = None,
+    ) -> None:
         """初始化验证器.
 
         Args:
@@ -542,6 +547,7 @@ class VulnerabilityVerifier:
         """
         self.target = target
         self.baseline_len = baseline_len
+        self.boundary = boundary
         self.verified_findings: list[VerifiedFinding] = []
         self.rejected_findings: list[VerifiedFinding] = []
 
@@ -565,9 +571,14 @@ class VulnerabilityVerifier:
         vf.poc_code = poc_code
 
         # 执行 PoC
-        returncode, output = VerifierExecutor.execute_poc(poc_code)
+        execution = VerifierExecutor.execute_poc_result(
+            poc_code, boundary=self.boundary
+        )
+        returncode = -1 if execution.timed_out else execution.returncode
+        output = execution.stdout + execution.stderr
         vf.poc_output = output
         vf.poc_executed_at = datetime.now().isoformat()
+        vf.evidence_ref = execution.bundle_ref
 
         # 解析结果
         result = VerifierExecutor.parse_result(output, returncode)
@@ -580,16 +591,12 @@ class VulnerabilityVerifier:
             VerificationResult.SECURITY_BYPASS,
         ):
             vf.status = VerificationStatus.VERIFIED
-            vf._build_verified_finding(output)
+            self.verified_findings.append(vf)
+            self._build_verified_finding(output)
         else:
             vf.status = VerificationStatus.REJECTED
-            vf._build_rejected_finding(result, output)
-
-        # 分类存储
-        if vf.status == VerificationStatus.VERIFIED:
-            self.verified_findings.append(vf)
-        else:
             self.rejected_findings.append(vf)
+            self._build_rejected_finding(result, output)
 
         return vf
 
@@ -679,6 +686,8 @@ class VulnerabilityVerifier:
                 finding.evidence = vf.verified_evidence
                 finding.description = vf.verified_description
                 finding.severity = vf.verified_severity
+                if vf.evidence_ref is not None and vf.evidence_ref not in finding.evidence_refs:
+                    finding.evidence_refs.append(vf.evidence_ref)
                 # Stamp verification state so the produced finding passes the
                 # report/SARIF/findings.json inclusion gate (verification_status
                 # == "verified"), recording the actual PoC execution time.

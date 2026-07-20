@@ -10,7 +10,6 @@ import shutil
 import socket
 import subprocess
 import sys
-import tempfile
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING, Any
 
@@ -180,6 +179,7 @@ async def execute_mcp_tool(agent: AgentContext, tool_name: str, args: dict[str, 
 
     if tool_name in TRAFFIC_TOOL_NAMES:
         store = resolve_traffic_store(agent)
+        transport = None
         if tool_name == "traffic_repeat":
             # A url override could aim the replay at a blocked/out-of-scope host,
             # so gate it with the same host/path/port guards other network tools
@@ -187,8 +187,16 @@ async def execute_mcp_tool(agent: AgentContext, tool_name: str, args: dict[str, 
             violation = enforce_traffic_repeat_constraints(agent, store, args)
             if violation is not None:
                 return violation
+            from vulnclaw.sandbox.http import BoundaryHTTPTransport
+            from vulnclaw.sandbox.runtime import require_agent_boundary
+
+            boundary = require_agent_boundary(agent)
+            if boundary.mode == "docker":
+                transport = BoundaryHTTPTransport(boundary)
         # traffic_repeat issues a real network request; keep the loop responsive.
-        return await asyncio.to_thread(dispatch_traffic_tool, store, tool_name, args)
+        return await asyncio.to_thread(
+            dispatch_traffic_tool, store, tool_name, args, transport=transport
+        )
 
     if tool_name == "python_execute":
         return await execute_python(agent, args)
@@ -792,18 +800,28 @@ async def execute_nmap(agent: AgentContext, args: dict[str, Any]) -> str:
     timing = int(args.get("timing", 4))
     profile = str(args.get("profile", "") or "").strip().lower()
 
-    nmap_cmd = shutil.which("nmap")
-    if not nmap_cmd:
-        try:
-            result = subprocess.run(
-                ["where.exe", "nmap"], capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0:
-                nmap_cmd = result.stdout.strip().split("\n")[0]
-        except Exception:
-            pass
-    if not nmap_cmd:
-        return "[!] nmap 未安装或不在 PATH 中。请确认 nmap 已安装并加入系统 PATH。"
+    from vulnclaw.sandbox.runtime import require_agent_boundary
+
+    try:
+        boundary = require_agent_boundary(agent)
+    except Exception as exc:
+        return f"[!] nmap execution boundary error: {exc}"
+
+    if boundary.mode == "docker":
+        nmap_cmd = "nmap"
+    else:
+        nmap_cmd = shutil.which("nmap")
+        if not nmap_cmd:
+            try:
+                result = subprocess.run(
+                    ["where.exe", "nmap"], capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    nmap_cmd = result.stdout.strip().split("\n")[0]
+            except Exception:
+                pass
+        if not nmap_cmd:
+            return "[!] nmap 未安装或不在 PATH 中。请确认 nmap 已安装并加入系统 PATH。"
 
     if profile:
         plan = build_nmap_plan(
@@ -813,7 +831,7 @@ async def execute_nmap(agent: AgentContext, args: dict[str, Any]) -> str:
             timing=timing,
             prior_recon=getattr(getattr(agent, "session_state", None), "recon_data", {}),
         )
-        privileged = nmap_has_raw_socket_access()
+        privileged = boundary.mode == "trusted-local" and nmap_has_raw_socket_access()
         cmd = build_nmap_command(nmap_cmd, target, plan, privileged=privileged)
         deescalated_note = (
             ""
@@ -822,7 +840,7 @@ async def execute_nmap(agent: AgentContext, args: dict[str, Any]) -> str:
         )
     else:
         plan = None
-        privileged = nmap_has_raw_socket_access()
+        privileged = boundary.mode == "trusted-local" and nmap_has_raw_socket_access()
         deescalated_note = ""
         cmd = [nmap_cmd, "-v" if scan_type == "full" else "-q", f"-T{max(0, min(5, timing))}"]
         if scan_type == "top_ports":
@@ -862,19 +880,11 @@ async def execute_nmap(agent: AgentContext, args: dict[str, Any]) -> str:
         cmd.append(target)
 
     try:
-        kwargs: dict[str, Any] = {
-            "capture_output": True,
-            "text": True,
-            "encoding": "utf-8",
-            "errors": "replace",
-            "timeout": 120,
-        }
-        if sys.platform == "win32":
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            kwargs["startupinfo"] = startupinfo
-        result = subprocess.run(cmd, **kwargs)
+        result = await asyncio.to_thread(
+            boundary.run, cmd, timeout=120, label="nmap_scan"
+        )
+        if result.timed_out:
+            return "[!] nmap 扫描超时（120秒），请减少扫描范围或使用更快的 timing"
         if (
             result.returncode != 0
             and not result.stdout
@@ -882,19 +892,23 @@ async def execute_nmap(agent: AgentContext, args: dict[str, Any]) -> str:
         ):
             fallback_cmd = deescalate_nmap_argv(cmd)
             if fallback_cmd != cmd:
-                fallback = subprocess.run(fallback_cmd, **kwargs)
+                fallback = await asyncio.to_thread(
+                    boundary.run,
+                    fallback_cmd,
+                    timeout=120,
+                    label="nmap_scan_fallback",
+                )
                 if fallback.returncode == 0 or fallback.stdout:
                     result = fallback
                     deescalated_note = "[i] 权限错误后已使用非特权 nmap 参数重试。\n"
-    except subprocess.TimeoutExpired:
-        return "[!] nmap 扫描超时（120秒），请减少扫描范围或使用更快的 timing"
     except PermissionError:
         return "[!] nmap 执行被拒绝（权限不足）。Windows 请以管理员身份运行终端。"
     except Exception as e:
         return f"[!] nmap 执行错误: {e}"
 
     if result.returncode != 0 and not result.stdout:
-        return f"[!] nmap 扫描失败（{result.returncode}）: {result.stderr[:500]}"
+        evidence = f" [evidence: {result.bundle_ref.path}]" if result.bundle_ref else ""
+        return f"[!] nmap 扫描失败（{result.returncode}）: {result.stderr[:500]}{evidence}"
     output = result.stdout or result.stderr
     human_summary = parse_nmap_xml(output, target)
     structured = parse_nmap_xml_structured(output, target)
@@ -907,8 +921,12 @@ async def execute_nmap(agent: AgentContext, args: dict[str, Any]) -> str:
         )
     if profile:
         network_summary = summarize_network_scan(structured)
-        return f"{deescalated_note}{human_summary}\n\n{network_summary}"
-    return f"{deescalated_note}{human_summary}"
+        rendered = f"{deescalated_note}{human_summary}\n\n{network_summary}"
+    else:
+        rendered = f"{deescalated_note}{human_summary}"
+    if result.bundle_ref:
+        rendered += f"\n[evidence] {result.bundle_ref.path}"
+    return rendered
 
 
 def is_reserved_ip(ip: str) -> tuple[bool, str]:
@@ -1135,43 +1153,28 @@ async def execute_python(agent: AgentContext, args: dict[str, Any]) -> str:
         return f"[!] lab mode blocked operation: {blocked_pattern}"
 
     max_output_chars = getattr(safety, "python_execute_max_output_chars", 8000)
-    tmp_path = ""
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".py", delete=False, encoding="utf-8"
-        ) as f:
-            preamble = (
-                "import sys, json, re, os, base64, hashlib, itertools, collections, datetime, struct, binascii, textwrap\n"
-                "try:\n    import requests\nexcept ImportError:\n    pass\n"
-                "try:\n    from bs4 import BeautifulSoup\nexcept ImportError:\n    pass\n"
-                "try:\n    from Crypto.Cipher import AES\nexcept ImportError:\n    pass\n\n"
-            )
-            f.write(preamble)
-            f.write(code)
-            tmp_path = f.name
+        from vulnclaw.sandbox.runtime import require_agent_boundary
 
-        base_env = {"PYTHONIOENCODING": "utf-8"}
-        env = {**os.environ, **base_env} if mode == "trusted-local" else base_env
-
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None,
-            lambda: subprocess.run(
-                [sys.executable, tmp_path],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=timeout_seconds,
-                cwd=tempfile.gettempdir(),
-                env=env,
-            ),
+        boundary = require_agent_boundary(agent)
+        preamble = (
+            "import sys, json, re, os, base64, hashlib, itertools, collections, datetime, struct, binascii, textwrap\n"
+            "try:\n    import requests\nexcept ImportError:\n    pass\n"
+            "try:\n    from bs4 import BeautifulSoup\nexcept ImportError:\n    pass\n"
+            "try:\n    from Crypto.Cipher import AES\nexcept ImportError:\n    pass\n\n"
+        )
+        result = await asyncio.to_thread(
+            boundary.run,
+            [boundary.python_executable, "-c", preamble + code],
+            timeout=timeout_seconds,
+            label="python_execute",
+            env={"PYTHONIOENCODING": "utf-8"},
         )
 
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
+        if result.timed_out:
+            agent.runtime.python_timeout_rounds += 1
+            _write_python_audit(agent, purpose=purpose, code=code, mode=mode, outcome="timeout")
+            return f"[!] Python execution timed out after {timeout_seconds} seconds"
 
         output_parts: list[str] = []
         if result.stdout:
@@ -1187,7 +1190,8 @@ async def execute_python(agent: AgentContext, args: dict[str, Any]) -> str:
 
         if not output_parts:
             _write_python_audit(agent, purpose=purpose, code=code, mode=mode, outcome="success")
-            return f"{warning_prefix}[+] Python executed successfully with no output"
+            evidence = f"\n[evidence] {result.bundle_ref.path}" if result.bundle_ref else ""
+            return f"{warning_prefix}[+] Python executed successfully with no output{evidence}"
 
         output = "\n".join(output_parts)
         for sig in ["[DONE]", "[COMPLETE]"]:
@@ -1196,20 +1200,12 @@ async def execute_python(agent: AgentContext, args: dict[str, Any]) -> str:
             clip = max_output_chars // 2
             output = output[:clip] + "\n...[truncated]...\n" + output[-clip:]
         _write_python_audit(agent, purpose=purpose, code=code, mode=mode, outcome="success")
-        return f"{warning_prefix}[+] Python execution result ({mode}):\n{output}"
-    except subprocess.TimeoutExpired:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        agent.runtime.python_timeout_rounds += 1
-        _write_python_audit(agent, purpose=purpose, code=code, mode=mode, outcome="timeout")
-        return f"[!] Python execution timed out after {timeout_seconds} seconds"
+        evidence = f"\n[evidence] {result.bundle_ref.path}" if result.bundle_ref else ""
+        return (
+            f"{warning_prefix}[+] Python execution result ({boundary.mode}; policy={mode}):\n"
+            f"{output}{evidence}"
+        )
     except Exception as e:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
         _write_python_audit(
             agent, purpose=purpose, code=code, mode=mode, outcome="error", blocked_reason=str(e)
         )
@@ -1280,6 +1276,19 @@ async def execute_brute_force(agent: AgentContext, args: dict[str, Any]) -> str:
     except ImportError:
         return "[!] httpx 未安装，无法执行爆破"
 
+    try:
+        from vulnclaw.sandbox.http import AsyncBoundaryHTTPTransport
+        from vulnclaw.sandbox.runtime import require_agent_boundary
+
+        boundary = require_agent_boundary(agent)
+        sandbox_transport = (
+            AsyncBoundaryHTTPTransport(boundary, verify=False)
+            if boundary.mode == "docker"
+            else None
+        )
+    except Exception as exc:
+        return f"[!] brute-force execution boundary error: {exc}"
+
     def extract_csrf(html: str, field_name: str) -> str | None:
         """Extract CSRF token from HTML input field."""
         if not field_name:
@@ -1312,6 +1321,7 @@ async def execute_brute_force(agent: AgentContext, args: dict[str, Any]) -> str:
         verify=False,
         timeout=30.0,
         follow_redirects=True,
+        transport=sandbox_transport,
     ) as client:
         # Step 1: Get login page for initial CSRF and session
         try:
@@ -1440,5 +1450,8 @@ async def execute_brute_force(agent: AgentContext, args: dict[str, Any]) -> str:
     summary.append("")
     summary.append(f"    耗时: {elapsed:.1f}s")
     summary.append(f"    尝试: {attempts}/{total}")
+    refs = getattr(sandbox_transport, "evidence_refs", [])
+    if refs:
+        summary.extend(["", *[f"[evidence] {ref.path}" for ref in refs]])
 
     return "\n".join(summary)

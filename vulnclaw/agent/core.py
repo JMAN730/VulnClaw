@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
+
+if TYPE_CHECKING:
+    from vulnclaw.run_context import RunContext
+    from vulnclaw.sandbox import ExecutionBoundary
+    from vulnclaw.targets import Target
 
 from vulnclaw.agent.anti_loop import (
     detect_attack_path,
@@ -63,6 +68,9 @@ class AgentCore:
         self.mcp_manager = mcp_manager
         self.context = ContextManager()
         self.active_role: str | None = None
+        self.execution_boundary: ExecutionBoundary | None = None
+        self.run_context: RunContext | None = None
+        self.current_target: Target | None = None
         self._client = None
         # Failover key pool: prefer llm.api_keys, else the single llm.api_key.
         self._key_pool = config.llm.key_pool()

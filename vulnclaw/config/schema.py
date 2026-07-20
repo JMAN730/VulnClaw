@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -257,6 +257,25 @@ class SafetyConfig(BaseModel):
     python_execute_audit_enabled: bool = Field(
         default=True,
         description="Write python_execute audit records to the local config directory",
+    )
+    sandbox_mode: Literal["docker", "trusted-local"] = Field(
+        default="docker",
+        description="Execution boundary for active tools: docker or trusted-local",
+    )
+    sandbox_image: str = Field(
+        default="vulnclaw/sandbox:0.3.3",
+        min_length=1,
+        description="Docker image used for the per-run active-tool sandbox",
+    )
+    sandbox_network: Literal["none", "bridge", "host"] = Field(
+        default="none",
+        description="Docker network policy; none is fail-closed, host is unsafe",
+    )
+    sandbox_max_evidence_file_bytes: int = Field(
+        default=10 * 1024 * 1024,
+        ge=1,
+        le=100 * 1024 * 1024,
+        description="Maximum bytes persisted for each sandbox output or artifact file",
     )
     tool_parallel: bool = Field(
         default=True,

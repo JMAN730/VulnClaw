@@ -33,6 +33,9 @@ if TYPE_CHECKING:
     from vulnclaw.agent.llm_client import StreamSink
     from vulnclaw.agent.runtime_state import AgentResult, RuntimeState
     from vulnclaw.config.schema import VulnClawConfig
+    from vulnclaw.run_context import RunContext
+    from vulnclaw.sandbox import ExecutionBoundary
+    from vulnclaw.targets import Target
 
 
 @runtime_checkable
@@ -52,6 +55,9 @@ class AgentContext(Protocol):
     config: VulnClawConfig
     mcp_manager: Any
     active_role: str | None
+    execution_boundary: ExecutionBoundary | None
+    run_context: RunContext | None
+    current_target: Target | None
     _finding_parser: FindingParser
     _kb_retriever: Any
     _kb_context_cache: dict[Any, str]

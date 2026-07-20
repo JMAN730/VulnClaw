@@ -22,6 +22,38 @@ from vulnclaw.report.verifier import (
     VerifierExecutor,
 )
 
+
+def test_verifier_routes_poc_through_boundary_and_stamps_evidence_ref():
+    from vulnclaw.config.domain_models import EvidenceRef
+    from vulnclaw.report.verifier import VulnerabilityVerifier
+    from vulnclaw.sandbox import ExecResult
+
+    evidence_ref = EvidenceRef(kind="sandbox_output", path="sandbox/poc-verification-0001")
+
+    class FakeBoundary:
+        mode = "docker"
+        python_executable = "/usr/bin/python3"
+
+        def run(self, argv, **kwargs):
+            return ExecResult(0, "[CONFIRMED] vulnerable\n", "", evidence_ref)
+
+        def close(self):
+            pass
+
+    verifier = VulnerabilityVerifier("https://example.com", boundary=FakeBoundary())
+    finding = VulnerabilityFinding(
+        title="SQL injection",
+        vuln_type="sql_injection",
+        evidence="candidate",
+        remediation="parameterize queries",
+    )
+
+    verified = verifier.verify(finding)
+    report_findings = verifier.get_verified_report_findings()
+
+    assert verified.evidence_ref == evidence_ref
+    assert report_findings[0].evidence_refs == [evidence_ref]
+
 ALL_TEMPLATE_TYPES = [
     "sql_injection",
     "xss",
