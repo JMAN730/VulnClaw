@@ -96,3 +96,18 @@ def test_transcript_fallback_localized_chinese(i18n_language):
     assert "[工具结果已处理]" in out
     assert "已降级为纯文本结果摘要" in out
     assert "[tool results processed]" not in out
+
+
+def test_compress_messages_keeps_english_transcript_markers():
+    from vulnclaw.agent.context import ContextManager
+
+    summary = ContextManager._compress_messages(
+        [
+            {
+                "role": "assistant",
+                "content": "Calling tool: traffic_list({})\nTool result: [traffic] No matching captures.",
+            }
+        ]
+    )
+    assert "Calling tool: traffic_list" in summary
+    assert "Tool result: [traffic]" in summary
