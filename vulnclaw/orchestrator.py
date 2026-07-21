@@ -17,6 +17,7 @@ from vulnclaw.run_context import (
     load_run_context,
     mark_run_status,
 )
+from vulnclaw.sandbox.runtime import create_execution_boundary
 from vulnclaw.target_state.store import (
     SessionRestoreResult,
     apply_target_state_to_agent,
@@ -26,7 +27,6 @@ from vulnclaw.target_state.store import (
     save_target_state,
 )
 from vulnclaw.targets import Target, build_targets
-from vulnclaw.sandbox.runtime import create_execution_boundary
 
 
 @dataclass

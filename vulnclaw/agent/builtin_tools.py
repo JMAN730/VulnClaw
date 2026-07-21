@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
 import shutil
 import socket
 import subprocess
-import sys
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING, Any
 
