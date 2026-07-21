@@ -17,6 +17,7 @@ from vulnclaw.config.schema import MCPServerConfig, VulnClawConfig
 # 修改原因: 消除 V1 违规 — mcp/ 基础设施层不应反向依赖 agent/ 领域层，
 #          改为从 config/url_utils.py 导入纯 URL 工具函数。
 from vulnclaw.config.url_utils import infer_port_from_url
+from vulnclaw.i18n import _
 from vulnclaw.mcp._probe_mixin import ProbeMixin
 from vulnclaw.mcp.registry import HealthStatus, MCPRegistry
 
@@ -1358,9 +1359,9 @@ class MCPLifecycleManager(ProbeMixin):
             return result
 
         except ImportError:
-            return "[!] httpx 未安装，无法执行 fetch 请求"
+            return _("mcp.fetch.httpx_missing")
         except Exception as e:
-            return f"[!] fetch 请求失败: {e}"
+            return _("mcp.fetch.failed", error=e)
 
     async def _call_memory(self, tool_name: str, args: dict) -> str:
         """Execute a memory tool call (local implementation)."""
@@ -1370,11 +1371,11 @@ class MCPLifecycleManager(ProbeMixin):
 
         if tool_name == "save":
             store.save(args.get("key", ""), args.get("value", ""))
-            return f"[+] 已保存: {args.get('key', '')}"
+            return _("memory.save.ok", memory_key=args.get("key", ""))
         elif tool_name == "retrieve":
             value = store.retrieve(args.get("key", ""))
-            return str(value) if value else "[-] 未找到"
-        return "[!] 未知 memory 工具"
+            return str(value) if value is not None else _("memory.retrieve.not_found")
+        return _("memory.unknown_tool")
 
     async def _call_attached_server(
         self, server_name: str, tool_name: str, args: dict

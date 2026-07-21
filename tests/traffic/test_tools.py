@@ -45,7 +45,8 @@ def _store_with_two(tmp_path) -> TrafficStore:
     return store
 
 
-def test_traffic_list_enumerates_and_filters(tmp_path):
+def test_traffic_list_enumerates_and_filters(tmp_path, i18n_language):
+    i18n_language("zh")
     store = _store_with_two(tmp_path)
     out = dispatch_traffic_tool(store, "traffic_list", {})
     assert "共 2 条" in out
@@ -65,7 +66,8 @@ def test_traffic_view_returns_stored_pair(tmp_path):
     assert "── Response ──" in out
 
 
-def test_traffic_view_missing_id(tmp_path):
+def test_traffic_view_missing_id(tmp_path, i18n_language):
+    i18n_language("zh")
     store = _store_with_two(tmp_path)
     assert "未找到" in dispatch_traffic_tool(store, "traffic_view", {"request_id": "nope"})
 
@@ -100,6 +102,34 @@ def test_schemas_cover_all_tool_names():
     assert names == set(TRAFFIC_TOOL_NAMES)
 
 
+def test_traffic_empty_messages_english(tmp_path, i18n_language):
+    i18n_language("en")
+    store = TrafficStore(tmp_path / "evidence" / "traffic")
+    assert "No matching captures" in dispatch_traffic_tool(store, "traffic_list", {})
+    assert "Sitemap empty" in dispatch_traffic_tool(store, "traffic_sitemap", {})
+    assert "not found" in dispatch_traffic_tool(
+        store, "traffic_view", {"request_id": "nope"}
+    ).lower()
+
+
+def test_traffic_empty_messages_chinese(tmp_path, i18n_language):
+    i18n_language("zh")
+    store = TrafficStore(tmp_path / "evidence" / "traffic")
+    assert "没有匹配的抓包记录" in dispatch_traffic_tool(store, "traffic_list", {})
+    assert "站点地图为空" in dispatch_traffic_tool(store, "traffic_sitemap", {})
+    assert "未找到" in dispatch_traffic_tool(store, "traffic_view", {"request_id": "nope"})
+
+
+def test_traffic_schemas_localize_with_language(i18n_language):
+    i18n_language("en")
+    en_desc = traffic_tool_schemas()[0]["function"]["description"]
+    assert "List HTTP" in en_desc
+
+    i18n_language("zh")
+    zh_desc = traffic_tool_schemas()[0]["function"]["description"]
+    assert "列出本次运行" in zh_desc
+
+
 class _DummySession:
     def __init__(self, evidence_dir):
         self.target = "http://app.test"
@@ -114,9 +144,10 @@ class _DummyAgent:
         self.mcp_manager = None
 
 
-async def test_execute_mcp_tool_routes_traffic(tmp_path):
+async def test_execute_mcp_tool_routes_traffic(tmp_path, i18n_language):
     import vulnclaw.agent.builtin_tools as builtin_tools
 
+    i18n_language("zh")
     _store_with_two(tmp_path)  # writes captures under tmp_path/evidence/traffic
     # evidence_dir points at the evidence root; resolver appends /traffic.
     agent = _DummyAgent(str(tmp_path / "evidence"))

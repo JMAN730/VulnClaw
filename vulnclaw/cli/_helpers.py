@@ -15,6 +15,7 @@ from rich.text import Text
 
 from vulnclaw import __version__
 from vulnclaw.config.text_utils import format_think_tags, strip_think_tags
+from vulnclaw.i18n import _
 
 console = Console()
 err_console = Console(stderr=True)
@@ -52,7 +53,9 @@ class TerminalStreamSink:
     def on_tool_call(self, tool_name: str, args: str) -> None:
         """Display tool call notification."""
         self._console.print()
-        self._console.print(f"[bold cyan]→ 调用工具: {tool_name}[/] {args[:100]}")
+        self._console.print(
+            f"[bold cyan]{_('cli.stream.tool_call', name=tool_name)}[/] {args[:100]}"
+        )
         self._status_printed = False
 
     def on_tool_result(self, result_summary: str) -> None:
@@ -60,7 +63,9 @@ class TerminalStreamSink:
         self._console.print()
         if len(result_summary) > 200:
             result_summary = result_summary[:200] + "..."
-        self._console.print(f"[dim]→ 工具结果: {result_summary}[/]")
+        self._console.print(
+            f"[dim]{_('cli.stream.tool_result', summary=result_summary)}[/]"
+        )
 
     def on_stream_end(self) -> None:
         """Handle stream end."""

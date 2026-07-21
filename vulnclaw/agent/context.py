@@ -1160,7 +1160,12 @@ class ContextManager:
         for msg in messages:
             content = msg.get("content", "")
             # Extract tool call/result information — these contain actual findings
-            if "调用工具:" in content or "工具结果:" in content:
+            if (
+                "调用工具:" in content
+                or "工具结果:" in content
+                or "Calling tool:" in content
+                or "Tool result:" in content
+            ):
                 key_parts.append(content[:300])
 
             # Extract lines that look like findings/discoveries
