@@ -516,7 +516,7 @@
   "llm.transcript.args_unreadable": "<无法读取>",
   "llm.transcript.truncated_middle": "\n...[中间省略]...\n",
   "llm.transcript.round_skipped": "⚠️ 本轮跳过: {info}",
-  "llm.transcript.fallback_incompatible": "[tool results processed] 当前提供商不兼容标准工具总结回传，已降级为纯文本结果摘要：",
-  "llm.transcript.continue_analysis_error": "[tool results processed] 继续分析错误: {error}",
+  "llm.transcript.fallback_incompatible": "[工具结果已处理] 当前提供商不兼容标准工具总结回传，已降级为纯文本结果摘要：",
+  "llm.transcript.continue_analysis_error": "[工具结果已处理] 继续分析错误: {error}",
   "llm.transcript.skip_bad_tool_result": "[!] 跳过异常工具结果: {type} {preview}"
 }

@@ -58,3 +58,15 @@ def test_memory_retrieve_not_found_chinese(i18n_language):
         store_cls.return_value.retrieve.return_value = None
         result = asyncio.run(mgr._call_memory("retrieve", {"key": "current_target"}))
     assert "未找到" in result
+
+
+def test_memory_retrieve_preserves_falsey_value(i18n_language):
+    i18n_language("en")
+    from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+
+    mgr = MCPLifecycleManager(MagicMock())
+    with patch("vulnclaw.agent.memory.MemoryStore") as store_cls:
+        store_cls.return_value.retrieve.return_value = 0
+        result = asyncio.run(mgr._call_memory("retrieve", {"key": "count"}))
+    assert result == "0"
+    assert "Not found" not in result

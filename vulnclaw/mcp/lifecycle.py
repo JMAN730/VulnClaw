@@ -1374,7 +1374,7 @@ class MCPLifecycleManager(ProbeMixin):
             return _("memory.save.ok", memory_key=args.get("key", ""))
         elif tool_name == "retrieve":
             value = store.retrieve(args.get("key", ""))
-            return str(value) if value else _("memory.retrieve.not_found")
+            return str(value) if value is not None else _("memory.retrieve.not_found")
         return _("memory.unknown_tool")
 
     async def _call_attached_server(

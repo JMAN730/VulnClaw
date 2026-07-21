@@ -353,44 +353,6 @@ async def call_llm_auto(
                     }
                 )
 
-        tool_summary_parts = []
-        for tc in executed_tcs:
-            try:
-                args_str = str(tc.function.arguments)[:200]
-            except Exception:
-                args_str = _("llm.transcript.args_unreadable")
-            tool_summary_parts.append(
-                _("llm.transcript.tool_call", name=tc.function.name, args=args_str)
-            )
-        for tr in tool_results:
-            content = tr.get("content", "") if isinstance(tr, dict) else str(tr)
-            if len(content) > 1000:
-                content = (
-                    content[:500]
-                    + _("llm.transcript.truncated_middle")
-                    + content[-500:]
-                )
-            tool_summary_parts.append(_("llm.transcript.tool_result", content=content))
-            if (
-                isinstance(tr, dict)
-                and isinstance(tr.get("structured_content"), dict)
-                and tr["structured_content"]
-            ):
-                structured = json.dumps(tr["structured_content"], ensure_ascii=False)
-                if len(structured) > 1000:
-                    structured = (
-                        structured[:500]
-                        + _("llm.transcript.truncated_middle")
-                        + structured[-500:]
-                    )
-                tool_summary_parts.append(
-                    _("llm.transcript.structured_result", content=structured)
-                )
-        if skipped_info:
-            tool_summary_parts.append(
-                _("llm.transcript.round_skipped", info="; ".join(skipped_info))
-            )
-
         try:
             kwargs["messages"] = _fit_context_window(agent, messages)
             response2, second_retry_attempts = await _call_with_persistent_retries(
