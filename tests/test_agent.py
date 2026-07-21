@@ -1577,8 +1577,13 @@ class TestAgentCoreLoop:
         assert loop.calls == 1
 
     @pytest.mark.asyncio
-    async def test_llm_client_tool_summary_bad_request_degrades_to_plain_text(self, monkeypatch):
+    async def test_llm_client_tool_summary_bad_request_degrades_to_plain_text(
+        self, monkeypatch, i18n_language
+    ):
         from vulnclaw.agent import llm_client
+        from vulnclaw.i18n import _
+
+        i18n_language("zh")
 
         class DummyLoop:
             def __init__(self):
@@ -1675,7 +1680,7 @@ class TestAgentCoreLoop:
         )
 
         result = await llm_client.call_llm_auto(dummy, "sys", "round")
-        assert "已降级为纯文本结果摘要" in result
+        assert _("llm.transcript.fallback_incompatible") in result
         assert "Status: 200" in result
 
     @pytest.mark.asyncio

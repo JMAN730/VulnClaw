@@ -519,7 +519,7 @@
   "traffic.schema.repeat.headers": "Override/add request headers (null value deletes a header)",
   "traffic.schema.repeat.body": "Override request body (optional)",
   "traffic.schema.sitemap.desc": "Show the sitemap for this run: paths, methods, and hit counts aggregated by host. Use to quickly understand the attack surface and covered endpoints.",
-  "memory.save.ok": "[+] Saved: {key}",
+  "memory.save.ok": "[+] Saved: {memory_key}",
   "memory.retrieve.not_found": "[-] Not found",
   "memory.unknown_tool": "[!] Unknown memory tool",
   "mcp.fetch.httpx_missing": "[!] httpx is not installed; cannot run fetch",

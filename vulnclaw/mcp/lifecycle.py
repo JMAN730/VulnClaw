@@ -1371,7 +1371,7 @@ class MCPLifecycleManager(ProbeMixin):
 
         if tool_name == "save":
             store.save(args.get("key", ""), args.get("value", ""))
-            return _("memory.save.ok", key=args.get("key", ""))
+            return _("memory.save.ok", memory_key=args.get("key", ""))
         elif tool_name == "retrieve":
             value = store.retrieve(args.get("key", ""))
             return str(value) if value else _("memory.retrieve.not_found")

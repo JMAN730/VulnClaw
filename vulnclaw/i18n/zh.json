@@ -505,7 +505,7 @@
   "traffic.schema.repeat.headers": "覆盖/新增请求头（值为 null 表示删除该头）",
   "traffic.schema.repeat.body": "覆盖请求体（可选）",
   "traffic.schema.sitemap.desc": "查看本次运行抓取到的站点地图：按主机聚合的路径、方法与命中次数。用于快速了解目标攻击面与已覆盖的端点。",
-  "memory.save.ok": "[+] 已保存: {key}",
+  "memory.save.ok": "[+] 已保存: {memory_key}",
   "memory.retrieve.not_found": "[-] 未找到",
   "memory.unknown_tool": "[!] 未知 memory 工具",
   "mcp.fetch.httpx_missing": "[!] httpx 未安装，无法执行 fetch 请求",
