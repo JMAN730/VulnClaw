@@ -17,6 +17,7 @@ from vulnclaw.agent.tool_call_manager import (
     handle_tool_calls,
     handle_tool_calls_with_results,
 )
+from vulnclaw.i18n import _
 
 _CONTEXT_USABLE_RATIO = 0.9
 
@@ -236,14 +237,18 @@ def _format_tool_results_fallback(
     tool_results: list[dict[str, Any]], skipped_info: list[str]
 ) -> str:
     """Build a plain-text fallback summary when provider tool-summary format is incompatible."""
-    parts = ["[tool results processed] 当前提供商不兼容标准工具总结回传，已降级为纯文本结果摘要："]
+    parts = [_("llm.transcript.fallback_incompatible")]
     for item in tool_results:
         content = item.get("content", "") if isinstance(item, dict) else str(item)
         if len(content) > 800:
-            content = content[:400] + "\n...[中间省略]...\n" + content[-400:]
+            content = (
+                content[:400]
+                + _("llm.transcript.truncated_middle")
+                + content[-400:]
+            )
         parts.append(content)
     if skipped_info:
-        parts.append("⚠️ 本轮跳过: " + "; ".join(skipped_info))
+        parts.append(_("llm.transcript.round_skipped", info="; ".join(skipped_info)))
     return "\n".join(parts)
 
 
@@ -310,7 +315,14 @@ async def call_llm_auto(
             if not isinstance(tc, dict) or "tool_call" not in tc:
                 import sys
 
-                print(f"[!] 跳过异常工具结果: {type(tc).__name__} {str(tc)[:100]}", file=sys.stderr)
+                print(
+                    _(
+                        "llm.transcript.skip_bad_tool_result",
+                        type=type(tc).__name__,
+                        preview=str(tc)[:100],
+                    ),
+                    file=sys.stderr,
+                )
                 continue
             executed_tcs.append(tc["tool_call"])
 
@@ -346,13 +358,19 @@ async def call_llm_auto(
             try:
                 args_str = str(tc.function.arguments)[:200]
             except Exception:
-                args_str = "<无法读取>"
-            tool_summary_parts.append(f"调用工具: {tc.function.name}({args_str})")
+                args_str = _("llm.transcript.args_unreadable")
+            tool_summary_parts.append(
+                _("llm.transcript.tool_call", name=tc.function.name, args=args_str)
+            )
         for tr in tool_results:
             content = tr.get("content", "") if isinstance(tr, dict) else str(tr)
             if len(content) > 1000:
-                content = content[:500] + "\n...[中间省略]...\n" + content[-500:]
-            tool_summary_parts.append(f"工具结果: {content}")
+                content = (
+                    content[:500]
+                    + _("llm.transcript.truncated_middle")
+                    + content[-500:]
+                )
+            tool_summary_parts.append(_("llm.transcript.tool_result", content=content))
             if (
                 isinstance(tr, dict)
                 and isinstance(tr.get("structured_content"), dict)
@@ -360,10 +378,18 @@ async def call_llm_auto(
             ):
                 structured = json.dumps(tr["structured_content"], ensure_ascii=False)
                 if len(structured) > 1000:
-                    structured = structured[:500] + "\n...[中间省略]...\n" + structured[-500:]
-                tool_summary_parts.append(f"结构化结果: {structured}")
+                    structured = (
+                        structured[:500]
+                        + _("llm.transcript.truncated_middle")
+                        + structured[-500:]
+                    )
+                tool_summary_parts.append(
+                    _("llm.transcript.structured_result", content=structured)
+                )
         if skipped_info:
-            tool_summary_parts.append(f"⚠️ 本轮跳过: {'; '.join(skipped_info)}")
+            tool_summary_parts.append(
+                _("llm.transcript.round_skipped", info="; ".join(skipped_info))
+            )
 
         try:
             kwargs["messages"] = _fit_context_window(agent, messages)
@@ -381,7 +407,7 @@ async def call_llm_auto(
                 fallback = _format_tool_results_fallback(tool_results, skipped_info)
                 # 同上: 不在此写入上下文
                 return fallback
-            return f"[tool results processed] 继续分析错误: {e2}"
+            return _("llm.transcript.continue_analysis_error", error=e2)
 
     return _prepend_retry_notice(extract_response(choice.message), retry_attempts)
 
@@ -821,7 +847,7 @@ async def call_llm_auto_stream(
                         fallback = _format_tool_results_fallback(tool_results, skipped_info)
                         # 同上: 不在此写入上下文
                         return fallback
-                    return f"[tool results processed] 继续分析错误: {e2}"
+                    return _("llm.transcript.continue_analysis_error", error=e2)
 
         # 上下文已由调用方写入，不在此重复添加
         return full_text
