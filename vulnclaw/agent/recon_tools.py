@@ -310,6 +310,32 @@ def _make_client(cfg: Any):
     return httpx.AsyncClient(verify=False, timeout=cfg.http_timeout, follow_redirects=True)
 
 
+def _make_client_for_agent(cfg: Any, agent: AgentContext):
+    boundary = getattr(agent, "execution_boundary", None)
+    safety = getattr(getattr(agent, "config", None), "safety", None)
+    if boundary is None:
+        if safety is not None and getattr(safety, "sandbox_mode", "docker") == "docker":
+            from vulnclaw.sandbox import SandboxError
+
+            raise SandboxError("Docker sandbox boundary is not initialized for active HTTP")
+        return _make_client(cfg)
+    if boundary.mode != "docker":
+        return _make_client(cfg)
+
+    import httpx
+
+    from vulnclaw.sandbox.http import AsyncBoundaryHTTPTransport
+
+    return httpx.AsyncClient(
+        verify=False,
+        timeout=cfg.http_timeout,
+        follow_redirects=True,
+        transport=AsyncBoundaryHTTPTransport(
+            boundary, verify=False, timeout=float(cfg.http_timeout)
+        ),
+    )
+
+
 async def execute_space_search(agent: AgentContext, args: dict[str, Any]) -> str:
     """统一空间测绘查询。engine ∈ {fofa,hunter,quake,shodan,zoomeye,zerozone,all}。"""
     cfg = _get_recon_cfg(agent)
@@ -334,7 +360,7 @@ async def execute_space_search(agent: AgentContext, args: dict[str, Any]) -> str
         _("agent.recon.space_heading", engines="/".join(engines), query=query or domain)
     ]
     try:
-        async with _make_client(cfg) as client:
+        async with _make_client_for_agent(cfg, agent) as client:
             async def run(eng: str) -> tuple[str, list[dict], str]:
                 q = query or _DOMAIN_QUERY[eng].format(d=domain)
                 try:
@@ -386,7 +412,7 @@ async def execute_subdomain_enum(agent: AgentContext, args: dict[str, Any]) -> s
     engines = [e for e in _ENGINES if getattr(cfg, _key_field(e))]
     if engines:
         try:
-            async with _make_client(cfg) as client:
+            async with _make_client_for_agent(cfg, agent) as client:
                 async def run(eng: str):
                     q = _DOMAIN_QUERY[eng].format(d=domain)
                     try:
@@ -537,7 +563,7 @@ async def execute_js_recon(agent: AgentContext, args: dict[str, Any]) -> str:
     agg = {"urls": [], "paths": [], "domains": [], "secrets": []}
     fetched = 0
     try:
-        async with _make_client(cfg) as client:
+        async with _make_client_for_agent(cfg, agent) as client:
             resp = await client.get(url)
             html = resp.text
             for k, v in extract_from_js(html, host).items():
@@ -768,7 +794,7 @@ async def execute_unauth_test(agent: AgentContext, args: dict[str, Any]) -> str:
     auth = _parse_auth_header(args.get("auth_header"))
     cap = int(args.get("max_endpoints", 60) or 60)
     try:
-        async with _make_client(cfg) as client:
+        async with _make_client_for_agent(cfg, agent) as client:
             sem = asyncio.Semaphore(cfg.max_concurrency)
             rows = await _probe_endpoints(client, base, endpoints, auth, cap, sem)
     except Exception as e:
@@ -842,7 +868,7 @@ async def execute_dir_enum(agent: AgentContext, args: dict[str, Any]) -> str:
     candidates = _dedup_cap(candidates, cfg.dir_max_requests)
 
     try:
-        async with _make_client(cfg) as client:
+        async with _make_client_for_agent(cfg, agent) as client:
             # 404 基线 + 全局伪装识别：请求随机不存在路径
             baseline_len = None
             try:

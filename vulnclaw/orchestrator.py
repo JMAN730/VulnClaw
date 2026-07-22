@@ -17,6 +17,7 @@ from vulnclaw.run_context import (
     load_run_context,
     mark_run_status,
 )
+from vulnclaw.sandbox.runtime import create_execution_boundary
 from vulnclaw.target_state.store import (
     SessionRestoreResult,
     apply_target_state_to_agent,
@@ -53,6 +54,7 @@ async def run_agent_task(
     repair: bool = False,
     force_fresh: bool = False,
     no_import: bool = False,
+    trusted_local: bool = False,
     before_restore: Optional[Callable[[SessionRestoreResult | None], None]] = None,
     on_restored: Optional[Callable[[SessionRestoreResult], None]] = None,
     on_legacy_import: Optional[Callable[[SessionRestoreResult], None]] = None,
@@ -151,6 +153,21 @@ async def run_agent_task(
             preview={"target": primary_target.raw},
         )
 
+    # Legacy read-only restores intentionally have no run directory.  They do
+    # not execute active tools, so retain compatibility with that flow by using
+    # the explicit local boundary; normal runs remain Docker-by-default.
+    boundary_config = getattr(agent, "config", None)
+    boundary_trusted_local = trusted_local or (legacy_read_only and run_context is None)
+    execution_boundary = create_execution_boundary(
+        config=boundary_config,
+        run_context=run_context,
+        target=primary_target,
+        trusted_local=boundary_trusted_local,
+    )
+    agent.execution_boundary = execution_boundary
+    agent.run_context = run_context
+    agent.current_target = primary_target
+
     checkpoint = (
         _install_checkpoint_hook(agent, command, run_context, targets)
         if run_context is not None
@@ -158,49 +175,57 @@ async def run_agent_task(
     )
     checkpoint("run_start")
 
-    status = "completed"
-    exit_code = 0
     try:
-        await runner(agent)
-        checkpoint("run_complete")
-        if run_context is not None:
-            mark_run_status(run_context, "completed", exit_code=0)
-    except KeyboardInterrupt:
-        status = "interrupted"
-        exit_code = 130
-        checkpoint("interrupt")
-        if run_context is not None:
-            mark_run_status(run_context, "interrupted", exit_code=130)
-    except asyncio.CancelledError:
-        status = "interrupted"
-        exit_code = 130
-        checkpoint("cancelled")
-        if run_context is not None:
-            mark_run_status(run_context, "interrupted", exit_code=130)
-        raise
-    except Exception as exc:
-        status = "failed"
-        exit_code = 1
-        checkpoint("failed")
-        if run_context is not None:
-            mark_run_status(run_context, "failed", exit_code=1, message=str(exc))
-        raise
+        status = "completed"
+        exit_code = 0
+        try:
+            await runner(agent)
+            checkpoint("run_complete")
+            if run_context is not None:
+                mark_run_status(run_context, "completed", exit_code=0)
+        except KeyboardInterrupt:
+            status = "interrupted"
+            exit_code = 130
+            checkpoint("interrupt")
+            if run_context is not None:
+                mark_run_status(run_context, "interrupted", exit_code=130)
+        except asyncio.CancelledError:
+            status = "interrupted"
+            exit_code = 130
+            checkpoint("cancelled")
+            if run_context is not None:
+                mark_run_status(run_context, "interrupted", exit_code=130)
+            raise
+        except Exception as exc:
+            status = "failed"
+            exit_code = 1
+            checkpoint("failed")
+            if run_context is not None:
+                mark_run_status(run_context, "failed", exit_code=1, message=str(exc))
+            raise
 
-    summary = _build_summary(
-        agent=agent,
-        command=command,
-        restore_result=restore_result,
-        run_context=run_context,
-        status=status,
-        exit_code=exit_code,
-    )
-    return OrchestratorRunResult(
-        restore_result=restore_result or SessionRestoreResult(target=target),
-        summary=summary,
-        run_context=run_context,
-        status=status,
-        exit_code=exit_code,
-    )
+        summary = _build_summary(
+            agent=agent,
+            command=command,
+            restore_result=restore_result,
+            run_context=run_context,
+            status=status,
+            exit_code=exit_code,
+        )
+        return OrchestratorRunResult(
+            restore_result=restore_result or SessionRestoreResult(target=target),
+            summary=summary,
+            run_context=run_context,
+            status=status,
+            exit_code=exit_code,
+        )
+    finally:
+        try:
+            execution_boundary.close()
+        finally:
+            agent.execution_boundary = None
+            agent.run_context = None
+            agent.current_target = None
 
 
 def _resolve_run_context(

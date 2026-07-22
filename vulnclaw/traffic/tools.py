@@ -208,7 +208,11 @@ def traffic_sitemap(store: TrafficStore) -> str:
 
 
 def dispatch_traffic_tool(
-    store: TrafficStore, tool_name: str, args: dict[str, Any]
+    store: TrafficStore,
+    tool_name: str,
+    args: dict[str, Any],
+    *,
+    transport: Any | None = None,
 ) -> str:
     """Route a traffic tool call to its handler and return an agent string."""
     if tool_name == "traffic_list":
@@ -228,7 +232,16 @@ def dispatch_traffic_tool(
         for key in ("method", "url", "headers", "body"):
             if key in args and args[key] is not None:
                 overrides[key] = args[key]
-        return traffic_repeat(store, str(args.get("request_id", "")), overrides)
+        result = traffic_repeat(
+            store,
+            str(args.get("request_id", "")),
+            overrides,
+            transport=transport,
+        )
+        refs = getattr(transport, "evidence_refs", [])
+        if refs:
+            result += "\n" + "\n".join(f"[evidence] {ref.path}" for ref in refs)
+        return result
     if tool_name == "traffic_sitemap":
         return traffic_sitemap(store)
     return _("traffic.unknown_tool", name=tool_name)

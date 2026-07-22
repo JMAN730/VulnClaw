@@ -23,6 +23,7 @@ class DummySafety:
         self.python_execute_show_warning = False
         self.python_execute_max_output_chars = 8000
         self.python_execute_audit_enabled = True
+        self.sandbox_mode = "trusted-local"
 
 
 class DummyConfig:
@@ -39,6 +40,45 @@ class DummyAgent:
 
 
 class TestBuiltinPythonExecute:
+    async def test_docker_mode_routes_code_through_boundary(self, monkeypatch):
+        import vulnclaw.agent.builtin_tools as builtin_tools
+        from vulnclaw.config.domain_models import EvidenceRef
+        from vulnclaw.sandbox import ExecResult
+
+        class FakeBoundary:
+            mode = "docker"
+            python_executable = "/usr/bin/python3"
+
+            def __init__(self):
+                self.calls = []
+
+            def run(self, argv, **kwargs):
+                self.calls.append((argv, kwargs))
+                return ExecResult(
+                    0,
+                    "ok from sandbox\n",
+                    "",
+                    EvidenceRef(kind="sandbox_output", path="sandbox/python-execute-0001"),
+                )
+
+            def close(self):
+                pass
+
+        agent = DummyAgent()
+        agent.config.safety.sandbox_mode = "docker"
+        agent.execution_boundary = FakeBoundary()
+        monkeypatch.setattr(builtin_tools, "_write_python_audit", lambda *args, **kwargs: None)
+
+        result = await builtin_tools.execute_python(
+            agent, {"code": "print('ok')", "purpose": "demo"}
+        )
+
+        assert "ok from sandbox" in result
+        assert "sandbox/python-execute-0001" in result
+        argv, kwargs = agent.execution_boundary.calls[0]
+        assert argv[:2] == ["/usr/bin/python3", "-c"]
+        assert kwargs["label"] == "python_execute"
+
     async def test_safe_mode_blocks_network_access(self, monkeypatch, tmp_path):
         import vulnclaw.agent.builtin_tools as builtin_tools
 

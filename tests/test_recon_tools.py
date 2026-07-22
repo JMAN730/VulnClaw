@@ -14,8 +14,11 @@ def _use_chinese_by_default(i18n_language):
     i18n_language("zh")
 
 
-def _agent(recon: ReconConfig | None = None):
+def _agent(
+    recon: ReconConfig | None = None, *, sandbox_mode: str = "trusted-local"
+):
     cfg = VulnClawConfig()
+    cfg.safety.sandbox_mode = sandbox_mode
     if recon is not None:
         cfg.recon = recon
     return SimpleNamespace(config=cfg, session_state=SimpleNamespace(task_constraints=None))
@@ -50,6 +53,24 @@ class _FakeClient:
 
     async def post(self, url, headers=None, content=None):
         return self._router("POST", url, None, content)
+
+
+async def test_active_http_does_not_fallback_to_host_without_docker_boundary(
+    monkeypatch,
+):
+    def fail_if_host_client_is_created(_cfg):
+        raise AssertionError("Docker mode must not create a host HTTP client")
+
+    monkeypatch.setattr(recon_tools, "_make_client", fail_if_host_client_is_created)
+    agent = _agent(
+        ReconConfig(fofa_email="a@b.com", fofa_key="k"), sandbox_mode="docker"
+    )
+
+    result = await recon_tools.execute_space_search(
+        agent, {"engine": "fofa", "domain": "example.com"}
+    )
+
+    assert "Docker sandbox boundary is not initialized for active HTTP" in result
 
 
 # ── JS 提取（纯函数）────────────────────────────────────────────────
