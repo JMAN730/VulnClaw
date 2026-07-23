@@ -28,3 +28,20 @@ def test_agent_translation_catalogs_have_matching_keys_and_placeholders():
         for key in english
         if _placeholders(english[key]) != _placeholders(chinese[key])
     } == {}
+
+
+def test_provider_discovery_catalogs_have_matching_keys_and_placeholders():
+    prefixes = ("tui.model_discovery_", "tui.openrouter_warning")
+    english = {
+        key: value for key, value in _catalog("en").items() if key.startswith(prefixes)
+    }
+    chinese = {
+        key: value for key, value in _catalog("zh").items() if key.startswith(prefixes)
+    }
+
+    assert english.keys() == chinese.keys()
+    assert {
+        key: (_placeholders(english[key]), _placeholders(chinese[key]))
+        for key in english
+        if _placeholders(english[key]) != _placeholders(chinese[key])
+    } == {}
