@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 from vulnclaw.agent.blackboard import Blackboard, BoardIntent, IntentStatus
 from vulnclaw.agent.llm_client import build_chat_completion_kwargs, call_llm_auto
 from vulnclaw.agent.think_filter import strip_think_tags
+from vulnclaw.mcp.lifecycle import _is_transport_cancel
 
 FRONTIER_RECOVERY_LIMIT = 2
 
@@ -947,6 +948,12 @@ async def _explore_batch(
             )
             return (intent, advanced, fact, False)
         except Exception as exc:
+            return (intent, False, f"探索异常: {exc}", True)
+        except asyncio.CancelledError as exc:
+            # MCP anyio cancel scopes raise CancelledError (not Exception); soft-fail
+            # so concurrent explore gather does not tear down the whole solve loop.
+            if not _is_transport_cancel(exc):
+                raise
             return (intent, False, f"探索异常: {exc}", True)
         finally:
             _current_worker.reset(ctx_token)

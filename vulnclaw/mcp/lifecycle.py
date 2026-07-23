@@ -62,6 +62,11 @@ def _is_benign_shutdown_exception(exc: BaseException) -> bool:
     return isinstance(exc, (GeneratorExit, asyncio.CancelledError))
 
 
+def _is_transport_cancel(exc: BaseException) -> bool:
+    """True when anyio cancelled the MCP transport (not a user/task cancel)."""
+    return isinstance(exc, asyncio.CancelledError) and "cancel scope" in str(exc).lower()
+
+
 class MCPLifecycleManager(ProbeMixin):
     """Manages the lifecycle of MCP servers: start, stop, health check.
 
@@ -1388,9 +1393,20 @@ class MCPLifecycleManager(ProbeMixin):
         session = await self._get_or_create_session(server_name)
         config = self.config.mcp.servers.get(server_name)
         timeout_s = self._tool_timeout_seconds(config) if config else 300.0
-        result = await asyncio.wait_for(
-            session.call_tool(tool_name, arguments=args), timeout=timeout_s
-        )
+        try:
+            result = await asyncio.wait_for(
+                session.call_tool(tool_name, arguments=args), timeout=timeout_s
+            )
+        except asyncio.CancelledError as exc:
+            # Anyio transport cancel scopes raise CancelledError (BaseException),
+            # which bypasses except Exception and would kill the REPL. Convert to
+            # RuntimeError after dropping the dead session so the next call rebuilds.
+            if not _is_transport_cancel(exc):
+                raise
+            await self._teardown_server(server_name)
+            raise RuntimeError(
+                f"{server_name} transport cancelled during {tool_name}: {exc}"
+            ) from exc
         rendered, structured, is_error = self._render_mcp_call_result(result)
         if is_error:
             raise RuntimeError(rendered or f"{server_name} call returned an error")
