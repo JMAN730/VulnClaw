@@ -53,7 +53,7 @@ Suitable for authorized pentests, CTF competitions, security training, and red t
 ## Features
 
 - **Natural Language Driven** — Describe your intent in plain English, it auto-identifies phases and tools
-- **13 LLM Providers** — OpenAI / Anthropic / MiniMax / DeepSeek / Zhipu / Moonshot / Qwen / SiliconFlow / Doubao / Baichuan / StepFun / SenseTime / Yi, one-command switch
+- **14 LLM Providers** — OpenAI / OpenRouter / Anthropic / MiniMax / DeepSeek / Zhipu / Moonshot / Qwen / SiliconFlow / Doubao / Baichuan / StepFun / SenseTime / Yi, one-command switch
 - **MCP Toolchain** — Ships with 11 MCP service configs and 23 tool definitions; `fetch` / `memory` currently run in stable `local` mode, while most other MCP integrations remain preview or placeholder until full session lifecycle management is completed
 - **Native traffic evidence store** — A VulnClaw-owned capture store: in-scope request/response pairs land in an append-only JSONL index plus per-request raw blobs under `evidence/traffic/`. Built-in `traffic_list` / `traffic_view` / `traffic_repeat` / `traffic_sitemap` tools read and replay the store (`traffic_repeat` re-issues with overrides), and a verified finding's report inlines the exact raw request/response that proved it. The mitmproxy proxy and headless Playwright capture backends are optional extras (`pip install vulnclaw[traffic]`), gated behind availability detection; their automatic wiring into the sandbox run loop lands with the sandbox / run-directory PRDs. Burp/chrome-devtools stay optional interactive overlays, normalized into the same store
 - **AI Agent Core** — OpenAI-compatible protocol + Tool Calling + autonomous pentest loop
@@ -112,7 +112,7 @@ docker run --rm -it \
 
 ```bash
 # 1. Select provider (auto-fills Base URL and model name)
-vulnclaw config provider minimax   # or openai / anthropic / deepseek / zhipu / moonshot / qwen / siliconflow
+vulnclaw config provider minimax   # or openai / openrouter / anthropic / deepseek / zhipu / moonshot / qwen / siliconflow
 
 # 1.2 (optional) custom Base URL or model name
 vulnclaw config set llm.base_url https://your-own-api.example.com/v1
@@ -440,7 +440,7 @@ Once launched, open `http://127.0.0.1:7788` in your browser.
 
 ## LLM Provider Configuration
 
-VulnClaw supports OpenAI-compatible APIs with 13 built-in provider presets plus custom endpoints:
+VulnClaw supports OpenAI-compatible APIs with 14 built-in provider presets plus custom endpoints:
 
 ```bash
 vulnclaw config provider --list    # list all providers
@@ -450,6 +450,7 @@ vulnclaw config provider minimax   # one-command switch
 | Provider     | Command                  | Default Model          |
 | ------------ | ------------------------ | ---------------------- |
 | OpenAI      | `provider openai`        | gpt-4o                 |
+| OpenRouter (Model Gateway) | `provider openrouter` | openai/gpt-4o |
 | Anthropic Claude | `provider anthropic` | claude-sonnet-5        |
 | MiniMax     | `provider minimax`       | MiniMax-M3             |
 | DeepSeek    | `provider deepseek`      | deepseek-v4-pro        |
@@ -463,6 +464,21 @@ vulnclaw config provider minimax   # one-command switch
 | SenseTime   | `provider sensetime`     | SenseNova-6.7-Flash-Lite |
 | Yi          | `provider yi`            | yi-lightning           |
 | Custom      | `provider custom`        | manual                 |
+
+### OpenRouter security and routing
+
+```bash
+vulnclaw config provider openrouter
+vulnclaw config set llm.api_key <openrouter-inference-key>
+```
+
+OpenRouter is a Model Gateway, not a single Upstream Model Provider. VulnClaw uses a standard static inference key through the existing `llm.api_key` / `llm.api_keys` and `VULNCLAW_LLM_API_KEY` / `VULNCLAW_LLM_API_KEYS` settings. Use a dedicated inference key with a spending cap and an appropriate expiry; do not use a management key.
+
+Default routing can select and, before output begins, fall back across multiple Upstream Model Providers, so a Model ID does not pin one upstream. VulnClaw requires eligible upstreams to support its tool and generation parameters, but this first release does not expose OpenRouter-specific routing, fallback, or privacy controls.
+
+OpenRouter retains request metadata, and selected upstreams have independent retention and training policies. Before sending sensitive target data, review the OpenRouter account privacy, data-collection, and ZDR settings plus each eligible upstream's policy. ZDR can constrain routing, but this documentation does not promise unconditional end-to-end zero retention.
+
+Free model variants generally have lower limits and availability; dynamic routers also reduce determinism in upstream choice, pricing, and output. They are useful for evaluation, not VulnClaw's production default. See [OpenRouter provider routing](https://openrouter.ai/docs/guides/routing/provider-selection) and [privacy and logging](https://openrouter.ai/docs/guides/privacy/provider-logging).
 
 ---
 
@@ -509,7 +525,7 @@ vulnclaw config provider minimax   # one-command switch
 | **MCP Orchestration**| `mcp/registry.py` + `lifecycle.py` + `router.py`    | Service registry + lifecycle + NL→tool routing     |
 | **Skill Dispatcher** | `skills/loader.py` + `dispatcher.py`               | Directory-format Skills + CTF/SRC/AI/Web intent routing |
 | **Crypto Tools**    | `skills/crypto_tools.py`                             | 29 encode/decode/crypto ops, registered as built-in tools |
-| **Config**          | `config/schema.py` + `settings.py`                   | Pydantic models + YAML persistence + 13 provider presets |
+| **Config**          | `config/schema.py` + `settings.py`                   | Pydantic models + YAML persistence + 14 provider presets |
 | **Report Generator** | `report/generator.py` + `poc_builder.py`          | Markdown reports + Python PoC templates             |
 | **Security KB**     | `kb/store.py` + `retriever.py`                     | JSON storage + CVE/technique/tool retrieval        |
 
@@ -608,7 +624,7 @@ vulnclaw config set session.show_thinking false  # hide thinking process (also i
 
 | Option                                  | Default        | Description                                      |
 | --------------------------------------- | -------------- | ------------------------------------------------ |
-| `llm.provider`                         | openai         | LLM provider (13 built-in + custom)             |
+| `llm.provider`                         | openai         | LLM provider (14 built-in + custom)             |
 | `llm.api_key`                          | empty          | API key (auth_mode=static)                       |
 | `llm.auth_mode`                        | static         | `static` (api_key) or `oauth` (`vulnclaw login`) |
 | `llm.chatgpt_auto_proxy`               | false          | Auto-start built-in ChatGPT-backend bridge proxy |

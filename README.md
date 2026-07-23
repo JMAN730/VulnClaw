@@ -58,7 +58,7 @@ VulnClaw 自动执行：
 - **黑板图状态空间搜索** — 把渗透建模为从 origin 向 goal 的搜索：Fact（已确认事实）+ Intent（探索方向），结构上杜绝"原地打转"
 - **证据级反幻觉闸门** — 声称的 flag/结论必须在真实工具输出里逐字符出现才被采信，杜绝凭空编造 flag 的假胜利
 - **自然语言驱动** — 用人话描述渗透意图，自动识别阶段和工具
-- **13 个 LLM Provider** — OpenAI / Anthropic / MiniMax / DeepSeek / 智谱 / Moonshot / 千问 / SiliconFlow / 豆包 / 百川 / 阶跃星辰 / 商汤 / 零一万物，一键切换
+- **14 个 LLM Provider** — OpenAI / OpenRouter / Anthropic / MiniMax / DeepSeek / 智谱 / Moonshot / 千问 / SiliconFlow / 豆包 / 百川 / 阶跃星辰 / 商汤 / 零一万物，一键切换
 - **MCP 工具链** — 4 个 MCP 服务：`fetch` / `memory` 本地实现开箱即用，`chrome-devtools` / `burp` 对接外部 MCP 服务实现浏览器自动化和 HTTP 抓包重放
 - **原生流量证据存储** — VulnClaw 自有的抓包存储：按运行内作用域过滤后以追加式 JSONL 索引 + 每请求原始报文落盘于 `evidence/traffic/`。内置 `traffic_list` / `traffic_view` / `traffic_repeat` / `traffic_sitemap` 工具直接读写该存储（`traffic_repeat` 支持带覆盖重放），已验证漏洞的报告直接内联证明它的原始请求/响应。mitmproxy 代理与 Playwright 浏览器捕获后端为可选依赖（`pip install vulnclaw[traffic]`），并按可用性检测启用；其在沙箱运行循环中的自动接入随沙箱/运行目录 PRD 落地。Burp/chrome-devtools 作为可选交互式叠加层归一化进同一存储
 - **AI Agent 核心** — OpenAI 兼容协议 + Tool Calling + 自主渗透循环
@@ -163,7 +163,7 @@ docker run --rm -it \
 
 ```bash
 # 1. 选择提供商（自动填充 Base URL 和模型名）
-vulnclaw config provider minimax   (或 openai/anthropic/deepseek/zhipu/moonshot/qwen/siliconflow)
+vulnclaw config provider minimax   (或 openai/openrouter/anthropic/deepseek/zhipu/moonshot/qwen/siliconflow)
 
 # 1.2（可选）自定义 Base URL 或模型名
 vulnclaw config set llm.base_url https://your-own-api.example.com/v1 
@@ -495,7 +495,7 @@ vulnclaw web --dry-run
 
 ## LLM 提供商配置
 
-VulnClaw 支持 OpenAI 兼容协议的 API，内置 13 个提供商预设并支持自定义端点：
+VulnClaw 支持 OpenAI 兼容协议的 API，内置 14 个提供商预设并支持自定义端点：
 
 ```bash
 vulnclaw config provider --list    # 查看所有提供商
@@ -505,6 +505,7 @@ vulnclaw config provider minimax   # 一键切换
 | 提供商      | 命令                   | 默认模型              |
 | ----------- | ---------------------- | --------------------- |
 | OpenAI      | `provider openai`      | gpt-4o                |
+| OpenRouter（模型网关） | `provider openrouter` | openai/gpt-4o |
 | Anthropic Claude | `provider anthropic` | claude-sonnet-5   |
 | MiniMax     | `provider minimax`     | MiniMax-M3            |
 | DeepSeek    | `provider deepseek`    | deepseek-v4-pro       |
@@ -518,6 +519,21 @@ vulnclaw config provider minimax   # 一键切换
 | 商汤        | `provider sensetime`   | SenseNova-6.7-Flash-Lite |
 | 零一万物    | `provider yi`          | yi-lightning          |
 | 自定义      | `provider custom`      | 手动填写              |
+
+### OpenRouter 安全与路由说明
+
+```bash
+vulnclaw config provider openrouter
+vulnclaw config set llm.api_key <openrouter-inference-key>
+```
+
+OpenRouter 是模型网关，不是单一上游模型提供商。VulnClaw 使用标准静态推理密钥和现有的 `llm.api_key` / `llm.api_keys`、`VULNCLAW_LLM_API_KEY` / `VULNCLAW_LLM_API_KEYS` 配置；请使用专用推理密钥，并在 OpenRouter 中设置消费上限和适当的有效期，不要使用管理密钥。
+
+默认路由可能在多个上游模型提供商之间选择并在请求开始输出前回退，因此一个 Model ID 不保证固定上游。VulnClaw 会要求上游支持发送的工具和生成参数，但首个版本不提供 OpenRouter 专属的路由、回退或隐私开关。
+
+OpenRouter 会保留请求元数据；被选中的上游提供商还有各自独立的数据保留和训练政策。处理敏感目标数据前，请检查 OpenRouter 账户级隐私、数据收集和 ZDR 设置以及候选上游政策。ZDR 可限制路由范围，但不能在本文中视为无条件的端到端零保留保证。
+
+免费模型变体通常有更低的限额和可用性；动态路由器还会降低上游选择、价格和输出的确定性。它们适合试用，不是 VulnClaw 的生产默认模型。详见 [OpenRouter 路由](https://openrouter.ai/docs/guides/routing/provider-selection) 和 [隐私与日志](https://openrouter.ai/docs/guides/privacy/provider-logging)。
 
 ---
 
@@ -564,7 +580,7 @@ vulnclaw config provider minimax   # 一键切换
 | **MCP 编排**   | `mcp/registry.py` + `lifecycle.py` + `router.py` | 服务注册 + 生命周期 + 自然语言→工具路由       |
 | **Skill 调度** | `skills/loader.py` + `dispatcher.py`             | 目录格式 Skill + CTF/SRC/AI/Web 等意图动态调度 |
 | **编解码工具** | `skills/crypto_tools.py`                         | 29 种编解码/加解密操作，注册为内置 Agent 工具  |
-| **配置管理**   | `config/schema.py` + `settings.py`               | Pydantic 模型 + YAML 持久化 + 13 Provider 预设 |
+| **配置管理**   | `config/schema.py` + `settings.py`               | Pydantic 模型 + YAML 持久化 + 14 Provider 预设 |
 | **报告生成**   | `report/generator.py` + `poc_builder.py`         | Markdown 报告 + Python PoC 模板               |
 | **安全知识库** | `kb/store.py` + `retriever.py`                   | JSON 存储 + CVE/技术/工具检索                 |
 
@@ -720,7 +736,7 @@ vulnclaw config set session.show_thinking false # 隐藏推理过程（也可在
 
 | 配置项                   | 默认值 | 说明                                     |
 | ------------------------ | ------ | ---------------------------------------- |
-| `llm.provider`           | openai | LLM 提供商（13 个内置 + custom）         |
+| `llm.provider`           | openai | LLM 提供商（14 个内置 + custom）         |
 | `llm.api_key`            | 空     | API Key（auth_mode=static）              |
 | `llm.auth_mode`          | static | `static`（api_key）或 `oauth`（`vulnclaw login`） |
 | `llm.chatgpt_auto_proxy` | false  | 自动启动内置 ChatGPT 后端桥接代理         |
