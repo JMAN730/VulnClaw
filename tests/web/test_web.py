@@ -1153,7 +1153,7 @@ class TestWebApp:
     def test_frontend_provider_discovery_contract_and_catalog_parity(self):
         import json
 
-        root = Path(__file__).resolve().parents[1] / "frontend" / "src"
+        root = Path(__file__).resolve().parents[2] / "frontend" / "src"
         api_types = (root / "types" / "api.ts").read_text(encoding="utf-8")
         settings_source = (root / "pages" / "SettingsPage.tsx").read_text(
             encoding="utf-8"
@@ -1164,6 +1164,7 @@ class TestWebApp:
         assert "status: ProviderModelsStatus;" in api_types
         assert "formatModelDiscoveryHint" in settings_source
         assert "shouldApplyDefaultModel" in settings_source
+        assert "discoveredModelIsIncompatible" in settings_source
         assert "settings.models_selected_incompatible" in settings_source
         assert "useState(\"fake" not in settings_source
         discovery_keys = {

@@ -574,6 +574,7 @@ def build_chat_completion_kwargs(
     *,
     max_tokens: int | None = None,
     temperature: float | None = None,
+    extra_body: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build provider-compatible Chat Completions kwargs.
 
@@ -586,6 +587,7 @@ def build_chat_completion_kwargs(
         tools,
         max_tokens=max_tokens,
         temperature=temperature,
+        extra_body=extra_body,
     )
 
 
