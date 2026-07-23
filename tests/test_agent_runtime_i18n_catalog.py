@@ -31,7 +31,7 @@ def test_agent_translation_catalogs_have_matching_keys_and_placeholders():
 
 
 def test_provider_discovery_catalogs_have_matching_keys_and_placeholders():
-    prefixes = ("tui.model_discovery_", "tui.openrouter_warning")
+    prefixes = ("tui.model_discovery_", "tui.openrouter_")
     english = {
         key: value for key, value in _catalog("en").items() if key.startswith(prefixes)
     }
