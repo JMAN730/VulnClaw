@@ -320,6 +320,39 @@ class TestCLI:
         assert result.exit_code == 0
         assert called == [("run", "https://example.com")]
 
+    def test_run_forwards_run_context_kwargs(self, runner, monkeypatch):
+        import vulnclaw.cli.main as cli_main
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
+
+        config = VulnClawConfig()
+        config.llm.api_key = "test-key"
+        monkeypatch.setattr(cli_main, "load_config", lambda: config)
+
+        captured: dict[str, object] = {}
+
+        async def fake_orchestrated(**kwargs):
+            captured.update(kwargs)
+            return type("RunResult", (), {"summary": {"findings_count": 0}})()
+
+        monkeypatch.setattr(cli_main, "_run_cli_orchestrated_task", fake_orchestrated)
+
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "https://example.com",
+                "--run-name",
+                "demo-run",
+                "--force-fresh",
+            ],
+        )
+        assert result.exit_code == 0
+        assert captured.get("command") == "run"
+        assert captured.get("target") == "https://example.com"
+        assert captured.get("run_name") == "demo-run"
+        assert captured.get("force_fresh") is True
+
     def test_run_generates_report_after_completion(self, runner, monkeypatch):
         import vulnclaw.cli.main as cli_main
         from vulnclaw.cli.main import app
