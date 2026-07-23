@@ -354,6 +354,9 @@ COMMANDS: tuple[ManualTopic, ...] = (
             "llm.chatgpt_auto_proxy, llm.base_url, llm.model, llm.max_tokens, "
             "llm.max_context_tokens, llm.temperature, llm.reasoning_effort. Use `vulnclaw login` "
             "instead of llm.api_key for OAuth-based ChatGPT-subscription auth.",
+            "OpenRouter uses the existing static API-key fields. Prefer a dedicated inference key "
+            "with a spending cap, and review its upstream routing and account privacy/ZDR policy "
+            "before sending sensitive target data.",
             "Useful session keys: session.output_dir, session.report_format, session.max_rounds, "
             "session.context_hot_max_messages, session.context_hot_max_tokens, "
             "session.memory_search_max_chars, session.memory_archive_max_bytes/files, "
@@ -370,7 +373,7 @@ COMMANDS: tuple[ManualTopic, ...] = (
         ),
         examples=(
             "vulnclaw config provider --list",
-            "vulnclaw config provider deepseek",
+            "vulnclaw config provider openrouter",
             "vulnclaw config set llm.api_keys 'key-one,key-two,key-three'",
             "vulnclaw config set session.max_rounds 25",
             "vulnclaw config set session.engine rounds",
