@@ -249,6 +249,15 @@ async def _run_cli_orchestrated_task(
     resume: bool,
     snapshot: Optional[str],
     runner: Any,
+    run_name: Optional[str] = None,
+    resume_run_name: Optional[str] = None,
+    runs_dir: Optional[str] = None,
+    additional_targets: Optional[list[str]] = None,
+    target_type: Optional[str] = None,
+    mount: bool = False,
+    repair: bool = False,
+    force_fresh: bool = False,
+    no_import: bool = False,
 ) -> Any:
     """Run a CLI task through the shared orchestrator helpers."""
     from vulnclaw.agent.core import AgentCore
@@ -273,6 +282,15 @@ async def _run_cli_orchestrated_task(
             target=target,
             resume=resume,
             snapshot_id=snapshot,
+            run_name=run_name,
+            resume_run_name=resume_run_name,
+            runs_dir=runs_dir,
+            additional_targets=additional_targets,
+            target_type=target_type,
+            mount=mount,
+            repair=repair,
+            force_fresh=force_fresh,
+            no_import=no_import,
             on_restored=on_restored,
             runner=lambda shared_agent: runner(shared_agent, config),
         )
