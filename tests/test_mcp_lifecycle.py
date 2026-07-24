@@ -7,7 +7,7 @@ import asyncio
 import pytest
 
 from vulnclaw.config.schema import BUILTIN_MCP_SERVERS, MCPServerConfig, VulnClawConfig
-from vulnclaw.mcp.lifecycle import MCPLifecycleManager
+from vulnclaw.mcp.lifecycle import MCPLifecycleManager, _is_transport_cancel
 from vulnclaw.mcp.registry import HealthStatus
 
 
@@ -674,3 +674,137 @@ def test_smoke_event_loop_isolation():
 
 async def _noop():
     return None
+
+
+# ── transport cancel-scope soft-fail (list_pages crash) ───────────────
+
+
+def test_is_transport_cancel_detects_cancel_scope_only():
+    assert _is_transport_cancel(
+        asyncio.CancelledError("Cancelled via cancel scope 226153cf790")
+    )
+    assert not _is_transport_cancel(asyncio.CancelledError())
+    assert not _is_transport_cancel(RuntimeError("cancel scope"))
+
+
+class TestTransportCancelSoftFail:
+    async def test_call_attached_converts_cancel_scope_and_tears_down(self, monkeypatch):
+        m = _manager()
+        cfg = MCPServerConfig(**BUILTIN_MCP_SERVERS["chrome-devtools"])
+        m.config.mcp.servers["chrome-devtools"] = cfg
+        m.registry.register_server("chrome-devtools")
+        class ClosingSession:
+            async def __aexit__(self, *args):
+                return None
+
+        m._mcp_clients["chrome-devtools"] = {
+            "kind": "persistent-stdio",
+            "config": cfg,
+            "session": ClosingSession(),
+            "context_manager": None,
+        }
+
+        class BoomSession:
+            async def call_tool(self, tool_name, arguments=None):
+                raise asyncio.CancelledError("Cancelled via cancel scope deadbeef")
+
+        async def fake_session(name):
+            return BoomSession()
+
+        monkeypatch.setattr(m, "_get_or_create_session", fake_session)
+
+        with pytest.raises(RuntimeError, match="transport cancelled"):
+            await m._call_attached_server("chrome-devtools", "list_pages", {})
+
+        assert "chrome-devtools" not in m._mcp_clients
+
+    async def test_call_attached_propagates_bare_cancelled_error(self, monkeypatch):
+        m = _manager()
+        cfg = MCPServerConfig(**BUILTIN_MCP_SERVERS["chrome-devtools"])
+        m.config.mcp.servers["chrome-devtools"] = cfg
+
+        class BoomSession:
+            async def call_tool(self, tool_name, arguments=None):
+                raise asyncio.CancelledError()
+
+        async def fake_session(name):
+            return BoomSession()
+
+        monkeypatch.setattr(m, "_get_or_create_session", fake_session)
+
+        with pytest.raises(asyncio.CancelledError):
+            await m._call_attached_server("chrome-devtools", "list_pages", {})
+
+    async def test_chrome_dispatch_returns_service_unavailable(self, monkeypatch):
+        m = _manager()
+        cfg = MCPServerConfig(**BUILTIN_MCP_SERVERS["chrome-devtools"])
+        m.config.mcp.servers["chrome-devtools"] = cfg
+        m.registry.register_server("chrome-devtools")
+        m.registry.register_tool(
+            "chrome-devtools",
+            {"name": "list_pages", "description": "list", "inputSchema": {"type": "object"}},
+        )
+        m.registry.set_server_execution_mode("chrome-devtools", "stdio")
+
+        class BoomSession:
+            async def call_tool(self, tool_name, arguments=None):
+                raise asyncio.CancelledError("Cancelled via cancel scope abc123")
+
+        async def fake_session(name):
+            return BoomSession()
+
+        monkeypatch.setattr(m, "_get_or_create_session", fake_session)
+
+        result = await m.call_tool("list_pages", {})
+        assert result["ok"] is False
+        assert result["error_type"] == "service_unavailable"
+        assert "transport cancelled" in str(result["message"])
+
+    async def test_teardown_completes_despite_active_cancel_scope(self, monkeypatch):
+        """Verify teardown is shielded from cancellation during transport cancel handling.
+
+        When a transport cancellation is detected inside _invoke, the cleanup
+        (_teardown_server) must complete even though the surrounding scope is being
+        cancelled. This test verifies that asyncio.shield protects the teardown call.
+        """
+        m = _manager()
+        cfg = MCPServerConfig(**BUILTIN_MCP_SERVERS["chrome-devtools"])
+        m.config.mcp.servers["chrome-devtools"] = cfg
+        m.registry.register_server("chrome-devtools")
+
+        teardown_completed = {"flag": False}
+
+        async def tracked_teardown(server_name):
+            # Simulate a slow cleanup that would be interrupted without shielding
+            await asyncio.sleep(0.01)
+            teardown_completed["flag"] = True
+            # Actually clean up so the assertion works
+            m._mcp_clients.pop(server_name, None)
+
+        class ClosingSession:
+            async def __aexit__(self, *args):
+                return None
+
+        m._mcp_clients["chrome-devtools"] = {
+            "kind": "persistent-stdio",
+            "config": cfg,
+            "session": ClosingSession(),
+            "context_manager": None,
+        }
+
+        class BoomSession:
+            async def call_tool(self, tool_name, arguments=None):
+                raise asyncio.CancelledError("Cancelled via cancel scope shield_test")
+
+        async def fake_session(name):
+            return BoomSession()
+
+        monkeypatch.setattr(m, "_get_or_create_session", fake_session)
+        monkeypatch.setattr(m, "_teardown_server", tracked_teardown)
+
+        with pytest.raises(RuntimeError, match="transport cancelled"):
+            await m._call_attached_server("chrome-devtools", "list_pages", {})
+
+        # Verify teardown completed despite the cancellation
+        assert teardown_completed["flag"] is True
+        assert "chrome-devtools" not in m._mcp_clients

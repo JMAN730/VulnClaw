@@ -62,6 +62,18 @@ def _is_benign_shutdown_exception(exc: BaseException) -> bool:
     return isinstance(exc, (GeneratorExit, asyncio.CancelledError))
 
 
+def _is_transport_cancel(exc: BaseException) -> bool:
+    """True when anyio cancelled the MCP transport (not a user/task cancel)."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, asyncio.CancelledError) and "cancel scope" in str(current).lower():
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 class MCPLifecycleManager(ProbeMixin):
     """Manages the lifecycle of MCP servers: start, stop, health check.
 
@@ -1388,9 +1400,23 @@ class MCPLifecycleManager(ProbeMixin):
         session = await self._get_or_create_session(server_name)
         config = self.config.mcp.servers.get(server_name)
         timeout_s = self._tool_timeout_seconds(config) if config else 300.0
-        result = await asyncio.wait_for(
-            session.call_tool(tool_name, arguments=args), timeout=timeout_s
-        )
+
+        async def _invoke():
+            # Catch transport cancels *inside* the wait_for coroutine. On
+            # Python 3.10, wait_for schedules the awaitable as a Task and
+            # re-raises a bare CancelledError that strips the anyio message.
+            try:
+                return await session.call_tool(tool_name, arguments=args)
+            except asyncio.CancelledError as exc:
+                if not _is_transport_cancel(exc):
+                    raise
+                # Shield teardown from the active cancel scope so cleanup completes.
+                await asyncio.shield(self._teardown_server(server_name))
+                raise RuntimeError(
+                    f"{server_name} transport cancelled during {tool_name}: {exc}"
+                ) from exc
+
+        result = await asyncio.wait_for(_invoke(), timeout=timeout_s)
         rendered, structured, is_error = self._render_mcp_call_result(result)
         if is_error:
             raise RuntimeError(rendered or f"{server_name} call returned an error")
