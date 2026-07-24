@@ -759,3 +759,52 @@ class TestTransportCancelSoftFail:
         assert result["ok"] is False
         assert result["error_type"] == "service_unavailable"
         assert "transport cancelled" in str(result["message"])
+
+    async def test_teardown_completes_despite_active_cancel_scope(self, monkeypatch):
+        """Verify teardown is shielded from cancellation during transport cancel handling.
+
+        When a transport cancellation is detected inside _invoke, the cleanup
+        (_teardown_server) must complete even though the surrounding scope is being
+        cancelled. This test verifies that asyncio.shield protects the teardown call.
+        """
+        m = _manager()
+        cfg = MCPServerConfig(**BUILTIN_MCP_SERVERS["chrome-devtools"])
+        m.config.mcp.servers["chrome-devtools"] = cfg
+        m.registry.register_server("chrome-devtools")
+
+        teardown_completed = {"flag": False}
+
+        async def tracked_teardown(server_name):
+            # Simulate a slow cleanup that would be interrupted without shielding
+            await asyncio.sleep(0.01)
+            teardown_completed["flag"] = True
+            # Actually clean up so the assertion works
+            m._mcp_clients.pop(server_name, None)
+
+        class ClosingSession:
+            async def __aexit__(self, *args):
+                return None
+
+        m._mcp_clients["chrome-devtools"] = {
+            "kind": "persistent-stdio",
+            "config": cfg,
+            "session": ClosingSession(),
+            "context_manager": None,
+        }
+
+        class BoomSession:
+            async def call_tool(self, tool_name, arguments=None):
+                raise asyncio.CancelledError("Cancelled via cancel scope shield_test")
+
+        async def fake_session(name):
+            return BoomSession()
+
+        monkeypatch.setattr(m, "_get_or_create_session", fake_session)
+        monkeypatch.setattr(m, "_teardown_server", tracked_teardown)
+
+        with pytest.raises(RuntimeError, match="transport cancelled"):
+            await m._call_attached_server("chrome-devtools", "list_pages", {})
+
+        # Verify teardown completed despite the cancellation
+        assert teardown_completed["flag"] is True
+        assert "chrome-devtools" not in m._mcp_clients

@@ -1410,7 +1410,8 @@ class MCPLifecycleManager(ProbeMixin):
             except asyncio.CancelledError as exc:
                 if not _is_transport_cancel(exc):
                     raise
-                await self._teardown_server(server_name)
+                # Shield teardown from the active cancel scope so cleanup completes.
+                await asyncio.shield(self._teardown_server(server_name))
                 raise RuntimeError(
                     f"{server_name} transport cancelled during {tool_name}: {exc}"
                 ) from exc
