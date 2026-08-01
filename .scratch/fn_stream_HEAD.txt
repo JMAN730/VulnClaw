@@ -1,0 +1,44 @@
+async def _stream_chat_completion_message(
+    agent: AgentContext,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]],
+    stream_sink: "StreamSink",
+) -> Any:
+    """Run one streaming Chat Completions request and return a message-like object."""
+
+    kwargs = build_chat_completion_kwargs(agent, messages, tools)
+    stream_sink.on_status("Thinking...")
+    response = agent._get_client().chat.completions.create(**kwargs, stream=True)
+
+    full_text = ""
+    reasoning_buffer = ""
+    tool_calls_chunks: list[dict] = []
+    stream = _ensure_async_iter(response)
+    if stream is None:
+        raise ValueError("LLM response is not a valid stream object")
+
+    async for chunk in stream:
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta
+        reasoning = getattr(delta, "reasoning_content", None) or ""
+        if reasoning:
+            reasoning_buffer += reasoning
+            stream_sink.on_thinking_token(reasoning)
+
+        content = getattr(delta, "content", None) or ""
+        if content:
+            if reasoning_buffer:
+                full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
+                reasoning_buffer = ""
+            stream_sink.on_content_token(content)
+            full_text += content
+
+        _collect_tool_call_deltas(delta, tool_calls_chunks)
+
+    if reasoning_buffer:
+        full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
+    stream_sink.on_stream_end()
+    return _message_from_stream(full_text, _assemble_tool_calls(tool_calls_chunks))
+
+
