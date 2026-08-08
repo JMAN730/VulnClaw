@@ -9,7 +9,10 @@ Flip between them with the bottom switcher bar: keys 1/2/3 or ←/→.
 
     python .scratch/config-panel/prototype/config_panel_prototype.py
 
-Variant A — Stacked labeled rows (mirrors /scope action_matrix: label+control per line, live summary top)
+Variant A — Stacked labeled rows (mirrors /scope action_matrix: label+control per line, live summary
+            top). Keyboard-driven: Up/Down moves the row cursor, Enter activates the focused row,
+            Esc discards. Edits themselves are faked (toggle a canned value) — the point is row
+            order + nav feel, not text entry.
 Variant B — Two-column grid (label column | control column, action button row at bottom)
 Variant C — Grouped sections (Collapsible "Connection" / "Model" groups, footer actions)
 
@@ -157,29 +160,119 @@ class VariantBase(Vertical):
 # ── Variant A: stacked labeled rows (action_matrix shape) ──
 
 class VariantA(VariantBase):
+    """Stacked rows with a real cursor: Up/Down moves, Enter activates, Esc discards.
+
+    Rendered as a Static (action_matrix shape) rather than one focusable widget per row —
+    the cursor is our own index over the *visible* rows, so the conditional base-URL row
+    drops out of nav exactly like a `.display=False` row drops out of `focus_chain`.
+    (The real panel uses focus_next/previous("#sec-popup *"); ticket 02 verified that
+    against Textual 8.2.8. Here the point is the feel of the row order + activation.)
+    """
+
+    can_focus = True
+
+    BINDINGS = [
+        Binding("up", "row_up", "up", show=False),
+        Binding("down", "row_down", "down", show=False),
+        Binding("enter", "activate", "activate", show=False),
+        Binding("escape", "discard", "discard", show=False),
+    ]
+
+    def __init__(self, d: Draft, **kw):
+        super().__init__(d, **kw)
+        self.cursor = 0
+
     def compose(self) -> ComposeResult:
         yield Static(id="a-summary", markup=True)
         yield Static(f"[bold {C_PRIMARY}]Configure LLM[/]", markup=True)
         yield Static(id="a-body", markup=True)
         yield Static(id="a-hint", markup=True)
 
+    def on_mount(self) -> None:
+        self.focus()
+        super().on_mount()
+
+    # -- nav model --
+
+    def _rows(self) -> list[str]:
+        """Visible, focusable row ids, top → bottom. base url only when custom (Q7)."""
+        rows = ["provider"]
+        if self.d.is_custom:
+            rows.append("base_url")
+        return rows + ["api_key", "model", "fetch", "save"]
+
+    def _clamp(self) -> None:
+        self.cursor = max(0, min(self.cursor, len(self._rows()) - 1))
+
+    def action_row_up(self) -> None:
+        self.cursor = (self.cursor - 1) % len(self._rows())
+        self.refresh_view()
+
+    def action_row_down(self) -> None:
+        self.cursor = (self.cursor + 1) % len(self._rows())
+        self.refresh_view()
+
+    def action_discard(self) -> None:
+        self.app.report(f"[{C_MUTED}]Esc — draft discarded, panel closed (simulated)[/]")
+
+    def action_activate(self) -> None:
+        """Enter on the focused row. Edits are faked (no real inputs in a Static layout)."""
+        row = self._rows()[self.cursor]
+        if row == "provider":
+            self.app.action_cycle_provider()
+        elif row == "base_url":
+            self.d.base_url = "" if self.d.base_url else "https://localhost:1234/v1"
+            self.on_field_change()
+        elif row == "api_key":
+            self.d.api_key = "" if self.d.api_key else "sk-proto-demo-key-1234"
+            self.on_field_change()
+        elif row == "model":
+            if self.d.models:
+                i = self.d.models.index(self.d.model) if self.d.model in self.d.models else -1
+                self.d.model = self.d.models[(i + 1) % len(self.d.models)]
+                self.refresh_view()
+            else:
+                self.app.report(f"[{C_MUTED}]no models yet — Fetch first[/]")
+        elif row == "fetch":
+            if self.d.can_fetch:
+                self.start_fetch()
+            else:
+                self.app.report(f"[{C_MUTED}]Fetch disabled — need key{' + base url' if self.d.is_custom else ''}[/]")
+        elif row == "save":
+            self.try_save()
+
+    # -- render --
+
     def refresh_view(self) -> None:
         d = self.d
+        self._clamp()
+        rows, cur = self._rows(), self._rows()[self.cursor]
         self.query_one("#a-summary", Static).update(summary_line(d))
         key = ("•" * min(len(d.api_key), 12)) if d.api_key and not d.revealed else (d.api_key or "")
-        rows = [
-            f"  provider   [b]{d.provider}[/]",
-        ]
-        if d.is_custom:
-            rows.append(f"  base url   [b]{d.base_url or '[dim]—[/]'}[/]")
         eye = "👁 shown" if d.revealed else "• hidden"
-        rows += [
-            f"  api key    [b]{key or '[dim]—[/]'}[/]  [{C_MUTED}]({eye}, ^R)[/]",
-            f"  model      [b]{d.model or '[dim]—[/]'}[/]",
+
+        def line(row_id: str, text: str) -> str:
+            mark = f"[{C_PRIMARY}]>[/] " if row_id == cur else "  "
+            return mark + (f"[reverse]{text}[/]" if row_id == cur else text)
+
+        out = [line("provider", f"provider   [b]{d.provider}[/]")]
+        if "base_url" in rows:
+            out.append(line("base_url", f"base url   [b]{d.base_url or '[dim]—[/]'}[/]"))
+        out += [
+            line("api_key", f"api key    [b]{key or '[dim]—[/]'}[/]  [{C_MUTED}]({eye}, ^R)[/]"),
+            line("model", f"model      [b]{d.model or '[dim]—[/]'}[/]"),
             "",
-            f"  [{C_PRIMARY}][ Fetch ][/]   [{C_PRIMARY}][ Save ][/]   [{C_MUTED}](Esc discards)[/]",
         ]
-        self.query_one("#a-body", Static).update("\n".join(rows))
+        fetch_col = C_PRIMARY if d.can_fetch else C_MUTED  # disabled Fetch is dimmed, still nav-able
+        actions = (
+            f"{'[reverse]' if cur == 'fetch' else ''}[{fetch_col}][ Fetch ][/]"
+            f"{'[/]' if cur == 'fetch' else ''}   "
+            f"{'[reverse]' if cur == 'save' else ''}[{C_PRIMARY}][ Save ][/]"
+            f"{'[/]' if cur == 'save' else ''}   [{C_MUTED}](Esc discards)[/]"
+        )
+        mark = f"[{C_PRIMARY}]>[/] " if cur in ("fetch", "save") else "  "
+        out.append(mark + actions)
+        self.query_one("#a-body", Static).update("\n".join(out))
         self.query_one("#a-hint", Static).update("  " + fetch_hint(d))
 
 
@@ -338,7 +431,7 @@ class PrototypeApp(App):
     def _update_bar(self) -> None:
         name, _cls = VARIANTS[self.current]
         self.query_one("#switch-label", Static).update(
-            f" ← 1/2/3 →   {name}   | p:provider  k:fake-key  ^R:reveal  f:fetch  s:save  q:quit "
+            f" ← 1/2/3 →   {name}   | ↑↓:row  Enter:activate  Esc:discard  ^R:reveal  p/k/f/s  q:quit "
         )
 
     def _mount_variant(self) -> None:

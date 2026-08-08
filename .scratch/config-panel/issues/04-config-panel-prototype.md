@@ -29,6 +29,13 @@ Built throwaway prototype (`prototype/config_panel_prototype.py`, one-command ru
 fake fetch). Three structurally-different layouts flipped via a switcher bar. Assets:
 `prototype/variant-A.svg`, `variant-B.svg`, `variant-C.svg`.
 
+Variant A carries the Q6 nav model itself: a row cursor (Up/Down over the *visible* rows, so the
+conditional base-URL row drops out of nav exactly as a hidden row drops out of `focus_chain`),
+Enter-activates-the-focused-row, and Esc-discards. Its text edits are faked (Enter toggles a canned
+value) — the prototype settles row order/nav feel, while the widget-level guarantees
+(`focus_next/previous("#sec-popup *")`, Select-overlay Escape layering) were verified against Textual
+8.2.8 source in ticket 02, not inferred from the prototype.
+
 **Winner: Variant A — stacked labeled rows** (the `/scope action_matrix` shape). Rationale (user pick):
 maximal consistency with the existing panel precedent, least widget machinery, live summary on top.
 Variant B (two-column widget grid) and C (collapsible groups) discarded — kept only as prototype assets.

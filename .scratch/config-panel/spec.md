@@ -44,12 +44,19 @@ A single packed nav hint (`tui.config_panel_hint`) is rendered in the panel chro
 
 | Row | Widget | Reuse / New |
 |---|---|---|
-| Provider | `Select(allow_blank=False)`, `from_values(list_providers())` | New widget; **reuse** `on_provider` body |
+| Provider | `Select([(p["label"], p["provider"]) for p in list_providers()], allow_blank=False)` | New widget; **reuse** `on_provider` body |
 | Base URL (custom only) | `Input` (plain), `.display` toggled | **Reuse** `_show_input` + `on_baseurl` logic |
 | API key | `Input(password=True, select_on_focus=False)`, reveal = flip `.password` reactive | **Reuse** Input mount; reveal is New |
 | Model (deferred) | `Select(options=[], allow_blank=True)` + `set_options()` after fetch | New widget; **reuse** `fetch_provider_models` |
 | Fetch | `Button#fetch-models` | New; **reuse** the thread + `app.call_later` scaffold |
 | Save | `Button#save-config` (`variant="primary"`) | New; **reuse** `save_config` |
+
+**Provider option values must be the provider-name strings, never the dicts.** `list_providers()`
+returns `list[dict]` (`provider` / `label` / `base_url` / `default_model`), so `Select.from_values()` is
+wrong here — it would hand `Select.Changed.value` a dict and blow up in the reused `on_provider` →
+`apply_provider_preset(config, provider_name)` path, which calls `provider_name.lower()`. Build
+`(label, provider)` option pairs explicitly as above: the user sees `label`, the handler receives the
+`provider` string.
 
 Shared backend helpers — **reuse verbatim, all backend-agnostic**: `apply_provider_preset`,
 `fetch_provider_models`, `list_providers`, `load_config`, `save_config` (from
@@ -133,12 +140,28 @@ guarantees a conhost user is never locked out of revealing.
 
 ## 6. Validation & error surface (Q4 / ticket 02 §6)
 
-- **Block Save** (disabled Save button, driven off `Input.Changed`) on empty API key and, when custom,
-  empty base URL. Error copy: `tui.config_panel_err_empty_key`, `tui.config_panel_err_empty_baseurl`.
+- **Block Save** (disabled Save button, driven off `Input.Changed`) on **missing effective credential**
+  and, when custom, empty base URL. Error copy: `tui.config_panel_err_empty_key`,
+  `tui.config_panel_err_empty_baseurl`.
+- **The credential gate is mode-aware — never a bare `not draft.llm.api_key` check.** `api_key` is only
+  one of three supported credential sources, and the other two live outside this panel:
+  - `auth_mode != "static"` (e.g. `"oauth"`): the panel supplies no credential at all — **no key gate**,
+    Save stays enabled for provider/URL/model edits.
+  - `auth_mode == "static"`: gate on the **key pool**, not the single field — `draft.llm.key_pool()`
+    (`LLMConfig.key_pool()`, `config/schema.py`) prefers non-empty `llm.api_keys` and falls back to
+    `llm.api_key`. A config carrying `api_keys` legitimately has an empty `api_key`.
+  - So: block only when `auth_mode == "static"` **and** `not draft.llm.key_pool()`.
+  The panel's key `Input` writes `llm.api_key` as always; it must not clear or shadow `llm.api_keys`.
 - **Base-URL format** = **save-and-warn**, not a hard block: `validators=[URL()]`
   (`from textual.validation import URL`) + `validate_on=["submitted"]` — validates only on Enter, attaches
   to `Submitted.validation_result` **without rejecting keystrokes or mutating the value**. Warn copy:
   `tui.config_panel_warn_bad_url`.
+- **Save must validate the base URL itself; `Submitted` is not a sufficient path.** Leaving the input via
+  Up/Down or Tab and then activating Save never fires `Input.Submitted`, so a malformed URL would save
+  with no warning. The Save handler (custom provider only) **re-runs the validator explicitly** on the
+  current input value — `URL().validate(value)` / `input.validate(input.value)` — and renders
+  `tui.config_panel_warn_bad_url` in the in-panel error Label **while still saving**. The `Submitted`
+  path stays for immediate in-edit feedback; Save-time validation is the authoritative one.
 - All errors render in the **in-panel error Label** (row 10), **not** the global `#status-bar`.
 
 ## 7. Removal plan (ticket 03) — what this effort deletes / keeps
@@ -217,8 +240,11 @@ Chinese-reading reviewer should sanity-check them before ship.**
    falls back to manual `Input`; stale results discarded via generation-counter guard (bumped on Escape
    **and** provider/URL/key change).
 7. Model `Select(allow_blank=True)` cleared on provider/URL/key change.
-8. Save blocked (disabled button) on empty key / empty custom base URL; malformed URL = save-and-warn
-   (not block); all errors in an in-panel Label, not `#status-bar`.
+8. Save blocked (disabled button) on missing effective credential — `auth_mode == "static"` **and**
+   empty `key_pool()` (an `api_keys`-only or `auth_mode="oauth"` config must still be able to save
+   provider/model edits) — and on empty custom base URL; malformed base URL = save-and-warn (not
+   block), validated **in the Save handler**, not only on `Input.Submitted`; all errors in an in-panel
+   Label, not `#status-bar`.
 9. Every string via `_()` using the new `tui.config_panel_*` keys; en + zh both present; the 9 legacy
    keys removed.
 
