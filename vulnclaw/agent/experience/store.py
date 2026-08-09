@@ -14,6 +14,7 @@ import json
 import os
 import threading
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, Optional
 
@@ -138,6 +139,7 @@ class ExperienceStore:
                     merged_runs.append(run_id)
             existing.source_runs = merged_runs
             existing.confidence = round(min(1.0, existing.confidence + 0.1), 4)
+            existing.last_reinforced_at = datetime.now(timezone.utc).isoformat()
 
             self._write_entry(existing)
             return existing

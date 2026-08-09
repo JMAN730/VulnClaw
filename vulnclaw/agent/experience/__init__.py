@@ -1,5 +1,10 @@
 """Self-learning loop spine — distilled lessons, gated behind human approval."""
 
+from vulnclaw.agent.experience.retrieval import (
+    TargetContext,
+    build_experience_context,
+    target_context_from_agent,
+)
 from vulnclaw.agent.experience.schema import (
     Lesson,
     LessonEvidenceRefs,
@@ -18,4 +23,7 @@ __all__ = [
     "LessonSignal",
     "LessonStatus",
     "LessonTags",
+    "TargetContext",
+    "build_experience_context",
+    "target_context_from_agent",
 ]

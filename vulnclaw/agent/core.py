@@ -32,7 +32,7 @@ from vulnclaw.agent.input_analysis import (
     extract_user_vuln_hint,
     get_payload_examples,
 )
-from vulnclaw.agent.kb_context import build_kb_context
+from vulnclaw.agent.kb_context import build_prompt_kb_and_experience_context
 from vulnclaw.agent.llm_client import StreamSink, call_llm
 from vulnclaw.agent.loop_controller import auto_pentest as run_auto_pentest
 from vulnclaw.agent.loop_controller import persistent_pentest as run_persistent_pentest
@@ -430,7 +430,9 @@ class AgentCore:
         return apply_skill_selection(self.context.state, user_input)
 
     def _build_kb_context(self, user_input: Optional[str] = None) -> str:
-        return build_kb_context(self, user_input)
+        # Keep the legacy helper available for compatibility while adding the
+        # independently gated approved-experience path to live prompts.
+        return build_prompt_kb_and_experience_context(self, user_input)
 
     def _detect_phase(self, user_input: str) -> Optional[PentestPhase]:
         """Detect pentest phase from user input using keyword matching."""

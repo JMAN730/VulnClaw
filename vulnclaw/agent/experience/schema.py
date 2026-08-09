@@ -10,10 +10,10 @@ distillation pass from injecting bad guidance into future runs.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class LessonScope(str, Enum):
@@ -70,7 +70,37 @@ class Lesson(BaseModel):
     context: str
     lesson: str
     evidence_refs: LessonEvidenceRefs
-    confidence: float = 0.0
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     source_runs: list[str] = Field(default_factory=list)
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     target_key: str | None = None
+    last_reinforced_at: str | None = None
+
+    @model_validator(mode="after")
+    def validate_scope_key(self) -> "Lesson":
+        if self.scope == LessonScope.TECHNIQUE and self.target_key is not None:
+            raise ValueError("technique-scoped lessons cannot carry target_key")
+        return self
+
+    def effective_confidence(
+        self,
+        *,
+        now: datetime | None = None,
+        half_life_days: float = 30.0,
+    ) -> float:
+        """Return confidence reweighted by age without mutating the lesson."""
+        if half_life_days <= 0:
+            return self.confidence
+        anchor = self.last_reinforced_at or self.created_at
+        try:
+            created = datetime.fromisoformat(anchor.replace("Z", "+00:00"))
+            current = now or datetime.now(timezone.utc)
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            if current.tzinfo is None:
+                current = current.replace(tzinfo=timezone.utc)
+            age = max(0.0, (current - created).total_seconds())
+        except (AttributeError, TypeError, ValueError):
+            return self.confidence
+        decay = 0.5 ** (age / timedelta(days=half_life_days).total_seconds())
+        return round(self.confidence * decay, 6)

@@ -9,6 +9,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from vulnclaw.agent.context import SessionState
 from vulnclaw.agent.core import AgentCore
+from vulnclaw.agent.experience.distiller import schedule_run_distillation
 from vulnclaw.run_context import (
     RunContext,
     RunCorruptError,
@@ -165,6 +166,7 @@ async def run_agent_task(
         checkpoint("run_complete")
         if run_context is not None:
             mark_run_status(run_context, "completed", exit_code=0)
+            schedule_run_distillation(run_context, agent)
     except KeyboardInterrupt:
         status = "interrupted"
         exit_code = 130

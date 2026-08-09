@@ -64,6 +64,7 @@ from vulnclaw.cli._helpers import (
     console,
     err_console,
 )
+from vulnclaw.cli.experience_cmd import experience_app
 from vulnclaw.cli.manual import available_topics, render_manual
 from vulnclaw.config.schema import ENGINE_CHOICES, resolve_engine
 from vulnclaw.config.settings import (
@@ -2570,6 +2571,62 @@ def doctor() -> None:
 
 kb_app = typer.Typer(help="Security knowledge base commands")
 app.add_typer(kb_app, name="kb")
+app.add_typer(experience_app, name="experience")
+
+
+@app.command("feedback")
+def feedback(
+    run: str = typer.Argument(..., help="Completed run name"),
+    rating: int = typer.Option(..., "--rating", min=1, max=5, help="Operator rating from 1 to 5"),
+    notes: str = typer.Option("", "--notes", help="Operator notes"),
+    runs_dir: Optional[str] = typer.Option(None, "--runs-dir", help="Run-directory root"),
+) -> None:
+    """Attach or update operator feedback for a finished run."""
+    from vulnclaw.agent.experience.feedback import save_feedback
+    from vulnclaw.run_context import load_run_context
+
+    try:
+        context = load_run_context(run, runs_dir=runs_dir)
+        save_feedback(context, rating=rating, notes=notes)
+    except (OSError, ValueError, RuntimeError) as exc:
+        err_console.print(f"[!] Unable to save feedback: {exc}")
+        raise typer.Exit(1) from None
+    console.print(f"[+] Feedback saved for {run}")
+
+
+@app.command("learn")
+def learn(
+    run: str = typer.Argument(..., help="Completed run name"),
+    runs_dir: Optional[str] = typer.Option(None, "--runs-dir", help="Run-directory root"),
+    similarity_threshold: float = typer.Option(
+        0.6, "--merge-threshold", min=0.0, max=1.0, help="Deduplication similarity threshold"
+    ),
+) -> None:
+    """Distill an existing run into pending experience lessons."""
+    from vulnclaw.agent.core import AgentCore
+    from vulnclaw.agent.experience.distiller import (
+        AgentDistillerLLM,
+        RunArtifacts,
+        distill_run,
+    )
+    from vulnclaw.config.settings import load_config
+    from vulnclaw.run_context import load_run_context
+
+    try:
+        context = load_run_context(run, runs_dir=runs_dir)
+        artifacts = RunArtifacts.from_run_dir(
+            context.run_dir,
+            run_id=str(context.manifest.get("run_id") or context.run_name),
+        )
+        lessons = distill_run(
+            artifacts,
+            AgentDistillerLLM(AgentCore(load_config())),
+            similarity_threshold=similarity_threshold,
+        )
+    except (OSError, ValueError, RuntimeError) as exc:
+        err_console.print(f"[!] Unable to distill {run}: {exc}")
+        raise typer.Exit(1) from None
+    console.print(f"[+] Distilled {len(lessons)} lesson(s) from {run}; all new lessons are pending review")
 
 target_state_app = typer.Typer(help="Manage target history state")
 app.add_typer(target_state_app, name="target-state")
