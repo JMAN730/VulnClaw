@@ -340,6 +340,27 @@ vulnclaw web --port 8080      # custom port
 
 ## Architecture
 
+### Incremental Go web edge
+
+The first Go migration slice is an opt-in `vulnclaw-edge` process in
+`cmd/vulnclaw-edge/`. It serves the built SPA and forwards `/api/*` to the
+existing Python web API, leaving authentication, authorization, agent state,
+task execution, reports, credentials, and MCP lifecycle in Python. Run it
+after starting `vulnclaw web`:
+
+```bash
+go run ./cmd/vulnclaw-edge \
+  -listen 127.0.0.1:7789 \
+  -backend http://127.0.0.1:7788 \
+  -static-dir frontend/dist
+```
+
+The default is loopback-only and the existing Python web command remains the
+default. Use `-allow-remote` only when a deployment intentionally needs a
+non-loopback bind. See [the migration notes](docs/architecture/go-migration.md)
+for the security boundary and the planned sequence for moving additional
+stateless web concerns.
+
 ### Solver Engine
 
 VulnClaw defaults to the **model-led solve engine** (switch back to fixed-round with `vulnclaw config set session.engine rounds`).

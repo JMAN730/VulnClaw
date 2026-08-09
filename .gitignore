@@ -88,4 +88,6 @@ docs/
 .projectHelp/
 # Rust TUI build artifacts
 tui/target/
+# Go build artifacts
+bin/
 
