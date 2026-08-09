@@ -2555,7 +2555,186 @@ def _edit_mcp_config(screen: Console, config):
 
 
 def run_config_tui() -> None:
-    """Run the interactive config editor."""
+    """Run the interactive config editor: panel on a TTY, prompt chain otherwise."""
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        _run_config_panel()
+        return
+    _run_config_wizard()
+
+
+def _run_config_panel() -> None:
+    """Full-screen keyboard-navigable config panel."""
+    import threading
+
+    from prompt_toolkit import Application
+    from prompt_toolkit.application import run_in_terminal
+    from prompt_toolkit.formatted_text import ANSI
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.layout import HSplit, Layout, Window
+    from prompt_toolkit.layout.controls import FormattedTextControl
+
+    from vulnclaw.cli.config_panel import ConfigPanelModel
+    from vulnclaw.cli.config_panel_render import render_panel
+
+    screen = Console()
+    model = ConfigPanelModel(load_config())
+    outcome: dict[str, str] = {}
+
+    def _body() -> ANSI:
+        buf = io.StringIO()
+        console = Console(file=buf, force_terminal=True, width=None, color_system="truecolor")
+        console.print(render_panel(model))
+        return ANSI(buf.getvalue().rstrip("\n"))
+
+    kb = KeyBindings()
+
+    @kb.add("up")
+    def _up(event: Any) -> None:
+        if model.dropdown_open:
+            model.select_option(-1)
+        else:
+            model.focus_prev()
+
+    @kb.add("down")
+    def _down(event: Any) -> None:
+        if model.dropdown_open:
+            model.select_option(1)
+        else:
+            model.focus_next()
+
+    @kb.add("tab")
+    def _tab(event: Any) -> None:
+        model.focus_next()
+
+    @kb.add("s-tab")
+    def _shift_tab(event: Any) -> None:
+        model.focus_prev()
+
+    @kb.add("left")
+    def _left(event: Any) -> None:
+        model.collapse()
+
+    @kb.add("right")
+    def _right(event: Any) -> None:
+        model.expand()
+
+    @kb.add("c-r")
+    def _reveal(event: Any) -> None:
+        model.toggle_reveal()
+
+    @kb.add("escape", eager=True)
+    def _escape(event: Any) -> None:
+        if model.dropdown_open:
+            model.cancel_option()
+            return
+        if model.editing:
+            model.cancel_edit()
+            return
+        outcome["result"] = "discarded"
+        event.app.exit()
+
+    @kb.add("c-c")
+    def _interrupt(event: Any) -> None:
+        outcome["result"] = "discarded"
+        event.app.exit()
+
+    def _save() -> None:
+        if not model.request_save():
+            return
+        save_config(model.draft)
+        outcome["result"] = "saved"
+        app.exit()
+
+    def _fetch() -> None:
+        if not model.can_fetch():
+            model.row_error = _("tui.config_panel.fetch_idle")
+            return
+        generation = model.begin_fetch()
+        base_url = model.draft.llm.base_url
+        api_key = model._usable_key()
+        loop = app.loop
+
+        def _worker() -> None:
+            try:
+                models = fetch_provider_models(base_url, api_key)
+                error = None
+            except Exception as exc:  # network/provider failure
+                models, error = [], str(exc)
+
+            def _apply() -> None:
+                model.apply_fetch_result(generation, models, error)
+                app.invalidate()
+
+            loop.call_soon_threadsafe(_apply)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    @kb.add("c-s")
+    def _ctrl_s(event: Any) -> None:
+        _save()
+
+    @kb.add("enter")
+    def _enter(event: Any) -> None:
+        if model.dropdown_open:
+            model.commit_option()
+            return
+        if model.editing:
+            model.commit_edit()
+            return
+        row = model.focused
+        if row.key == "action.save":
+            _save()
+        elif row.key == "action.fetch_models":
+            _fetch()
+        elif row.key == "action.add_server":
+            name = run_in_terminal(lambda: _read_server_name(screen))
+            model.add_server(name or "")
+        elif row.key.endswith(".action.delete"):
+            model.delete_server()
+        else:
+            model.activate()
+
+    @kb.add("space")
+    def _space(event: Any) -> None:
+        if model.editing:
+            model.set_edit_text(model.edit_text + " ")
+            return
+        model.activate()
+
+    @kb.add("backspace")
+    def _backspace(event: Any) -> None:
+        if model.editing:
+            model.set_edit_text(model.edit_text[:-1])
+
+    @kb.add("<any>")
+    def _typed(event: Any) -> None:
+        if model.editing and len(event.data) == 1 and event.data.isprintable():
+            model.set_edit_text(model.edit_text + event.data)
+
+    app = Application(
+        layout=Layout(HSplit([Window(FormattedTextControl(_body))])),
+        key_bindings=kb,
+        full_screen=True,
+    )
+    app.run()
+
+    if outcome.get("result") == "saved":
+        screen.print(
+            Panel(_("tui.config_panel.saved"), border_style=C_SUCCESS, box=box.ROUNDED)
+        )
+    else:
+        screen.print(
+            Panel(_("tui.config_panel.discarded"), border_style=C_WARNING, box=box.ROUNDED)
+        )
+
+
+def _read_server_name(screen: Console) -> str:
+    """Ask for a new MCP server name outside the full-screen app."""
+    return _read_config_prompt_raw("Server name", console=screen).strip()
+
+
+def _run_config_wizard() -> None:
+    """Run the interactive config editor (prompt-chain fallback)."""
     screen = Console()
     config = load_config()
 

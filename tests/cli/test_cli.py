@@ -1368,6 +1368,22 @@ class TestCLI:
         assert updated.llm.provider == "deepseek"
         assert updated.llm.model == "deepseek-reasoner"
 
+    def test_run_config_tui_uses_the_panel_only_on_a_tty(self, monkeypatch):
+        import vulnclaw.cli.tui as tui_mod
+
+        calls = []
+        monkeypatch.setattr(tui_mod, "_run_config_panel", lambda: calls.append("panel"))
+        monkeypatch.setattr(tui_mod, "_run_config_wizard", lambda: calls.append("wizard"))
+
+        monkeypatch.setattr(tui_mod.sys.stdin, "isatty", lambda: True, raising=False)
+        monkeypatch.setattr(tui_mod.sys.stdout, "isatty", lambda: True, raising=False)
+        tui_mod.run_config_tui()
+
+        monkeypatch.setattr(tui_mod.sys.stdin, "isatty", lambda: False, raising=False)
+        tui_mod.run_config_tui()
+
+        assert calls == ["panel", "wizard"]
+
 
 class TestClassicReplSlashPalette:
     """Classic `vulnclaw` REPL: '/' skill palette and '/.' flag-skill wiring."""
