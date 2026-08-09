@@ -1,0 +1,67 @@
+"""Snapshot tests for the config panel renderer."""
+
+import io
+
+from rich.console import Console
+
+from vulnclaw.cli.config_panel import ConfigPanelModel
+from vulnclaw.cli.config_panel_render import render_panel
+from vulnclaw.config.schema import VulnClawConfig
+
+
+def _render(model):
+    console = Console(
+        file=io.StringIO(), record=True, width=100, force_terminal=False, color_system=None
+    )
+    console.print(render_panel(model))
+    return console.export_text()
+
+
+def test_collapsed_view_shows_one_line_per_section():
+    config = VulnClawConfig()
+    config.llm.provider = "openai"
+    config.llm.model = "gpt-4o"
+    model = ConfigPanelModel(config)
+
+    output = _render(model)
+
+    assert "LLM" in output
+    assert "openai" in output
+    assert "Session" in output
+    assert "Base URL" not in output
+
+
+def test_expanded_view_shows_fields_and_masks_the_key():
+    config = VulnClawConfig()
+    config.llm.api_key = "sk-abcdef123456"
+    model = ConfigPanelModel(config)
+    model.toggle_expand()
+
+    output = _render(model)
+
+    assert "Base URL" in output
+    assert "sk-abcdef123456" not in output
+
+
+def test_open_dropdown_lists_its_options():
+    model = ConfigPanelModel(VulnClawConfig())
+    model._expanded.add("session")
+    model._focus_key = "session.report_format"
+    model.activate()
+
+    output = _render(model)
+
+    assert "markdown" in output
+    assert "html" in output
+
+
+def test_errors_render_inside_the_panel():
+    model = ConfigPanelModel(VulnClawConfig())
+    model.draft.llm.auth_mode = "static"
+    model.draft.llm.api_key = ""
+    model.draft.llm.api_keys = []
+    model.request_save()
+
+    output = _render(model)
+
+    assert "API key" in output
