@@ -85,6 +85,7 @@ class ExperienceStore:
         Returns the same ``Lesson`` instance for convenience chaining.
         """
         with _file_lock(self._lock_path):
+            self.store._load_index()
             self._write_entry(lesson)
         return lesson
 
@@ -129,6 +130,7 @@ class ExperienceStore:
         lesson, or None if ``into_id`` does not exist.
         """
         with _file_lock(self._lock_path):
+            self.store._load_index()
             existing = self.get(into_id)
             if existing is None:
                 return None
@@ -146,6 +148,7 @@ class ExperienceStore:
 
     def _set_status(self, id: str, status: LessonStatus) -> Optional[Lesson]:
         with _file_lock(self._lock_path):
+            self.store._load_index()
             lesson = self.get(id)
             if lesson is None:
                 return None

@@ -54,6 +54,7 @@ async def run_agent_task(
     repair: bool = False,
     force_fresh: bool = False,
     no_import: bool = False,
+    wait_for_distillation: bool = False,
     before_restore: Optional[Callable[[SessionRestoreResult | None], None]] = None,
     on_restored: Optional[Callable[[SessionRestoreResult], None]] = None,
     on_legacy_import: Optional[Callable[[SessionRestoreResult], None]] = None,
@@ -166,7 +167,9 @@ async def run_agent_task(
         checkpoint("run_complete")
         if run_context is not None:
             mark_run_status(run_context, "completed", exit_code=0)
-            schedule_run_distillation(run_context, agent)
+            distillation_thread = schedule_run_distillation(run_context, agent)
+            if wait_for_distillation:
+                await asyncio.to_thread(distillation_thread.join)
     except KeyboardInterrupt:
         status = "interrupted"
         exit_code = 130

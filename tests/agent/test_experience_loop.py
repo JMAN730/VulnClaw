@@ -1,5 +1,6 @@
 """Regression tests for distillation, retrieval, feedback, and decay."""
 
+import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -192,3 +193,39 @@ def test_feedback_upserts_run_record(tmp_path):
     assert first["rating"] == 2
     assert second["rating"] == 5
     assert (context.run_dir / "feedback.json").exists()
+
+
+def test_run_artifacts_fall_back_to_verified_checkpoint_findings(tmp_path):
+    run_dir = tmp_path / "run-with-checkpoint-findings"
+    state_dir = run_dir / "targets" / "target-1" / "state"
+    state_dir.mkdir(parents=True)
+    (state_dir / "current.json").write_text(
+        json.dumps(
+            {
+                "target": "https://example.com",
+                "findings": [
+                    {
+                        "finding_id": "f-1",
+                        "verification_status": "verified",
+                        "verified": True,
+                    },
+                    {
+                        "finding_id": "f-2",
+                        "verification_status": "pending",
+                        "verified": False,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    artifacts = RunArtifacts.from_run_dir(run_dir)
+
+    assert artifacts.verified_findings == [
+        {
+            "finding_id": "f-1",
+            "verification_status": "verified",
+            "verified": True,
+        }
+    ]

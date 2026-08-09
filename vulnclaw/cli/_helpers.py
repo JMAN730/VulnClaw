@@ -512,6 +512,7 @@ async def _run_cli_orchestrated_task(
             repair=repair,
             force_fresh=force_fresh,
             no_import=no_import,
+            wait_for_distillation=True,
             on_restored=on_restored,
             runner=lambda shared_agent: runner(shared_agent, config),
         )

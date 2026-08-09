@@ -87,6 +87,16 @@ class RunArtifacts:
         if state_paths:
             try:
                 raw = json.loads(state_paths[0].read_text(encoding="utf-8"))
+                if not verified:
+                    verified = [
+                        item
+                        for item in (raw.get("findings") or [])
+                        if isinstance(item, dict)
+                        and (
+                            item.get("verified") is True
+                            or item.get("verification_status") == "verified"
+                        )
+                    ]
                 snapshot = dict(raw.get("reflexion_snapshot") or {})
                 paths = list(raw.get("reasoning_path_statuses") or raw.get("path_statuses") or [])
                 records = list(raw.get("step_records") or [])
@@ -190,7 +200,11 @@ def distill_run(
 
 
 def schedule_run_distillation(run_context: Any, agent: Any) -> threading.Thread:
-    """Start best-effort completion distillation without delaying the run."""
+    """Start best-effort completion distillation in a managed worker thread.
+
+    The caller owns the returned thread and must join it before shutting down
+    a short-lived process, such as the CLI.
+    """
     def worker() -> None:
         try:
             artifacts = RunArtifacts.from_run_dir(

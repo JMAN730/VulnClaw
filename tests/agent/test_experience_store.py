@@ -179,6 +179,21 @@ class TestExperienceStoreLifecycle:
         store = self._make_store(tmp_path)
         assert store.reject("exp-does-not-exist") is None
 
+    def test_add_reloads_index_after_another_store_writes(self, tmp_path):
+        from vulnclaw.agent.experience import ExperienceStore, LessonStatus
+        from vulnclaw.kb.store import KnowledgeStore
+
+        store1 = ExperienceStore(store=KnowledgeStore(store_dir=tmp_path))
+        store2 = ExperienceStore(store=KnowledgeStore(store_dir=tmp_path))
+        lesson1 = _make_lesson()
+        lesson2 = _make_lesson()
+
+        store1.add(lesson1)
+        store2.add(lesson2)
+
+        pending_ids = {lesson.id for lesson in store2.list_by_status(LessonStatus.PENDING)}
+        assert pending_ids == {lesson1.id, lesson2.id}
+
 
 class TestExperienceStoreMerge:
     def _make_store(self, tmp_path):
