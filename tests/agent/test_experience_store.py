@@ -26,7 +26,13 @@ def _make_lesson(**overrides):
 
 class TestLessonSchema:
     def test_defaults(self):
-        from vulnclaw.agent.experience import Lesson, LessonEvidenceRefs, LessonScope, LessonSignal, LessonStatus
+        from vulnclaw.agent.experience import (
+            Lesson,
+            LessonEvidenceRefs,
+            LessonScope,
+            LessonSignal,
+            LessonStatus,
+        )
 
         lesson = Lesson(
             scope=LessonScope.TARGET,
@@ -129,9 +135,9 @@ class TestExperienceStoreLifecycle:
         rejected = store.list_by_status(LessonStatus.REJECTED)
         pending = store.list_by_status(LessonStatus.PENDING)
 
-        assert [l.id for l in approved] == [l1.id]
-        assert [l.id for l in rejected] == [l2.id]
-        assert [l.id for l in pending] == [l3.id]
+        assert [lesson.id for lesson in approved] == [l1.id]
+        assert [lesson.id for lesson in rejected] == [l2.id]
+        assert [lesson.id for lesson in pending] == [l3.id]
 
     def test_rejected_never_surfaces_as_approved(self, tmp_path):
         from vulnclaw.agent.experience import LessonStatus
@@ -159,7 +165,7 @@ class TestExperienceStoreLifecycle:
         reloaded = store2.get(lesson.id)
         assert reloaded is not None
         assert reloaded.status == LessonStatus.APPROVED
-        assert [l.id for l in store2.list_by_status(LessonStatus.APPROVED)] == [lesson.id]
+        assert [approved_lesson.id for approved_lesson in store2.list_by_status(LessonStatus.APPROVED)] == [lesson.id]
 
     def test_get_nonexistent_returns_none(self, tmp_path):
         store = self._make_store(tmp_path)
