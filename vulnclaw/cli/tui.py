@@ -30,6 +30,15 @@ from rich.prompt import Prompt
 from rich.table import Table
 from rich.text import Text
 
+from vulnclaw.cli.config_panel import (
+    mask_key_list as _mask_key_list,
+)
+from vulnclaw.cli.config_panel import (
+    mask_secret as _mask_secret,
+)
+from vulnclaw.cli.config_panel import (
+    split_csv_items as _split_csv_items,
+)
 from vulnclaw.config.schema import (
     BUILTIN_MCP_SERVERS,
     ENGINE_CHOICES,
@@ -2013,29 +2022,6 @@ def _config_confirm_ask(screen: Console, label: str, *, default: bool = False) -
         if value in ("n", "no"):
             return False
         screen.print(f"[{C_ERROR}]Enter y or n.[/]")
-
-
-def _split_csv_items(raw: str) -> list[str]:
-    """Split a comma/newline separated string into cleaned items."""
-    return [item.strip() for item in raw.replace("\n", ",").split(",") if item.strip()]
-
-
-def _mask_secret(value: str) -> str:
-    """Mask a secret so only a hint of it reaches the terminal."""
-    value = (value or "").strip()
-    if not value:
-        return "(not set)"
-    if len(value) <= 8:
-        return "…" + value[-2:]
-    return f"{value[:2]}…{value[-4:]}"
-
-
-def _mask_key_list(keys: list[str]) -> str:
-    """Summarise a list of API keys without printing any in the clear."""
-    usable = [k for k in keys if k and k.strip()]
-    if not usable:
-        return "(none)"
-    return f"{_mask_secret(usable[0])} ({len(usable)} key{'s' if len(usable) != 1 else ''})"
 
 
 def _prompt_text_value(screen: Console, label: str, current: str) -> str:

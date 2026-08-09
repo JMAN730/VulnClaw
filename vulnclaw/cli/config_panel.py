@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
+from typing import Any
 
 from vulnclaw.config.schema import ENGINE_CHOICES, VulnClawConfig
 
@@ -22,6 +23,13 @@ LIST = "list"
 ENV = "env"
 MODEL = "model"
 PATH = "path"
+
+
+class _Keep:
+    """Sentinel: blank input leaves the current value alone."""
+
+
+_KEEP = _Keep()
 
 
 @dataclass(frozen=True)
@@ -226,6 +234,44 @@ class Row:
     choices: tuple[str, ...] = ()
 
 
+def mask_secret(value: str) -> str:
+    """Mask a secret so only a hint of it reaches the terminal."""
+    value = (value or "").strip()
+    if not value:
+        return "(not set)"
+    if len(value) <= 8:
+        return "…" + value[-2:]
+    return f"{value[:2]}…{value[-4:]}"
+
+
+def mask_key_list(keys: list[str]) -> str:
+    """Summarise a list of API keys without printing any in the clear."""
+    usable = [key for key in keys if key and key.strip()]
+    if not usable:
+        return "(none)"
+    plural = "s" if len(usable) != 1 else ""
+    return f"{mask_secret(usable[0])} ({len(usable)} key{plural})"
+
+
+def split_csv_items(raw: str) -> list[str]:
+    """Split a comma/newline separated string into cleaned items."""
+    return [item.strip() for item in raw.replace("\n", ",").split(",") if item.strip()]
+
+
+def parse_env_items(raw: str) -> dict[str, str]:
+    """Parse `KEY=value, KEY=value` into a dict, raising ValueError on junk."""
+    result: dict[str, str] = {}
+    for item in split_csv_items(raw):
+        if "=" not in item:
+            raise ValueError("Environment entries must look like KEY=value")
+        key, value = item.split("=", 1)
+        key = key.strip()
+        if not key:
+            raise ValueError("Environment keys cannot be blank")
+        result[key] = value.strip()
+    return result
+
+
 class ConfigPanelModel:
     """Draft-editing state machine behind the classic-REPL config panel."""
 
@@ -233,6 +279,9 @@ class ConfigPanelModel:
         self.draft = copy.deepcopy(config)
         self._expanded: set[str] = set()
         self._focus_key = "llm"
+        self._edit: dict[str, Any] | None = None
+        self._reveal = False
+        self.row_error = ""
 
     # -- row tree ---------------------------------------------------------
 
@@ -339,3 +388,122 @@ class ConfigPanelModel:
         if row.path:
             return row.path.split(".", 1)[0]
         return None
+
+    # -- values -----------------------------------------------------------
+
+    def raw_value(self, row: Row) -> Any:
+        target: Any = self.draft
+        parts = row.path.split(".")
+        for part in parts[:-1]:
+            target = getattr(target, part)
+        return getattr(target, parts[-1])
+
+    def _set_value(self, row: Row, value: Any) -> None:
+        target: Any = self.draft
+        parts = row.path.split(".")
+        for part in parts[:-1]:
+            target = getattr(target, part)
+        setattr(target, parts[-1], value)
+
+    def display_value(self, row: Row) -> str:
+        if row.kind != "field":
+            return ""
+        value = self.raw_value(row)
+        if row.value_kind == SECRET:
+            return value if self._reveal else mask_secret(value)
+        if row.value_kind == SECRET_LIST:
+            return ", ".join(value) if self._reveal else mask_key_list(value)
+        if row.value_kind == BOOL:
+            return "yes" if value else "no"
+        if row.value_kind == LIST:
+            return ", ".join(value or [])
+        if row.value_kind == ENV:
+            return ", ".join(f"{k}={v}" for k, v in sorted((value or {}).items()))
+        return str(value)
+
+    def _edit_seed(self, row: Row) -> str:
+        """Text the editor opens with. Secrets always open empty."""
+        if row.value_kind in (SECRET, SECRET_LIST):
+            return ""
+        return self.display_value(row)
+
+    # -- editing ----------------------------------------------------------
+
+    @property
+    def editing(self) -> bool:
+        return self._edit is not None
+
+    @property
+    def edit_text(self) -> str:
+        return self._edit["text"] if self._edit else ""
+
+    def set_edit_text(self, text: str) -> None:
+        if self._edit is not None:
+            self._edit["text"] = text
+
+    def cancel_edit(self) -> None:
+        self._edit = None
+        self.row_error = ""
+
+    def toggle_reveal(self) -> None:
+        self._reveal = not self._reveal
+
+    def activate(self) -> None:
+        row = self.focused
+        self.row_error = ""
+        if row.kind == "group":
+            self.toggle_expand()
+            return
+        if row.kind != "field":
+            return
+        if row.value_kind == BOOL:
+            self._set_value(row, not self.raw_value(row))
+            return
+        self._edit = {"key": row.key, "text": self._edit_seed(row)}
+
+    def commit_edit(self) -> None:
+        if self._edit is None:
+            return
+        row = self.focused
+        raw = self._edit["text"].strip()
+        try:
+            value = self._parse(row, raw)
+        except ValueError as exc:
+            self.row_error = str(exc)
+            return
+        if value is not _KEEP:
+            self._set_value(row, value)
+        self._edit = None
+        self.row_error = ""
+
+    def _parse(self, row: Row, raw: str) -> Any:
+        kind = row.value_kind
+        if raw == "!clear":
+            return {
+                SECRET_LIST: [],
+                LIST: [],
+                ENV: {},
+            }.get(kind, "")
+        if raw == "":
+            return _KEEP
+        if kind in (TEXT, SECRET, MODEL):
+            return raw
+        if kind == PATH:
+            from pathlib import Path
+
+            return Path(raw)
+        if kind in (SECRET_LIST, LIST):
+            return split_csv_items(raw)
+        if kind == ENV:
+            return parse_env_items(raw)
+        if kind == INT:
+            try:
+                return int(raw)
+            except ValueError:
+                raise ValueError("Enter a whole number.") from None
+        if kind == FLOAT:
+            try:
+                return float(raw)
+            except ValueError:
+                raise ValueError("Enter a number.") from None
+        return raw
