@@ -312,8 +312,6 @@ def test_an_empty_successful_fetch_is_reported_as_an_error(model):
 
 
 def test_mcp_section_lists_servers_as_collapsed_groups():
-    from vulnclaw.config.schema import MCPServerConfig, MCPTransportConfig
-
     model = _with_server()
     model._expanded.add("mcp")
 
@@ -454,3 +452,41 @@ def test_llm_summary_flags_that_the_key_pool_wins(model):
     model.draft.llm.api_keys = ["sk-pool"]
 
     assert "pool" in model.summary("llm").lower()
+
+
+def test_every_panel_label_key_exists_in_both_catalogs():
+    import json
+    from pathlib import Path
+
+    from vulnclaw.cli import config_panel as panel
+
+    root = Path(panel.__file__).resolve().parents[1] / "i18n"
+    catalogs = {
+        name: json.loads((root / f"{name}.json").read_text(encoding="utf-8"))
+        for name in ("en", "zh")
+    }
+
+    used = {
+        spec.label_key
+        for section in panel.SECTIONS
+        for spec in section.fields
+    }
+    used |= {spec.label_key for spec in panel.MCP_SERVER_FIELDS}
+    used |= {section.label_key for section in panel.SECTIONS}
+    used |= {
+        "tui.config_panel.save",
+        "tui.config_panel.fetch_models",
+        "tui.config_panel.add_server",
+        "tui.config_panel.delete_server",
+        "tui.config_panel.nav_hint",
+        "tui.config_panel.esc_discards",
+        "tui.config_panel.reveal_hint",
+        "tui.config_panel.fetch_idle",
+        "tui.config_panel.fetch_loading",
+        "tui.config_panel.saved",
+        "tui.config_panel.discarded",
+    }
+
+    for name, catalog in catalogs.items():
+        missing = sorted(key for key in used if key not in catalog)
+        assert missing == [], f"{name}.json is missing: {missing}"
