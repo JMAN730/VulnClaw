@@ -184,3 +184,273 @@ def test_path_field_round_trips_as_a_path(model):
     model.commit_edit()
 
     assert model.draft.session.output_dir == Path("./somewhere")
+
+
+def test_choice_field_opens_a_dropdown_and_commits(model):
+    _focus(model, "session.report_format")
+
+    model.activate()
+    assert model.dropdown_open is True
+    assert model.dropdown_options == ["markdown", "html"]
+
+    model.select_option(1)
+    model.commit_option()
+
+    assert model.draft.session.report_format == "html"
+    assert model.dropdown_open is False
+
+
+def test_dropdown_cancel_restores_the_previous_choice(model):
+    model.draft.session.poc_language = "python"
+    _focus(model, "session.poc_language")
+
+    model.activate()
+    model.select_option(1)
+    model.cancel_option()
+
+    assert model.draft.session.poc_language == "python"
+    assert model.dropdown_open is False
+
+
+def test_dropdown_selection_does_not_run_off_either_end(model):
+    _focus(model, "session.report_format")
+    model.activate()
+
+    model.select_option(-5)
+    assert model.dropdown_index == 0
+
+    model.select_option(5)
+    assert model.dropdown_index == 1
+
+
+def test_changing_provider_applies_the_preset_and_bumps_the_generation(model):
+    _focus(model, "llm.provider")
+    model.activate()
+    model.dropdown_index = model.dropdown_options.index("deepseek")
+    generation_before = model.generation
+
+    model.commit_option()
+
+    assert model.draft.llm.provider == "deepseek"
+    assert model.draft.llm.base_url == "https://api.deepseek.com"
+    assert model.generation > generation_before
+    assert model.models == []
+
+
+def test_editing_base_url_or_key_bumps_the_generation(model):
+    generation_before = model.generation
+
+    _focus(model, "llm.base_url")
+    model.activate()
+    model.set_edit_text("https://example.test/v1")
+    model.commit_edit()
+
+    assert model.generation > generation_before
+
+
+def test_fetch_is_blocked_without_credentials(model):
+    model.draft.llm.base_url = ""
+    model.draft.llm.api_key = ""
+    model.draft.llm.api_keys = []
+
+    assert model.can_fetch() is False
+
+
+def test_fetch_is_allowed_with_a_base_url_and_any_key(model):
+    model.draft.llm.base_url = "https://example.test/v1"
+    model.draft.llm.api_key = ""
+    model.draft.llm.api_keys = ["sk-pool"]
+
+    assert model.can_fetch() is True
+
+
+def test_successful_fetch_populates_the_model_list(model):
+    model.draft.llm.base_url = "https://example.test/v1"
+    model.draft.llm.api_key = "sk-test"
+
+    generation = model.begin_fetch()
+    assert model.fetch_state == "loading"
+
+    model.apply_fetch_result(generation, ["a", "b"], None)
+
+    assert model.models == ["a", "b"]
+    assert model.fetch_state == "ok"
+
+
+def test_a_stale_fetch_result_is_ignored(model):
+    model.draft.llm.base_url = "https://example.test/v1"
+    model.draft.llm.api_key = "sk-test"
+    stale = model.begin_fetch()
+
+    model._invalidate_models()  # provider changed while the fetch was in flight
+
+    model.apply_fetch_result(stale, ["wrong-provider-model"], None)
+
+    assert model.models == []
+
+
+def test_a_failed_fetch_reports_an_error_and_leaves_the_list_empty(model):
+    model.draft.llm.base_url = "https://example.test/v1"
+    model.draft.llm.api_key = "sk-test"
+    generation = model.begin_fetch()
+
+    model.apply_fetch_result(generation, [], "connection refused")
+
+    assert model.models == []
+    assert model.fetch_state == "error"
+    assert "connection refused" in model.fetch_message
+
+
+def test_an_empty_successful_fetch_is_reported_as_an_error(model):
+    model.draft.llm.base_url = "https://example.test/v1"
+    model.draft.llm.api_key = "sk-test"
+    generation = model.begin_fetch()
+
+    model.apply_fetch_result(generation, [], None)
+
+    assert model.fetch_state == "error"
+
+
+def test_mcp_section_lists_servers_as_collapsed_groups():
+    from vulnclaw.config.schema import MCPServerConfig, MCPTransportConfig
+
+    model = _with_server()
+    model._expanded.add("mcp")
+
+    keys = [row.key for row in model.rows()]
+
+    assert "mcp.demo" in keys
+    assert "mcp.demo.enabled" not in keys
+    assert "action.add_server" in keys
+
+
+def _with_server(name="demo", enabled=True):
+    from vulnclaw.config.schema import MCPServerConfig, MCPTransportConfig
+
+    config = VulnClawConfig()
+    config.mcp.servers[name] = MCPServerConfig(
+        name=name,
+        enabled=enabled,
+        priority=1,
+        transport=MCPTransportConfig(type="stdio", command="run-me"),
+    )
+    return ConfigPanelModel(config)
+
+
+def test_expanding_a_server_reveals_its_transport_fields():
+    model = _with_server()
+    model._expanded.update({"mcp", "mcp.demo"})
+
+    keys = [row.key for row in model.rows()]
+
+    assert "mcp.demo.enabled" in keys
+    assert "mcp.demo.transport.type" in keys
+    assert "mcp.demo.transport.env" in keys
+
+
+def test_editing_a_nested_server_field_writes_through_to_the_draft():
+    model = _with_server()
+    model._expanded.update({"mcp", "mcp.demo"})
+    model._focus_key = "mcp.demo.transport.command"
+
+    model.activate()
+    model.set_edit_text("other-command")
+    model.commit_edit()
+
+    assert model.draft.mcp.servers["demo"].transport.command == "other-command"
+
+
+def test_adding_a_server_rejects_blank_and_duplicate_names():
+    model = _with_server()
+
+    model.add_server("")
+    assert model.row_error != ""
+    assert list(model.draft.mcp.servers) == ["demo"]
+
+    model.add_server("demo")
+    assert model.row_error != ""
+    assert list(model.draft.mcp.servers) == ["demo"]
+
+    model.add_server("second")
+    assert model.row_error == ""
+    assert model.draft.mcp.servers["second"].transport.type == "stdio"
+
+
+def test_deleting_a_custom_server_removes_it():
+    model = _with_server()
+    model._expanded.add("mcp")
+    model._focus_key = "mcp.demo"
+
+    model.delete_server()
+
+    assert "demo" not in model.draft.mcp.servers
+
+
+def test_builtin_servers_cannot_be_deleted():
+    from vulnclaw.config.schema import BUILTIN_MCP_SERVERS
+
+    name = next(iter(BUILTIN_MCP_SERVERS))
+    model = _with_server(name=name)
+    model._expanded.add("mcp")
+    model._focus_key = f"mcp.{name}"
+
+    model.delete_server()
+
+    assert name in model.draft.mcp.servers
+    assert model.row_error != ""
+
+
+def test_save_is_blocked_when_static_auth_has_no_credentials(model):
+    model.draft.llm.auth_mode = "static"
+    model.draft.llm.api_key = ""
+    model.draft.llm.api_keys = []
+
+    assert model.request_save() is False
+    assert model.save_error != ""
+
+
+def test_save_is_allowed_when_oauth_has_no_static_key(model):
+    model.draft.llm.auth_mode = "oauth"
+    model.draft.llm.api_key = ""
+    model.draft.llm.api_keys = []
+    model.draft.llm.base_url = "https://example.test/v1"
+
+    assert model.request_save() is True
+
+
+def test_a_malformed_base_url_warns_once_then_saves(model):
+    model.draft.llm.api_key = "sk-test"
+    model.draft.llm.base_url = "example.test/v1"
+
+    assert model.request_save() is False
+    assert "URL" in model.save_error or "url" in model.save_error
+
+    assert model.request_save() is True
+
+
+def test_save_surfaces_a_schema_violation(model):
+    model.draft.llm.api_key = "sk-test"
+    # max_rounds has no pydantic bounds; force a type the schema rejects.
+    model.draft.llm.max_tokens = "bad"  # type: ignore[assignment]
+
+    assert model.request_save() is False
+    assert "max_tokens" in model.save_error
+
+
+def test_collapsed_summaries_describe_each_section(model):
+    model.draft.llm.provider = "openai"
+    model.draft.llm.model = "gpt-4o"
+    model.draft.llm.api_key = "sk-abcdef123456"
+
+    summary = model.summary("llm")
+
+    assert "openai" in summary
+    assert "gpt-4o" in summary
+    assert "sk-abcdef123456" not in summary
+
+
+def test_llm_summary_flags_that_the_key_pool_wins(model):
+    model.draft.llm.api_key = "sk-single"
+    model.draft.llm.api_keys = ["sk-pool"]
+
+    assert "pool" in model.summary("llm").lower()

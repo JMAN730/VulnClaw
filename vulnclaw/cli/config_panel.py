@@ -10,7 +10,14 @@ import copy
 from dataclasses import dataclass
 from typing import Any
 
-from vulnclaw.config.schema import ENGINE_CHOICES, VulnClawConfig
+from vulnclaw.config.schema import (
+    BUILTIN_MCP_SERVERS,
+    ENGINE_CHOICES,
+    MCPServerConfig,
+    MCPTransportConfig,
+    VulnClawConfig,
+)
+from vulnclaw.config.settings import apply_provider_preset, list_providers
 
 TEXT = "text"
 SECRET = "secret"
@@ -211,6 +218,28 @@ RECON_FIELDS = (
     FieldSpec("recon.js_max_files", "tui.config_panel.recon_js_max_files", INT),
 )
 
+MCP_SERVER_FIELDS = (
+    FieldSpec("enabled", "tui.config_panel.mcp_enabled", BOOL),
+    FieldSpec("priority", "tui.config_panel.mcp_priority", INT),
+    FieldSpec("description", "tui.config_panel.mcp_description", TEXT),
+    FieldSpec(
+        "transport.type",
+        "tui.config_panel.mcp_transport_type",
+        CHOICE,
+        ("stdio", "sse", "streamable-http"),
+    ),
+    FieldSpec("transport.command", "tui.config_panel.mcp_transport_command", TEXT),
+    FieldSpec("transport.args", "tui.config_panel.mcp_transport_args", LIST),
+    FieldSpec("transport.url", "tui.config_panel.mcp_transport_url", TEXT),
+    FieldSpec("transport.env", "tui.config_panel.mcp_transport_env", ENV),
+    FieldSpec(
+        "transport.startup_timeout",
+        "tui.config_panel.mcp_transport_startup_timeout",
+        INT,
+    ),
+    FieldSpec("transport.tool_timeout", "tui.config_panel.mcp_transport_tool_timeout", INT),
+)
+
 SECTIONS = (
     SectionSpec("llm", "tui.config_panel.section_llm", LLM_FIELDS),
     SectionSpec("session", "tui.config_panel.section_session", SESSION_FIELDS),
@@ -282,6 +311,16 @@ class ConfigPanelModel:
         self._edit: dict[str, Any] | None = None
         self._reveal = False
         self.row_error = ""
+        self._dropdown: dict[str, Any] | None = None
+        self.dropdown_index = 0
+        self.generation = 0
+        self.models: list[str] = []
+        self.fetch_state = "idle"
+        self.fetch_message = ""
+        self.save_error = ""
+        self._url_warning_acknowledged = False
+
+    STALE_PATHS = ("llm.provider", "llm.base_url", "llm.api_key", "llm.api_keys")
 
     # -- row tree ---------------------------------------------------------
 
@@ -307,6 +346,8 @@ class ConfigPanelModel:
         return rows
 
     def _section_rows(self, section: SectionSpec) -> list[Row]:
+        if section.name == "mcp":
+            return self._mcp_rows()
         rows = [
             Row(
                 key=spec.path,
@@ -328,6 +369,52 @@ class ConfigPanelModel:
                     depth=1,
                 )
             )
+        return rows
+
+    def _mcp_rows(self) -> list[Row]:
+        rows: list[Row] = []
+        for name in self.draft.mcp.servers:
+            server_key = f"mcp.{name}"
+            expanded = server_key in self._expanded
+            rows.append(
+                Row(
+                    key=server_key,
+                    kind="group",
+                    label_key="",
+                    depth=1,
+                    expanded=expanded,
+                )
+            )
+            if not expanded:
+                continue
+            for spec in MCP_SERVER_FIELDS:
+                rows.append(
+                    Row(
+                        key=f"{server_key}.{spec.path}",
+                        kind="field",
+                        label_key=spec.label_key,
+                        depth=2,
+                        value_kind=spec.kind,
+                        path=f"{server_key}.{spec.path}",
+                        choices=spec.choices,
+                    )
+                )
+            rows.append(
+                Row(
+                    key=f"{server_key}.action.delete",
+                    kind="action",
+                    label_key="tui.config_panel.delete_server",
+                    depth=2,
+                )
+            )
+        rows.append(
+            Row(
+                key="action.add_server",
+                kind="action",
+                label_key="tui.config_panel.add_server",
+                depth=1,
+            )
+        )
         return rows
 
     # -- focus ------------------------------------------------------------
@@ -383,27 +470,38 @@ class ConfigPanelModel:
             self._focus_key = parent
 
     def _parent_key(self, row: Row) -> str | None:
-        if row.kind == "action" and row.key == "action.fetch_models":
+        if row.key == "action.fetch_models":
             return "llm"
+        if row.key == "action.add_server":
+            return "mcp"
+        if row.key.startswith("mcp."):
+            parts = row.key.split(".")
+            return f"mcp.{parts[1]}" if len(parts) > 2 else "mcp"
         if row.path:
             return row.path.split(".", 1)[0]
         return None
 
     # -- values -----------------------------------------------------------
 
-    def raw_value(self, row: Row) -> Any:
-        target: Any = self.draft
-        parts = row.path.split(".")
+    def _resolve(self, path: str) -> tuple[Any, str]:
+        """Return (owner, attribute) for a dotted path, hopping the MCP server dict."""
+        parts = path.split(".")
+        if parts[0] == "mcp":
+            target: Any = self.draft.mcp.servers[parts[1]]
+            parts = parts[2:]
+        else:
+            target = self.draft
         for part in parts[:-1]:
             target = getattr(target, part)
-        return getattr(target, parts[-1])
+        return target, parts[-1]
+
+    def raw_value(self, row: Row) -> Any:
+        owner, attribute = self._resolve(row.path)
+        return getattr(owner, attribute)
 
     def _set_value(self, row: Row, value: Any) -> None:
-        target: Any = self.draft
-        parts = row.path.split(".")
-        for part in parts[:-1]:
-            target = getattr(target, part)
-        setattr(target, parts[-1], value)
+        owner, attribute = self._resolve(row.path)
+        setattr(owner, attribute, value)
 
     def display_value(self, row: Row) -> str:
         if row.kind != "field":
@@ -459,6 +557,12 @@ class ConfigPanelModel:
         if row.value_kind == BOOL:
             self._set_value(row, not self.raw_value(row))
             return
+        options = self.options_for(row)
+        if row.value_kind == CHOICE or (row.value_kind == MODEL and options):
+            self._dropdown = {"options": options}
+            current = self.raw_value(row)
+            self.dropdown_index = options.index(current) if current in options else 0
+            return
         self._edit = {"key": row.key, "text": self._edit_seed(row)}
 
     def commit_edit(self) -> None:
@@ -473,6 +577,8 @@ class ConfigPanelModel:
             return
         if value is not _KEEP:
             self._set_value(row, value)
+            if row.path in self.STALE_PATHS:
+                self._invalidate_models()
         self._edit = None
         self.row_error = ""
 
@@ -507,3 +613,198 @@ class ConfigPanelModel:
             except ValueError:
                 raise ValueError("Enter a number.") from None
         return raw
+
+    # -- dropdowns --------------------------------------------------------
+
+    def provider_choices(self) -> list[str]:
+        return [item["provider"] for item in list_providers()]
+
+    def options_for(self, row: Row) -> list[str]:
+        if row.path == "llm.provider":
+            return self.provider_choices()
+        if row.value_kind == MODEL:
+            return list(self.models)
+        return list(row.choices)
+
+    @property
+    def dropdown_open(self) -> bool:
+        return self._dropdown is not None
+
+    @property
+    def dropdown_options(self) -> list[str]:
+        return self._dropdown["options"] if self._dropdown else []
+
+    def select_option(self, delta: int) -> None:
+        if self._dropdown is None:
+            return
+        limit = len(self._dropdown["options"]) - 1
+        self.dropdown_index = max(0, min(self.dropdown_index + delta, limit))
+
+    def cancel_option(self) -> None:
+        self._dropdown = None
+        self.dropdown_index = 0
+
+    def commit_option(self) -> None:
+        if self._dropdown is None:
+            return
+        row = self.focused
+        choice = self._dropdown["options"][self.dropdown_index]
+        self._dropdown = None
+        self.dropdown_index = 0
+        if row.path == "llm.provider":
+            if choice != self.draft.llm.provider:
+                self.draft = apply_provider_preset(self.draft, choice)
+                self.draft.llm.provider = choice
+                self._invalidate_models()
+            return
+        self._set_value(row, choice)
+
+    def _invalidate_models(self) -> None:
+        """Any credential change makes a fetched model list stale."""
+        self.generation += 1
+        self.models = []
+        self.fetch_state = "idle"
+        self.fetch_message = ""
+
+    # -- model fetch ------------------------------------------------------
+
+    def _usable_key(self) -> str:
+        for key in self.draft.llm.api_keys:
+            if key and key.strip():
+                return key
+        return self.draft.llm.api_key.strip()
+
+    def can_fetch(self) -> bool:
+        return bool(self.draft.llm.base_url.strip() and self._usable_key())
+
+    def begin_fetch(self) -> int:
+        """Mark a fetch in flight and return the generation the worker must echo back."""
+        self.generation += 1
+        self.models = []
+        self.fetch_state = "loading"
+        self.fetch_message = ""
+        return self.generation
+
+    def apply_fetch_result(
+        self, generation: int, models: list[str], error: str | None
+    ) -> None:
+        if generation != self.generation:
+            return
+        if error:
+            self.models = []
+            self.fetch_state = "error"
+            self.fetch_message = error
+            return
+        if not models:
+            self.models = []
+            self.fetch_state = "error"
+            self.fetch_message = "No models returned; enter a model id manually."
+            return
+        self.models = list(models)
+        self.fetch_state = "ok"
+        self.fetch_message = f"{len(models)} models loaded."
+
+    # -- MCP mutations ----------------------------------------------------
+
+    def add_server(self, name: str) -> None:
+        name = name.strip()
+        if not name:
+            self.row_error = "Server name cannot be blank."
+            return
+        if name in self.draft.mcp.servers:
+            self.row_error = f"Server '{name}' already exists."
+            return
+        self.draft.mcp.servers[name] = MCPServerConfig(
+            name=name,
+            enabled=True,
+            priority=1,
+            transport=MCPTransportConfig(type="stdio"),
+        )
+        self.row_error = ""
+        self._expanded.update({"mcp", f"mcp.{name}"})
+        self._focus_key = f"mcp.{name}"
+
+    def delete_server(self) -> None:
+        row = self.focused
+        parts = row.key.split(".")
+        if len(parts) < 2 or parts[0] != "mcp":
+            return
+        name = parts[1]
+        if name in BUILTIN_MCP_SERVERS:
+            self.row_error = "Built-in servers cannot be deleted here."
+            return
+        self.draft.mcp.servers.pop(name, None)
+        self._expanded.discard(f"mcp.{name}")
+        self._focus_key = "mcp"
+        self.row_error = ""
+
+    # -- validation / save / summary --------------------------------------
+
+    def validate(self) -> list[str]:
+        """Blocking problems, in the order they should be shown."""
+        errors: list[str] = []
+        llm = self.draft.llm
+        if llm.auth_mode == "static" and not self._usable_key():
+            errors.append("An API key is required for static auth mode.")
+        for name, server in self.draft.mcp.servers.items():
+            if not name.strip():
+                errors.append("MCP server names cannot be blank.")
+            if server.transport.type == "stdio" and not (server.transport.command or "").strip():
+                errors.append(f"MCP server '{name}' needs a command for stdio transport.")
+            if server.transport.type != "stdio" and not (server.transport.url or "").strip():
+                errors.append(f"MCP server '{name}' needs a URL for {server.transport.type}.")
+        try:
+            VulnClawConfig.model_validate(self.draft.model_dump())
+        except Exception as exc:  # pydantic ValidationError
+            errors.append(str(exc).splitlines()[1].strip() if "\n" in str(exc) else str(exc))
+        return errors
+
+    def _base_url_is_suspicious(self) -> bool:
+        url = self.draft.llm.base_url.strip()
+        return bool(url) and not url.startswith(("http://", "https://"))
+
+    def request_save(self) -> bool:
+        """True when the shell should call save_config(model.draft)."""
+        errors = self.validate()
+        if errors:
+            self.save_error = errors[0]
+            return False
+        if self._base_url_is_suspicious() and not self._url_warning_acknowledged:
+            self._url_warning_acknowledged = True
+            self.save_error = "Base URL may be malformed; press Save again to continue."
+            return False
+        self.save_error = ""
+        return True
+
+    def summary(self, section_name: str) -> str:
+        llm = self.draft.llm
+        if section_name == "llm":
+            parts = [llm.provider, llm.model, f"key {mask_secret(llm.api_key)}"]
+            if [key for key in llm.api_keys if key.strip()]:
+                parts.append("failover pool takes precedence")
+            return " · ".join(parts)
+        if section_name == "session":
+            return " · ".join(
+                [
+                    self.draft.session.engine,
+                    f"{self.draft.session.max_rounds} rounds",
+                    self.draft.session.language,
+                ]
+            )
+        if section_name == "safety":
+            state = "on" if self.draft.safety.enable_python_execute else "off"
+            return f"python exec {state} · {self.draft.safety.python_execute_mode}"
+        if section_name == "recon":
+            keys = [
+                self.draft.recon.fofa_key,
+                self.draft.recon.hunter_key,
+                self.draft.recon.quake_key,
+                self.draft.recon.zoomeye_key,
+                self.draft.recon.shodan_key,
+                self.draft.recon.zerozone_key,
+            ]
+            return f"{len([key for key in keys if key.strip()])} keys set"
+        if section_name == "mcp":
+            count = len(self.draft.mcp.servers)
+            return f"{count} server{'s' if count != 1 else ''}"
+        return ""
