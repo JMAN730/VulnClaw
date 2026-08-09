@@ -117,7 +117,169 @@ pub fn render_setup(frame: &mut Frame, app: &App) {
     }
 }
 
+/// In-place LLM settings editor. It intentionally renders from a draft held
+/// by the app; persistence happens only after the Save row is activated.
+pub fn render_config_panel(frame: &mut Frame, app: &App) {
+    let Some(panel) = app.config_panel.as_ref() else {
+        return;
+    };
+    let area = frame.area();
+    let width = if area.width < 48 {
+        48
+    } else {
+        area.width.min(88)
+    };
+    let height = if area.height < 16 {
+        16
+    } else {
+        area.height.min(28)
+    };
+    let outer_area = Rect {
+        x: area.x + area.width.saturating_sub(width) / 2,
+        y: area.y + area.height.saturating_sub(height) / 2,
+        width,
+        height,
+    };
+    let outer = Block::default()
+        .borders(Borders::ALL)
+        .border_style(theme::CORAL)
+        .style(Style::default().bg(theme::PANEL))
+        .title(" Configure LLM ");
+    let inner = outer.inner(outer_area);
+    frame.render_widget(outer, outer_area);
+
+    let mut lines = vec![Line::from(Span::styled(
+        panel.summary(),
+        Style::default().fg(theme::TEXT_HINT),
+    ))];
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "Configure LLM",
+        Style::default().fg(theme::ACTION).add_modifier(Modifier::BOLD),
+    )));
+
+    let mut row_y = 3u16;
+    let mut add_row = |label: &str, value: String, active: bool| {
+        let marker = if active { "▶ " } else { "  " };
+        let style = if active {
+            Style::default().fg(theme::TEXT_BODY).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme::TEXT_SOFT)
+        };
+        lines.push(Line::from(vec![
+            Span::styled(marker, Style::default().fg(theme::ACTION)),
+            Span::styled(format!("{label:<10}"), Style::default().fg(theme::TEXT_MUTED)),
+            Span::styled(value, style),
+        ]));
+        row_y += 1;
+    };
+
+    let base_offset = usize::from(panel.has_base_url_row());
+    add_row(
+        "Provider",
+        format!("{}  ({})", panel.provider, if panel.provider_dropdown { "choose" } else { "Enter to edit" }),
+        panel.focus == 0,
+    );
+    if panel.has_base_url_row() {
+        add_row("Base URL", panel.base_url.clone(), panel.focus == 1);
+    }
+    let key_value = if panel.api_key.is_empty() {
+        "—".to_owned()
+    } else if panel.reveal_key {
+        panel.api_key.clone()
+    } else {
+        "•".repeat(panel.api_key.chars().count().min(8))
+    };
+    add_row("API key", key_value, panel.focus == 1 + base_offset);
+    add_row(
+        "Model",
+        if panel.model.is_empty() { "(none)".to_owned() } else { panel.model.clone() },
+        panel.focus == 2 + base_offset,
+    );
+    add_row(
+        "Actions",
+        format!(
+            "[Fetch{}]  [Save{}]",
+            if panel.loading { " (loading…)" } else if !panel.can_fetch() { " (disabled)" } else { "" },
+            if panel.can_save() { "" } else { " (disabled)" }
+        ),
+        panel.focus >= 3 + base_offset,
+    );
+    let _ = row_y;
+
+    if panel.provider_dropdown {
+        lines.push(Line::from(Span::styled(
+            "Providers (Up/Down, Enter commits):",
+            Style::default().fg(theme::TEXT_HINT),
+        )));
+        for provider in &panel.providers {
+            let marker = if provider.name == panel.provider { "▶ " } else { "  " };
+            lines.push(Line::from(Span::styled(
+                format!("{marker}{} ({})", provider.label, provider.name),
+                if provider.name == panel.provider {
+                    Style::default().fg(theme::ACTION).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(theme::TEXT_SOFT)
+                },
+            )));
+        }
+    } else if panel.model_dropdown {
+        lines.push(Line::from(Span::styled(
+            "Models (Up/Down, Enter commits):",
+            Style::default().fg(theme::TEXT_HINT),
+        )));
+        for model in panel.models.iter().take(8) {
+            let marker = if model == &panel.model { "▶ " } else { "  " };
+            lines.push(Line::from(Span::styled(
+                format!("{marker}{model}"),
+                if model == &panel.model {
+                    Style::default().fg(theme::ACTION).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(theme::TEXT_SOFT)
+                },
+            )));
+        }
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "Enter edit/select  ·  ↑/↓ navigate  ·  Tab/Shift+Tab move  ·  V/Ctrl+R reveal key  ·  Esc discard",
+        Style::default().fg(theme::TEXT_HINT),
+    )));
+    if !panel.message.is_empty() {
+        lines.push(Line::from(Span::styled(
+            panel.message.clone(),
+            if panel.error {
+                Style::default().fg(theme::CORAL)
+            } else {
+                Style::default().fg(theme::SEAFOAM)
+            },
+        )));
+    }
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), inner);
+
+    if panel.editing {
+        let field_index = if panel.has_base_url_row() {
+            panel.focus + 4
+        } else {
+            panel.focus + 3
+        };
+        let cursor_y = inner.y + field_index as u16;
+        let label_width = 12u16;
+        let cursor_x = inner
+            .x
+            .saturating_add(label_width)
+            .saturating_add(panel.cursor as u16)
+            .min(inner.right().saturating_sub(1));
+        frame.set_cursor_position((cursor_x, cursor_y));
+    }
+}
+
 pub fn render(frame: &mut Frame, app: &App) {
+    if app.config_panel.is_some() {
+        render_config_panel(frame, app);
+        return;
+    }
     if app.setup.is_some() {
         render_setup(frame, app);
         return;

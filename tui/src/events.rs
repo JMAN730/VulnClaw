@@ -13,6 +13,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent) {
     // A transient toast (e.g. "Copied …") lives until the next key press.
     app.toast.clear();
 
+    if app.config_panel.is_some() {
+        // The panel owns all navigation and text editing while open; no
+        // dashboard shortcut may leak through to the live composer.
+        app.config_panel_handle_key(key);
+        return;
+    }
+
     if app.setup.is_some() {
         // Allow Ctrl+C to quit even from the setup wizard.
         if let (KeyCode::Char('c'), KeyModifiers::CONTROL) = (key.code, key.modifiers) {

@@ -1,6 +1,7 @@
 """VulnClaw CLI module tests for main.py."""
 
 import io
+import json
 
 import pytest
 from typer.testing import CliRunner
@@ -101,6 +102,76 @@ class TestCLI:
         result = runner.invoke(app, ["config", "list"])
         # Should not crash
         assert result.exit_code == 0
+
+    def test_cli_config_panel_data_returns_only_the_native_editor_snapshot(self, runner, monkeypatch):
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
+
+        config = VulnClawConfig()
+        config.llm.api_key = "sk-panel-test"
+        monkeypatch.setattr("vulnclaw.cli.main.load_config", lambda: config)
+
+        result = runner.invoke(app, ["config", "panel-data"])
+
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout)
+        assert payload["provider"] == config.llm.provider
+        assert payload["api_key"] == "sk-panel-test"
+        assert any(item["provider"] == "custom" for item in payload["providers"])
+
+    def test_cli_config_panel_save_validates_and_persists_the_complete_draft(self, runner, monkeypatch):
+        from vulnclaw.cli.main import app
+        from vulnclaw.config.schema import VulnClawConfig
+
+        config = VulnClawConfig()
+        saved = []
+        monkeypatch.setattr("vulnclaw.cli.main.load_config", lambda: config)
+        monkeypatch.setattr("vulnclaw.cli.main.save_config", saved.append)
+
+        invalid = runner.invoke(
+            app,
+            ["config", "panel-save"],
+            input=json.dumps({"provider": "openai", "base_url": "", "api_key": "", "model": "gpt-4o"}),
+        )
+        assert invalid.exit_code == 2
+        assert saved == []
+
+        valid = runner.invoke(
+            app,
+            ["config", "panel-save"],
+            input=json.dumps(
+                {
+                    "provider": "custom",
+                    "base_url": "not-a-url",
+                    "api_key": "sk-panel-test",
+                    "model": "custom-model",
+                }
+            ),
+        )
+        assert valid.exit_code == 0
+        assert len(saved) == 1
+        assert config.llm.provider == "custom"
+        assert config.llm.base_url == "not-a-url"
+        assert config.llm.api_key == "sk-panel-test"
+        assert config.llm.model == "custom-model"
+
+    def test_cli_config_panel_fetch_uses_draft_values_without_saving(self, runner, monkeypatch):
+        from vulnclaw.cli.main import app
+
+        seen = []
+        monkeypatch.setattr(
+            "vulnclaw.config.settings.fetch_provider_models",
+            lambda base_url, api_key: seen.append((base_url, api_key)) or ["model-a"],
+        )
+        result = runner.invoke(
+            app,
+            ["config", "panel-fetch"],
+            input=json.dumps({"base_url": "https://example.test/v1", "api_key": "sk-panel-test"}),
+        )
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == {"models": ["model-a"]}
+        assert seen == [("https://example.test/v1", "sk-panel-test")]
 
     def test_cli_config_provider_list(self, runner):
         from vulnclaw.cli.main import app

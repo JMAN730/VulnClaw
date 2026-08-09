@@ -88,6 +88,18 @@ pub fn spawn_vulnclaw(args: Vec<String>, sender: Sender<AppEvent>) -> std::io::R
 /// during the first-run setup wizard (where we must wait for completion before
 /// continuing, unlike the streaming `spawn_vulnclaw`).
 pub fn run_vulnclaw_sync(args: &[&str]) -> std::io::Result<std::process::Output> {
+    run_vulnclaw_with_stdin(args, "")
+}
+
+/// Run a short-lived CLI command with a private JSON payload on stdin. Draft
+/// configuration values, especially API keys, must not be placed in argv where
+/// they can be exposed by process listings or shell history.
+pub fn run_vulnclaw_with_stdin(
+    args: &[&str],
+    input: &str,
+) -> std::io::Result<std::process::Output> {
+    use std::io::Write;
+
     let python = std::env::var("VULNCLAW_PYTHON").unwrap_or_else(|_| "python".to_owned());
     let mut command = if cfg!(windows) && python == "python" {
         let mut command = Command::new("py");
@@ -96,5 +108,24 @@ pub fn run_vulnclaw_sync(args: &[&str]) -> std::io::Result<std::process::Output>
     } else {
         Command::new(python)
     };
-    command.arg("-m").arg("vulnclaw").args(args).output()
+    let mut child = command
+        .arg("-m")
+        .arg("vulnclaw")
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    if !input.is_empty() {
+        if let Some(mut stdin) = child.stdin.take() {
+            if let Err(error) = stdin.write_all(input.as_bytes()) {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(error);
+            }
+        }
+    } else {
+        drop(child.stdin.take());
+    }
+    child.wait_with_output()
 }

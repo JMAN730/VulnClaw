@@ -1,5 +1,5 @@
-use std::env;
 use std::sync::mpsc::Sender;
+use std::thread;
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
@@ -237,6 +237,10 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
         description: "open the configuration editor",
     },
     SlashCommand {
+        command: "/cfg",
+        description: "open the configuration editor",
+    },
+    SlashCommand {
         command: "/clear",
         description: "clear the transcript",
     },
@@ -246,10 +250,10 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
     },
 ];
 
-/// First-run / on-demand API configuration wizard state.
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct SetupState {
-    pub step: u8, // 0 provider, 1 api_key, 2 base_url, 3 model
+    pub step: u8,
     pub provider_index: usize,
     pub api_key: String,
     pub base_url: String,
@@ -259,6 +263,7 @@ pub struct SetupState {
     pub error: bool,
 }
 
+#[allow(dead_code)]
 impl SetupState {
     pub fn new() -> Self {
         Self {
@@ -273,41 +278,29 @@ impl SetupState {
         }
     }
 
-    /// Insert at the editing cursor for the current text step.
-    pub fn insert_char(&mut self, c: char) {
-        match self.step {
-            1 => {
-                self.api_key.insert(self.cursor, c);
-                self.cursor += 1;
-            }
-            2 => {
-                self.base_url.insert(self.cursor, c);
-                self.cursor += 1;
-            }
-            3 => {
-                self.model.insert(self.cursor, c);
-                self.cursor += 1;
-            }
-            _ => {}
-        }
+    pub fn insert_char(&mut self, character: char) {
+        let value = match self.step {
+            1 => &mut self.api_key,
+            2 => &mut self.base_url,
+            3 => &mut self.model,
+            _ => return,
+        };
+        let index = char_byte_index(value, self.cursor);
+        value.insert(index, character);
+        self.cursor += 1;
     }
 
     pub fn backspace(&mut self) {
         if self.cursor == 0 {
             return;
         }
-        match self.step {
-            1 => {
-                self.api_key.remove(self.cursor - 1);
-            }
-            2 => {
-                self.base_url.remove(self.cursor - 1);
-            }
-            3 => {
-                self.model.remove(self.cursor - 1);
-            }
-            _ => {}
-        }
+        let value = match self.step {
+            1 => &mut self.api_key,
+            2 => &mut self.base_url,
+            3 => &mut self.model,
+            _ => return,
+        };
+        value.remove(char_byte_index(value, self.cursor - 1));
         self.cursor -= 1;
     }
 
@@ -318,11 +311,11 @@ impl SetupState {
             3 => self.model.chars().count(),
             _ => 0,
         };
-        if right {
-            self.cursor = (self.cursor + 1).min(len);
+        self.cursor = if right {
+            (self.cursor + 1).min(len)
         } else {
-            self.cursor = self.cursor.saturating_sub(1);
-        }
+            self.cursor.saturating_sub(1)
+        };
     }
 }
 
@@ -393,6 +386,281 @@ pub const PROVIDERS: &[ProviderPreset] = &[
     },
 ];
 
+#[derive(Clone, Debug)]
+pub struct ConfigProvider {
+    pub name: String,
+    pub label: String,
+    pub base_url: String,
+    pub model: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConfigPanelState {
+    pub providers: Vec<ConfigProvider>,
+    pub provider: String,
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+    pub models: Vec<String>,
+    pub focus: usize,
+    pub editing: bool,
+    pub provider_dropdown: bool,
+    pub model_dropdown: bool,
+    provider_dropdown_original: Option<(String, String, String)>,
+    model_dropdown_original: Option<String>,
+    pub reveal_key: bool,
+    pub cursor: usize,
+    pub loading: bool,
+    pub generation: u64,
+    pub message: String,
+    pub error: bool,
+    pub url_warning_acknowledged: bool,
+}
+
+impl ConfigPanelState {
+    pub fn from_json(value: &serde_json::Value) -> Option<Self> {
+        let providers = value
+            .get("providers")?
+            .as_array()?
+            .iter()
+            .filter_map(|item| {
+                Some(ConfigProvider {
+                    name: item.get("provider")?.as_str()?.to_owned(),
+                    label: item.get("label")?.as_str()?.to_owned(),
+                    base_url: item.get("base_url")?.as_str()?.to_owned(),
+                    model: item.get("default_model")?.as_str()?.to_owned(),
+                })
+            })
+            .collect::<Vec<_>>();
+        if providers.is_empty() {
+            return None;
+        }
+        let provider = value.get("provider")?.as_str()?.to_owned();
+        Some(Self {
+            providers,
+            provider,
+            base_url: value.get("base_url")?.as_str()?.to_owned(),
+            api_key: value.get("api_key")?.as_str()?.to_owned(),
+            model: value.get("model")?.as_str()?.to_owned(),
+            models: Vec::new(),
+            focus: 0,
+            editing: false,
+            provider_dropdown: false,
+            model_dropdown: false,
+            provider_dropdown_original: None,
+            model_dropdown_original: None,
+            reveal_key: false,
+            cursor: 0,
+            loading: false,
+            generation: 0,
+            message: String::new(),
+            error: false,
+            url_warning_acknowledged: false,
+        })
+    }
+
+    fn is_custom(&self) -> bool {
+        self.provider == "custom"
+    }
+
+    fn row_count(&self) -> usize {
+        // provider, conditional base URL, API key, model, Fetch, Save
+        5 + usize::from(self.is_custom())
+    }
+
+    pub(crate) fn has_base_url_row(&self) -> bool {
+        self.is_custom()
+    }
+
+    fn row_name(&self) -> &'static str {
+        let base_offset = usize::from(self.has_base_url_row());
+        match self.focus {
+            0 => "provider",
+            1 if self.has_base_url_row() => "base_url",
+            index if index == 1 + base_offset => "api_key",
+            index if index == 2 + base_offset => "model",
+            index if index == 3 + base_offset => "fetch",
+            _ => "save",
+        }
+    }
+
+    fn move_focus(&mut self, down: bool) {
+        self.cancel_dropdown();
+        let count = self.row_count();
+        self.focus = if down {
+            (self.focus + 1) % count
+        } else {
+            (self.focus + count - 1) % count
+        };
+        self.editing = false;
+        self.provider_dropdown = false;
+        self.model_dropdown = false;
+        self.cursor = self.current_value().chars().count();
+    }
+
+    fn cancel_dropdown(&mut self) {
+        if let Some((provider, base_url, model)) = self.provider_dropdown_original.take() {
+            self.provider = provider;
+            self.base_url = base_url;
+            self.model = model;
+            self.invalidate_fetch();
+        }
+        if let Some(model) = self.model_dropdown_original.take() {
+            self.model = model;
+            self.cursor = self.model.chars().count();
+        }
+        self.provider_dropdown = false;
+        self.model_dropdown = false;
+    }
+
+    fn current_value(&self) -> &str {
+        match self.row_name() {
+            "base_url" => &self.base_url,
+            "api_key" => &self.api_key,
+            "model" => &self.model,
+            _ => "",
+        }
+    }
+
+    fn invalidate_fetch(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        self.url_warning_acknowledged = false;
+        self.models.clear();
+        self.model_dropdown = false;
+        self.loading = false;
+        if self.can_fetch() {
+            self.message = "Press Fetch to load models.".to_owned();
+            self.error = false;
+        } else {
+            self.message = "Fetch requires a provider, URL, and API key.".to_owned();
+            self.error = false;
+        }
+    }
+
+    pub(crate) fn can_fetch(&self) -> bool {
+        !self.base_url.trim().is_empty() && !self.api_key.trim().is_empty()
+    }
+
+    pub(crate) fn can_save(&self) -> bool {
+        !self.api_key.trim().is_empty() && (!self.is_custom() || !self.base_url.trim().is_empty())
+    }
+
+    pub(crate) fn summary(&self) -> String {
+        let key = if self.api_key.is_empty() {
+            "—".to_owned()
+        } else if self.reveal_key {
+            self.api_key.clone()
+        } else {
+            "•".repeat(self.api_key.chars().count().min(8))
+        };
+        let base_url = if self.base_url.is_empty() {
+            "—"
+        } else {
+            self.base_url.as_str()
+        };
+        let model = if self.model.is_empty() { "(none)" } else { &self.model };
+        format!(
+            "provider {}  url {}  key {}  model {}",
+            self.provider, base_url, key, model
+        )
+    }
+
+    fn selected_provider_index(&self) -> usize {
+        self.providers
+            .iter()
+            .position(|item| item.name == self.provider)
+            .unwrap_or(0)
+    }
+
+    fn select_provider(&mut self, down: bool) {
+        let current = self.selected_provider_index();
+        let next = if down {
+            (current + 1) % self.providers.len()
+        } else {
+            (current + self.providers.len() - 1) % self.providers.len()
+        };
+        let selected = &self.providers[next];
+        self.provider = selected.name.clone();
+        if self.is_custom() {
+            self.base_url.clear();
+            self.model.clear();
+        } else {
+            self.base_url = selected.base_url.clone();
+            self.model = selected.model.clone();
+        }
+        self.cursor = 0;
+        self.invalidate_fetch();
+    }
+
+    fn select_model(&mut self, down: bool) {
+        if self.models.is_empty() {
+            return;
+        }
+        let current = self
+            .models
+            .iter()
+            .position(|model| model == &self.model)
+            .unwrap_or(0);
+        let next = if down {
+            (current + 1) % self.models.len()
+        } else {
+            (current + self.models.len() - 1) % self.models.len()
+        };
+        self.model = self.models[next].clone();
+        self.cursor = self.model.chars().count();
+        self.model_dropdown = true;
+    }
+
+    fn insert_char(&mut self, character: char) {
+        let field = self.row_name();
+        match field {
+            "base_url" => self
+                .base_url
+                .insert(char_byte_index(&self.base_url, self.cursor), character),
+            "api_key" => self
+                .api_key
+                .insert(char_byte_index(&self.api_key, self.cursor), character),
+            "model" => self
+                .model
+                .insert(char_byte_index(&self.model, self.cursor), character),
+            _ => return,
+        }
+        self.cursor += 1;
+        self.invalidate_fetch();
+    }
+
+    fn backspace(&mut self) {
+        if self.cursor == 0 {
+            return;
+        }
+        let field = self.row_name();
+        match field {
+            "base_url" => {
+                let index = char_byte_index(&self.base_url, self.cursor - 1);
+                self.base_url.remove(index);
+            }
+            "api_key" => {
+                let index = char_byte_index(&self.api_key, self.cursor - 1);
+                self.api_key.remove(index);
+            }
+            "model" => {
+                let index = char_byte_index(&self.model, self.cursor - 1);
+                self.model.remove(index);
+            }
+            _ => return,
+        }
+        self.cursor -= 1;
+        self.invalidate_fetch();
+    }
+}
+
+fn char_byte_index(value: &str, char_index: usize) -> usize {
+    value
+        .char_indices()
+        .nth(char_index)
+        .map_or(value.len(), |(byte_index, _)| byte_index)
+}
+
 const MAX_COMMAND_HISTORY: usize = 50;
 
 #[derive(Clone, Debug)]
@@ -437,6 +705,7 @@ pub struct App {
     pub pending_task: Option<Vec<String>>,
     pub skills: Vec<SkillNode>,
     pub setup: Option<SetupState>,
+    pub config_panel: Option<ConfigPanelState>,
     /// Last known terminal viewport size, captured each frame. Used to render an
     /// offscreen copy of the focused pane for independent clipboard copies.
     pub terminal_size: Rect,
@@ -483,6 +752,7 @@ impl App {
             pending_task: None,
             skills: skill_tree(),
             setup: None,
+            config_panel: None,
             terminal_size: Rect::default(),
             toast: String::new(),
             sender,
@@ -491,7 +761,7 @@ impl App {
         // the LLM key is missing (vulnclaw CLI reachable). If the CLI is
         // unavailable we stay out of setup so the app never hard-blocks.
         if !app.config_is_ready() {
-            app.setup = Some(SetupState::new());
+            app.open_config_panel();
         }
         app
     }
@@ -523,8 +793,8 @@ impl App {
             self.status(
                 "Use vulnclaw report <result.json> [--pdf] to write the report; the TUI shows findings live.",
             );
-        } else if command == "/config" {
-            self.status("Use vulnclaw config set <key> <value> for llm.provider / llm.api_key / llm.base_url / llm.model.");
+        } else if command == "/config" || command == "/cfg" {
+            self.open_config_panel();
         } else {
             self.error(format!("Unknown command: {command}"));
         }
@@ -717,24 +987,248 @@ impl App {
     }
 
     /// Whether an LLM API key is already configured. When the `vulnclaw` CLI is
-    /// unreachable we optimistically return `true` so the wizard never hard-
+    /// unreachable we optimistically return `true` so the editor never hard-
     /// blocks the app in odd environments (or during tests).
     pub fn config_is_ready(&self) -> bool {
-        let output = match exec::run_vulnclaw_sync(&["config", "show"]) {
+        let output = match exec::run_vulnclaw_sync(&["config", "panel-data"]) {
             Ok(o) if o.status.success() => o,
             _ => return true,
         };
-        let text = String::from_utf8_lossy(&output.stdout);
-        for line in text.lines() {
-            let trimmed = line.trim();
-            if let Some(rest) = trimmed.strip_prefix("api_key:") {
-                let value = rest.trim().trim_matches('\'').trim();
-                if !value.is_empty() {
-                    return true;
+        serde_json::from_slice::<serde_json::Value>(&output.stdout)
+            .ok()
+            .and_then(|value| value.get("api_key")?.as_str().map(str::to_owned))
+            .is_some_and(|key| !key.trim().is_empty())
+    }
+
+    pub fn open_config_panel(&mut self) {
+        let panel = exec::run_vulnclaw_sync(&["config", "panel-data"])
+            .ok()
+            .filter(|output| output.status.success())
+            .and_then(|output| serde_json::from_slice::<serde_json::Value>(&output.stdout).ok())
+            .and_then(|value| ConfigPanelState::from_json(&value));
+        match panel {
+            Some(mut panel) => {
+                panel.message = if panel.can_fetch() {
+                    "Press Fetch to load models.".to_owned()
+                } else {
+                    "Fetch requires a provider, URL, and API key.".to_owned()
+                };
+                self.config_panel = Some(panel);
+            }
+            None => self.error("Could not load LLM configuration."),
+        }
+    }
+
+    fn start_config_fetch(&mut self) {
+        let Some(panel) = self.config_panel.as_mut() else {
+            return;
+        };
+        if panel.loading {
+            return;
+        }
+        if !panel.can_fetch() {
+            panel.message = "Enter a provider, URL, and API key before fetching.".to_owned();
+            panel.error = true;
+            return;
+        }
+        panel.generation = panel.generation.wrapping_add(1);
+        let generation = panel.generation;
+        panel.loading = true;
+        panel.models.clear();
+        panel.message = "Loading models…".to_owned();
+        panel.error = false;
+        let base_url = panel.base_url.clone();
+        let api_key = panel.api_key.clone();
+        let sender = self.sender.clone();
+        thread::spawn(move || {
+            let payload = serde_json::json!({"base_url": base_url, "api_key": api_key});
+            let result = exec::run_vulnclaw_with_stdin(
+                &["config", "panel-fetch"],
+                &payload.to_string(),
+            );
+            let (models, error) = match result {
+                Ok(output) if output.status.success() => serde_json::from_slice::<serde_json::Value>(
+                    &output.stdout,
+                )
+                .ok()
+                .and_then(|value| {
+                    let models = value
+                        .get("models")?
+                        .as_array()?
+                        .iter()
+                        .filter_map(|model| model.as_str().map(str::to_owned))
+                        .collect::<Vec<_>>();
+                    Some((models, None))
+                })
+                .unwrap_or_else(|| (Vec::new(), Some("Model fetch returned invalid data.".to_owned()))),
+                Ok(output) => (
+                    Vec::new(),
+                    Some(String::from_utf8_lossy(&output.stderr).trim().to_owned()),
+                ),
+                Err(error) => (Vec::new(), Some(error.to_string())),
+            };
+            let _ = sender.send(AppEvent::ConfigModelsFetched {
+                generation,
+                models,
+                error,
+            });
+        });
+    }
+
+    fn save_config_panel(&mut self) {
+        let Some(panel) = self.config_panel.as_ref() else {
+            return;
+        };
+        if !panel.can_save() {
+            let message = if panel.api_key.trim().is_empty() {
+                "API key cannot be empty."
+            } else {
+                "Custom providers require a base URL."
+            };
+            if let Some(panel) = self.config_panel.as_mut() {
+                panel.message = message.to_owned();
+                panel.error = true;
+            }
+            return;
+        }
+        let payload = serde_json::json!({
+            "provider": panel.provider,
+            "base_url": panel.base_url,
+            "api_key": panel.api_key,
+            "model": panel.model,
+        });
+        let url_warning = !panel.base_url.trim().is_empty()
+            && !panel.base_url.starts_with("http://")
+            && !panel.base_url.starts_with("https://");
+        if url_warning && !panel.url_warning_acknowledged {
+            if let Some(panel) = self.config_panel.as_mut() {
+                panel.message =
+                    "Base URL may be malformed; press Save again to continue.".to_owned();
+                panel.error = true;
+                panel.url_warning_acknowledged = true;
+            }
+            return;
+        }
+        match exec::run_vulnclaw_with_stdin(&["config", "panel-save"], &payload.to_string()) {
+            Ok(output) if output.status.success() => {
+                let provider = panel.provider.clone();
+                let model = panel.model.clone();
+                self.config_panel = None;
+                self.status(format!("Configuration saved: {provider}/{model}"));
+            }
+            Ok(output) => {
+                let message = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+                if let Some(panel) = self.config_panel.as_mut() {
+                    panel.message = if message.is_empty() {
+                        "Could not save configuration.".to_owned()
+                    } else {
+                        message
+                    };
+                    panel.error = true;
+                }
+            }
+            Err(error) => {
+                if let Some(panel) = self.config_panel.as_mut() {
+                    panel.message = format!("Could not save configuration: {error}");
+                    panel.error = true;
                 }
             }
         }
-        false
+    }
+
+    pub fn config_panel_handle_key(&mut self, key: KeyEvent) {
+        let Some(panel) = self.config_panel.as_mut() else {
+            return;
+        };
+        if matches!((key.code, key.modifiers), (KeyCode::Char('r'), modifiers) if modifiers.contains(KeyModifiers::CONTROL))
+            || matches!(key.code, KeyCode::Char('v') | KeyCode::Char('V'))
+        {
+            panel.reveal_key = !panel.reveal_key;
+            return;
+        }
+        if key.code == KeyCode::Esc {
+            if panel.provider_dropdown || panel.model_dropdown {
+                panel.cancel_dropdown();
+            } else {
+                self.config_panel = None;
+                self.status("Configuration changes discarded.");
+            }
+            return;
+        }
+        if key.code == KeyCode::Tab || key.code == KeyCode::BackTab {
+            panel.move_focus(key.code == KeyCode::Tab);
+            return;
+        }
+        if panel.provider_dropdown {
+            match key.code {
+                KeyCode::Up => panel.select_provider(false),
+                KeyCode::Down => panel.select_provider(true),
+                KeyCode::Enter => {
+                    panel.provider_dropdown = false;
+                    panel.provider_dropdown_original = None;
+                }
+                _ => {}
+            }
+            return;
+        }
+        if panel.model_dropdown {
+            match key.code {
+                KeyCode::Up => panel.select_model(false),
+                KeyCode::Down => panel.select_model(true),
+                KeyCode::Enter => {
+                    panel.model_dropdown = false;
+                    panel.model_dropdown_original = None;
+                }
+                _ => {}
+            }
+            return;
+        }
+        if panel.editing {
+            match key.code {
+                KeyCode::Left => panel.cursor = panel.cursor.saturating_sub(1),
+                KeyCode::Right => panel.cursor = (panel.cursor + 1).min(panel.current_value().chars().count()),
+                KeyCode::Home => panel.cursor = 0,
+                KeyCode::End => panel.cursor = panel.current_value().chars().count(),
+                KeyCode::Backspace => panel.backspace(),
+                KeyCode::Enter => panel.editing = false,
+                KeyCode::Char(character) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    panel.insert_char(character)
+                }
+                _ => {}
+            }
+            return;
+        }
+        match key.code {
+            KeyCode::Up => panel.move_focus(false),
+            KeyCode::Down => panel.move_focus(true),
+            KeyCode::Enter | KeyCode::Char(' ') => match panel.row_name() {
+                "provider" => {
+                    panel.provider_dropdown = true;
+                    panel.provider_dropdown_original = Some((
+                        panel.provider.clone(),
+                        panel.base_url.clone(),
+                        panel.model.clone(),
+                    ));
+                }
+                "base_url" | "api_key" => {
+                    panel.editing = true;
+                    panel.cursor = panel.current_value().chars().count();
+                }
+                "model" => {
+                    if panel.models.is_empty() {
+                        panel.editing = true;
+                        panel.cursor = panel.current_value().chars().count();
+                    } else {
+                        panel.model_dropdown = true;
+                        panel.model_dropdown_original = Some(panel.model.clone());
+                    }
+                }
+                "fetch" => self.start_config_fetch(),
+                "save" => self.save_config_panel(),
+                _ => {}
+            },
+            _ => {}
+        }
     }
 
     /// Advance the setup wizard one step; the final step persists the config.
@@ -810,14 +1304,13 @@ impl App {
             .map(|s| s.model.clone())
             .unwrap_or_default();
 
-        let _ = exec::run_vulnclaw_sync(&["config", "set", "llm.provider", provider]);
-        let _ = exec::run_vulnclaw_sync(&["config", "set", "llm.api_key", &api_key]);
-        if !base_url.is_empty() {
-            let _ = exec::run_vulnclaw_sync(&["config", "set", "llm.base_url", &base_url]);
-        }
-        if !model.is_empty() {
-            let _ = exec::run_vulnclaw_sync(&["config", "set", "llm.model", &model]);
-        }
+        let payload = serde_json::json!({
+            "provider": provider,
+            "base_url": base_url,
+            "api_key": api_key,
+            "model": model,
+        });
+        let _ = exec::run_vulnclaw_with_stdin(&["config", "panel-save"], &payload.to_string());
         self.setup = None;
         self.status("API configured. VulnClaw is ready — L3 review and Agent modes enabled.");
     }
@@ -878,6 +1371,17 @@ impl App {
     /// hidden main command line), otherwise to the main input. Newlines are
     /// dropped so a multi-line paste never advances the wizard a step.
     pub fn insert_text(&mut self, text: &str) {
+        if let Some(panel) = self.config_panel.as_mut() {
+            if panel.editing {
+                for character in text
+                    .chars()
+                    .filter(|character| *character != '\r' && *character != '\n')
+                {
+                    panel.insert_char(character);
+                }
+            }
+            return;
+        }
         if let Some(setup) = &mut self.setup {
             if setup.step != 0 {
                 for character in text
@@ -1074,6 +1578,44 @@ impl App {
                 } else {
                     "VulnClaw command completed with a non-zero status."
                 });
+            }
+            AppEvent::ConfigModelsFetched {
+                generation,
+                models,
+                error,
+            } => {
+                let Some(panel) = self.config_panel.as_mut() else {
+                    return;
+                };
+                if panel.generation != generation {
+                    return;
+                }
+                panel.loading = false;
+                if let Some(error) = error {
+                    panel.message = if error.is_empty() {
+                        "Could not fetch models; enter a model manually.".to_owned()
+                    } else {
+                        format!("Could not fetch models; enter a model manually. {error}")
+                    };
+                    panel.error = true;
+                    return;
+                }
+                if models.is_empty() {
+                    panel.message = "No models returned; enter a model manually.".to_owned();
+                    panel.error = true;
+                    return;
+                }
+                let previous_model = panel.model.clone();
+                panel.models = models;
+                panel.focus = 2 + usize::from(panel.has_base_url_row());
+                panel.model_dropdown_original = Some(previous_model.clone());
+                panel.model_dropdown = true;
+                panel.message = format!("Loaded {} model(s). Select a model or type one manually.", panel.models.len());
+                panel.error = false;
+                if panel.models.iter().any(|model| model == &previous_model) {
+                    panel.model = previous_model;
+                }
+                panel.cursor = panel.model.chars().count();
             }
         }
     }
@@ -1285,9 +1827,87 @@ fn next_char_boundary(text: &str, index: usize) -> usize {
 mod tests {
     use std::sync::mpsc;
 
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
     use super::{
-        App, ActivePane, ExecutionMode, PermissionMode, SetupState, strip_prompt_prefix,
+        App, ActivePane, ConfigPanelState, ExecutionMode, PermissionMode, SetupState,
+        strip_prompt_prefix,
     };
+
+    fn panel() -> ConfigPanelState {
+        ConfigPanelState::from_json(&serde_json::json!({
+            "provider": "openai",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "sk-secret-value",
+            "model": "gpt-4o",
+            "providers": [
+                {"provider": "openai", "label": "OpenAI", "base_url": "https://api.openai.com/v1", "default_model": "gpt-4o"},
+                {"provider": "custom", "label": "Custom", "base_url": "", "default_model": ""}
+            ]
+        }))
+        .expect("valid config panel fixture")
+    }
+
+    #[test]
+    fn config_panel_masks_and_reveals_api_key_without_mutating_the_draft() {
+        let mut state = panel();
+        let masked = state.summary();
+        assert!(masked.contains("••••••••"));
+        assert!(!masked.contains("sk-secret-value"));
+
+        state.reveal_key = true;
+        assert!(state.summary().contains("sk-secret-value"));
+    }
+
+    #[test]
+    fn config_panel_excludes_base_url_from_navigation_for_preset_providers() {
+        let mut state = panel();
+        assert_eq!(state.row_count(), 5);
+        state.move_focus(true);
+        assert_eq!(state.row_name(), "api_key");
+
+        state.provider = "custom".to_owned();
+        assert_eq!(state.row_count(), 6);
+        state.focus = 0;
+        state.move_focus(true);
+        assert_eq!(state.row_name(), "base_url");
+    }
+
+    #[test]
+    fn config_panel_escape_discards_the_draft_and_stale_fetch_results_are_ignored() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+        let mut state = panel();
+        state.loading = true;
+        state.generation = 2;
+        app.config_panel = Some(state);
+
+        app.apply_event(super::AppEvent::ConfigModelsFetched {
+            generation: 1,
+            models: vec!["old-model".to_owned()],
+            error: None,
+        });
+        let state = app.config_panel.as_ref().expect("panel remains open");
+        assert!(state.loading);
+        assert!(state.models.is_empty());
+
+        app.config_panel_handle_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+        assert!(app.config_panel.as_ref().unwrap().reveal_key);
+        app.config_panel_handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert!(app.config_panel.is_none(), "escape must discard the draft");
+    }
+
+    #[test]
+    fn config_panel_blocks_custom_save_until_base_url_and_key_are_present() {
+        let mut state = panel();
+        state.provider = "custom".to_owned();
+        state.base_url.clear();
+        state.api_key.clear();
+        assert!(!state.can_save());
+        state.base_url = "not-a-url".to_owned();
+        state.api_key = "sk-key".to_owned();
+        assert!(state.can_save(), "URL format is a warning, not a hard block");
+    }
 
     #[test]
     fn strip_prompt_prefix_tolerates_pasted_transcript_prefix() {
