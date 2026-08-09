@@ -282,6 +282,12 @@ vulnclaw tui --dry-run --target https://target.example --mode deep --only-path /
 - **菜单 7** — 环境诊断入口（完整详情运行 `vulnclaw doctor`）
 - **菜单 8** — 模型/API 配置（切换 Provider、Base URL、Model、API Key）
 
+TUI 也支持 HackerOne scope-guard 流程。输入一个 program scope 链接（支持引号包裹），确认后启动：
+
+```text
+/hackerone "https://hackerone.com/<program>/policy_scopes"
+```
+
 ### 方式三：单命令模式
 
 ```bash
