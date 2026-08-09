@@ -1381,6 +1381,19 @@ class TestClassicReplSlashPalette:
         assert result.kind == "run"
         assert result.text == "Use VulnClaw skill recon. scan the box"
 
+    def test_hackerone_quoted_scope_link_rewrites_without_quotes(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash(
+            '/hackerone "https://hackerone.com/example/policy_scopes"'
+        )
+
+        assert result.kind == "run"
+        assert (
+            result.text
+            == "Use VulnClaw skill hackerone. https://hackerone.com/example/policy_scopes"
+        )
+
     def test_flag_target_sets_target(self):
         from vulnclaw.cli.tui import dispatch_repl_slash
 

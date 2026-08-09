@@ -1154,9 +1154,23 @@ def dispatch_repl_slash(text: str) -> ReplSlashResult:
         return ReplSlashResult("message", f"Unknown skill: /{name}")
 
     if task:
+        task = _strip_outer_quotes(task)
         return ReplSlashResult("run", f"Use VulnClaw skill {skill['name']}. {task}")
 
     return ReplSlashResult("message", render_slash_skill_help(skill))
+
+
+def _strip_outer_quotes(value: str) -> str:
+    """Remove one matching quote pair around a slash-command argument.
+
+    The classic REPL receives the raw input line rather than shell-tokenized
+    arguments. This keeps quoted URLs (for example a HackerOne scope link)
+    usable without changing quotes embedded in ordinary task text.
+    """
+    value = value.strip()
+    if len(value) >= 2 and value[0] in {'"', "'"} and value[-1] == value[0]:
+        return value[1:-1].strip()
+    return value
 
 
 def _dispatch_repl_flag_skill(text: str) -> ReplSlashResult:
