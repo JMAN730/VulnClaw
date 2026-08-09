@@ -156,6 +156,9 @@ class TestSkillLoader:
         assert reference is not None
         assert not any("\u4e00" <= char <= "\u9fff" for char in skill["content"])
         assert not any("\u4e00" <= char <= "\u9fff" for char in reference)
+        assert "Scope defined:" in skill["content"]
+        assert "Automatically begin recon" in skill["content"]
+        assert "Do not load or print the reference document during startup" in skill["content"]
 
     def test_load_skill_reference(self):
         """Test loading a specific reference file from a skill."""

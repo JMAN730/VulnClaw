@@ -146,6 +146,20 @@ def _extract_evidence_id(text: str) -> str:
     return match.group(1) if match else ""
 
 
+def _compact_advisory_tool_result(text: str) -> str:
+    """Keep instruction/reference payloads out of the human-facing transcript."""
+
+    value = str(text or "")
+    if not value.lstrip().startswith("[tool:load_skill_reference]"):
+        return value
+    evidence_id = _extract_evidence_id(value)
+    suffix = f" ({evidence_id})" if evidence_id else ""
+    return (
+        f"[tool:load_skill_reference] Reference loaded{suffix}; "
+        "full reference retained for the agent."
+    )
+
+
 def _print_styled_plain(console_obj: Console, prefix: str, body: str, *, style: str = "dim") -> None:
     """Print dynamic text as Rich Text so payloads are never parsed as markup."""
 
@@ -191,7 +205,8 @@ class TerminalStreamSink:
 
     def on_tool_result(self, result_summary: str) -> None:
         self._console.print()
-        preview, collapsed = _collapse_terminal_text(result_summary)
+        compacted = _compact_advisory_tool_result(result_summary)
+        preview, collapsed = _collapse_terminal_text(compacted)
         if collapsed:
             evidence_id = _extract_evidence_id(result_summary)
             hint = (
@@ -276,7 +291,9 @@ class JsonlStreamSink:
 
     def on_tool_result(self, result_summary: str) -> None:
         self._flush_all()
-        preview, _collapsed = _collapse_terminal_text(result_summary)
+        preview, _collapsed = _collapse_terminal_text(
+            _compact_advisory_tool_result(result_summary)
+        )
         self._emit({"type": "log", "message": f"→ result: {preview}"})
 
     def on_stream_end(self) -> None:

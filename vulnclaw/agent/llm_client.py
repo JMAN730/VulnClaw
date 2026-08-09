@@ -880,92 +880,76 @@ async def call_llm_stream(
     tools = agent._build_openai_tools()
     messages = _fit_context_window(agent, messages, tools, purpose="single_turn_stream")
 
-    kwargs = build_chat_completion_kwargs(agent, messages, tools)
-
+    last_tool_results: list[dict[str, Any]] | None = None
+    last_skipped_info: list[str] = []
+    last_assistant_text = ""
     try:
-        stream_sink.on_status("Thinking...")
-        response = await _create_streaming_response(agent, kwargs)
+        for _tool_round in range(_resolve_auto_tool_rounds(agent) + 1):
+            messages = _fit_context_window(
+                agent,
+                messages,
+                tools,
+                purpose="single_turn_stream_tool_follow_up",
+            )
+            message = await _stream_chat_completion_message(agent, messages, tools, stream_sink)
+            tool_calls = list(getattr(message, "tool_calls", None) or [])
+            if not tool_calls:
+                return extract_response(message)
 
-        full_text = ""
-        reasoning_buffer = ""
-        tool_calls_chunks: list[dict] = []
+            for tc in tool_calls:
+                stream_sink.on_tool_call(tc.function.name, tc.function.arguments[:200])
 
-        # 自动适配 sync/async Stream（sync Stream 用 _AsyncIterWrapper 包装）
-        _stream = _ensure_async_iter(response)
-        if _stream is None:
-            raise ValueError("LLM response is not a valid stream object")
-        async for chunk in _stream:
-            if chunk.choices and len(chunk.choices) > 0:
-                delta = chunk.choices[0].delta
+            tool_results, skipped_info = await handle_tool_calls_with_results(agent, message)
+            last_tool_results = tool_results
+            last_skipped_info = skipped_info
+            last_assistant_text = message.content or ""
+            for item in tool_results:
+                if isinstance(item, dict) and "content" in item:
+                    stream_sink.on_tool_result(item["content"])
 
-                # Handle reasoning_content (DeepSeek R1, etc.)
-                reasoning = getattr(delta, "reasoning_content", None) or ""
-                if reasoning:
-                    reasoning_buffer += reasoning
-                    stream_sink.on_thinking_token(reasoning)
+            executed_tool_calls = [
+                item.get("tool_call")
+                for item in tool_results
+                if isinstance(item, dict) and item.get("tool_call") is not None
+            ]
+            if not executed_tool_calls:
+                return _format_tool_results_fallback(
+                    tool_results,
+                    skipped_info,
+                    assistant_text=message.content or "",
+                )
 
-                # Handle content
-                content = getattr(delta, "content", None) or ""
-                if content:
-                    if reasoning_buffer:
-                        full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
-                        reasoning_buffer = ""
-                    stream_sink.on_content_token(content)
-                    full_text += content
+            assistant_message = _assistant_tool_message(
+                extract_response(message), executed_tool_calls
+            )
+            tool_messages = _tool_result_messages(tool_results)
+            messages.append(assistant_message)
+            messages.extend(tool_messages)
+            _append_context_message(agent, assistant_message)
+            for tool_message in tool_messages:
+                _append_context_message(agent, tool_message)
 
-                # Handle tool_calls（流式 chat 模式也需要处理）
-                _collect_tool_call_deltas(delta, tool_calls_chunks)
-
-        if reasoning_buffer:
-            full_text += f"<thinking>\n{reasoning_buffer}\n</thinking>\n"
-
-        stream_sink.on_stream_end()
-
-        # 如果有 tool_calls，路由到 handle_tool_calls（同 call_llm_auto_stream 的逻辑）
-        if tool_calls_chunks:
-            tool_calls = _assemble_tool_calls(tool_calls_chunks)
-
-            if tool_calls:
-                dummy_msg = type("obj", (object,), {
-                    "content": full_text,
-                    "tool_calls": tool_calls,
-                })()
-                for tc in tool_calls:
-                    stream_sink.on_tool_call(tc.function.name, tc.function.arguments[:200])
-                # handle_tool_calls 执行工具并做第二轮 LLM 调用
-                result = await handle_tool_calls(agent, dummy_msg)
-                if result:
-                    stream_sink.on_content_token(result)
-                stream_sink.on_stream_end()
-                return result
-
-        return full_text
+        return "[tool loop paused] Internal tool follow-up cap reached; continue from the recorded tool evidence."
 
     except Exception as e:
         # Fallback to non-streaming on streaming-related errors or general failures
         error_text = str(e).lower()
+        if last_tool_results is not None:
+            return _format_tool_results_fallback(
+                last_tool_results,
+                last_skipped_info,
+                assistant_text=last_assistant_text,
+            ) + f"\n[llm follow-up failed] {e}"
         streaming_markers = [
             "not supported", "not implemented", "streaming",
-            "requires an object with __aiter__",
-            "stream is not iterable", "doesn't support",
-            "not a valid stream",
+            "requires an object with __aiter__", "stream is not iterable",
+            "doesn't support", "not a valid stream",
         ]
-        if any(marker in error_text for marker in streaming_markers):
-            # Provider doesn't support streaming or other streaming error, fall back
-            pass
-        else:
-            # Other error, re-raise
+        if not any(marker in error_text for marker in streaming_markers):
             raise
 
     # Fallback: non-streaming with simulated streaming
-    # Use existing call_llm as fallback
-    response_fallback, _ = await _call_with_persistent_retries(
-        agent,
-        lambda: agent._get_client().chat.completions.create(**kwargs),
-        "单轮",
-    )
-
-    # 降级到非流式 call_llm（有 retry + tool_calls 处理），行为一致
+    # Use existing call_llm as fallback; it retains the non-streaming tool loop.
     return await call_llm(agent, system_prompt)
 
 

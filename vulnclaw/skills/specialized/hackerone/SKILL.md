@@ -16,6 +16,23 @@ The launch argument is a HackerOne program link (`<SCOPE LINK>`), for example
 target (`requires_target: false` in frontmatter); targets are discovered from
 the program scope.
 
+## Startup and output contract
+
+- Do not load or print the reference document during startup. It contains
+  report-template material and examples; load it only when preparing a report
+  or when parsing an ambiguous scope requires it.
+- Resolve the supplied program link or obtain a pasted scope before claiming
+  that scope is defined. Never treat example assets in this Skill or its
+  references as observed program scope.
+- Once scope is confirmed, keep the status concise:
+  `Scope defined: <count> in-scope, <count> out-of-scope. Starting recon on <asset>.`
+- Automatically begin recon on the first confirmed `URL` or `WILDCARD` asset.
+  Do not pause for an asset-selection question unless scope is ambiguous,
+  contains no directly supported assets, or the user explicitly asks to choose.
+- Do not print raw HTML, full reference text, or raw tool output. If the link
+  returns only an empty shell or is blocked, ask the user to paste the scope
+  and stop before testing.
+
 ## Phase 1: Read scope
 
 1. **Fetch the link first**
@@ -62,9 +79,10 @@ the program scope.
    - If parsing is uncertain, ask the user to confirm. **Never default an
      uncertain asset to in-scope.**
 
-4. **Output the boundary**
-   - List the in-scope assets with their type and eligibility.
-   - Output an out-of-scope **deny-list** for enforcement throughout the run.
+4. **Record the boundary internally**
+   - Keep the in-scope assets with their type and eligibility available to the
+     workflow.
+   - Keep an out-of-scope **deny-list** for enforcement throughout the run.
 
 ## Phase 2: Enforce boundaries
 
@@ -94,8 +112,9 @@ Before any testing begins, state and follow these **hard rules** throughout:
 
 ## Phase 3: Enumerate and confirm
 
-1. List every parsed in-scope asset with its number, type, and eligibility.
-2. Ask which asset to start with, or whether to process all of them.
+1. Use the concise startup status from the output contract and select the
+   first directly supported asset automatically.
+2. Ask which asset to start with only when the output contract requires it.
 3. **Handle one asset at a time** and confirm each one separately. Avoid
    concurrency that could cross the scope boundary or trigger rate limits.
 

@@ -769,6 +769,28 @@ class TestTerminalStreamSinkRealOutput:
         assert "Port" in result
         assert "open" in result
 
+    def test_sink_compacts_skill_reference_result(self):
+        """Reference instructions stay available to the model, not in the terminal transcript."""
+        import io
+
+        from rich.console import Console
+
+        from vulnclaw.cli.main import TerminalStreamSink
+
+        output = io.StringIO()
+        console = Console(file=output, force_terminal=True)
+        sink = TerminalStreamSink(console, show_thinking=False)
+
+        sink.on_tool_result(
+            "[tool:load_skill_reference] [evidence:e123]\n" + "reference text " * 500
+        )
+        sink.on_stream_end()
+
+        result = output.getvalue()
+        assert "Reference loaded" in result
+        assert "reference text" not in result
+        assert "e123" in result
+
     def test_sink_collapses_long_tool_result_for_terminal_only(self):
         """Long tool results are collapsed for humans without breaking tool flow."""
         import io

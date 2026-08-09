@@ -279,6 +279,43 @@ class TestAssembleToolCalls:
 
 class TestStreamEndToEnd:
     @pytest.mark.asyncio
+    async def test_tool_result_is_followed_by_concise_model_response(self):
+        """Chat streaming must continue after a tool call instead of returning raw tool output."""
+        agent, mock_client = _make_agent()
+        spy = SpySink()
+
+        first_round = _SyncStream([
+            _Chunk(tool_calls=[_TCDelta(
+                index=0,
+                id="call_scope",
+                name="load_skill_reference",
+                arguments='{"skill_name":"hackerone","reference_name":"scope.md"}',
+            )]),
+        ])
+        second_round = _SyncStream([_Chunk(content="Scope defined. Starting recon.")])
+        mock_client.chat.completions.create.side_effect = [first_round, second_round]
+
+        import vulnclaw.agent.llm_client as mod
+
+        async def fake_handle(agent_obj, message):
+            return ([{
+                "tool_call": message.tool_calls[0],
+                "tool_call_id": "call_scope",
+                "content": "[tool:load_skill_reference] long reference text",
+            }], [])
+
+        original = mod.handle_tool_calls_with_results
+        mod.handle_tool_calls_with_results = fake_handle
+        try:
+            result = await call_llm_stream(agent, "sys", stream_sink=spy)
+        finally:
+            mod.handle_tool_calls_with_results = original
+
+        assert result == "Scope defined. Starting recon."
+        assert "long reference text" not in result
+        assert mock_client.chat.completions.create.call_count == 2
+
+    @pytest.mark.asyncio
     async def test_tool_call_id_only_in_first_chunk(self):
         """provider 仅在首个 chunk 给出 tool_call.id，后续分片只有 arguments。
 
@@ -300,16 +337,20 @@ class TestStreamEndToEnd:
 
         async def fake_handle(agent_obj, message):
             captured["tool_calls"] = list(message.tool_calls)
-            return "tool done"
+            return ([{
+                "tool_call": message.tool_calls[0],
+                "tool_call_id": "call_xyz",
+                "content": "tool done",
+            }], [])
 
         import vulnclaw.agent.llm_client as mod
 
-        orig = mod.handle_tool_calls
-        mod.handle_tool_calls = fake_handle
+        orig = mod.handle_tool_calls_with_results
+        mod.handle_tool_calls_with_results = fake_handle
         try:
             await call_llm_stream(agent, "sys", stream_sink=spy)
         finally:
-            mod.handle_tool_calls = orig
+            mod.handle_tool_calls_with_results = orig
 
         assert "tool_calls" in captured
         tcs = captured["tool_calls"]
