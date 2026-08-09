@@ -7,14 +7,21 @@ from rich.console import Console
 from vulnclaw.cli.config_panel import ConfigPanelModel
 from vulnclaw.cli.config_panel_render import render_panel
 from vulnclaw.config.schema import VulnClawConfig
+from vulnclaw.i18n import init_i18n
 
 
 def _render(model):
+    init_i18n("en")
     console = Console(
-        file=io.StringIO(), record=True, width=100, force_terminal=False, color_system=None
+        file=io.StringIO(),
+        record=True,
+        width=120,
+        height=40,
+        force_terminal=True,
+        color_system=None,
     )
     console.print(render_panel(model))
-    return console.export_text()
+    return console.export_text(styles=False)
 
 
 def test_collapsed_view_shows_one_line_per_section():
@@ -24,10 +31,13 @@ def test_collapsed_view_shows_one_line_per_section():
     model = ConfigPanelModel(config)
 
     output = _render(model)
+    from pathlib import Path
+    Path("_fail_render.txt").write_text(output, encoding="utf-8")
+    Path("_fail_rows.txt").write_text("\n".join(r.key for r in model.rows()), encoding="utf-8")
 
     assert "LLM" in output
     assert "openai" in output
-    assert "Session" in output
+    assert "Session" in output, f"keys={output!r}"
     assert "Base URL" not in output
 
 

@@ -31,24 +31,28 @@ def _row_value(model: ConfigPanelModel, row: Row, focused: bool) -> str:
 
 
 def render_panel(model: ConfigPanelModel) -> Group:
-    table = Table(box=None, show_header=False, pad_edge=False)
-    table.add_column("label", style=C_TEXT, no_wrap=True)
-    table.add_column("value", style=C_TEXT)
+    table = Table(box=None, show_header=False, pad_edge=False, expand=True)
+    table.add_column("mark", width=2, style=C_PRIMARY, no_wrap=True)
+    table.add_column("label", style=C_TEXT, no_wrap=True, ratio=1)
+    table.add_column("value", style=C_TEXT, overflow="ellipsis", no_wrap=True, ratio=2)
 
     focused_key = model.focused.key
     for row in model.rows():
         focused = row.key == focused_key
         indent = "  " * row.depth
+        mark = "›" if focused else " "
         label = Text(f"{indent}{_row_label(model, row)}")
         if row.kind == "group":
             label.stylize(f"bold {C_PRIMARY}")
-        if focused:
-            label.stylize("reverse")
-        table.add_row(label, _row_value(model, row, focused))
+        table.add_row(mark, label, _row_value(model, row, focused))
         if focused and model.dropdown_open:
             for index, option in enumerate(model.dropdown_options):
-                marker = "›" if index == model.dropdown_index else " "
-                table.add_row(Text(f"{indent}  {marker} {option}", style=C_MUTED), "")
+                opt_mark = "›" if index == model.dropdown_index else " "
+                table.add_row(
+                    " ",
+                    Text(f"{indent}  {opt_mark} {option}", style=C_MUTED),
+                    "",
+                )
 
     body: list[object] = [table]
     if model.fetch_state == "loading":
