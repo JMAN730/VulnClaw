@@ -196,15 +196,30 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
         if panel.model.is_empty() { "(none)".to_owned() } else { panel.model.clone() },
         panel.focus == 2 + base_offset,
     );
-    add_row(
-        "Actions",
-        format!(
-            "[Fetch{}]  [Save{}]",
-            if panel.loading { " (loading…)" } else if !panel.can_fetch() { " (disabled)" } else { "" },
-            if panel.can_save() { "" } else { " (disabled)" }
+    let fetch_focused = panel.focus == 3 + base_offset;
+    let save_focused = panel.focus == 4 + base_offset;
+    let active_style = Style::default().fg(theme::TEXT_BODY).add_modifier(Modifier::BOLD);
+    let inactive_style = Style::default().fg(theme::TEXT_SOFT);
+    lines.push(Line::from(vec![
+        Span::styled(
+            if fetch_focused || save_focused { "▶ " } else { "  " },
+            Style::default().fg(theme::ACTION),
         ),
-        panel.focus >= 3 + base_offset,
-    );
+        Span::styled(format!("{:<10}", "Actions"), Style::default().fg(theme::TEXT_MUTED)),
+        Span::styled(
+            format!(
+                "[Fetch{}]",
+                if panel.loading { " (loading…)" } else if !panel.can_fetch() { " (disabled)" } else { "" }
+            ),
+            if fetch_focused { active_style } else { inactive_style },
+        ),
+        Span::raw("  "),
+        Span::styled(
+            format!("[Save{}]", if panel.can_save() { "" } else { " (disabled)" }),
+            if save_focused { active_style } else { inactive_style },
+        ),
+    ]));
+    row_y += 1;
     let _ = row_y;
 
     if panel.provider_dropdown {
@@ -259,11 +274,7 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), inner);
 
     if panel.editing {
-        let field_index = if panel.has_base_url_row() {
-            panel.focus + 4
-        } else {
-            panel.focus + 3
-        };
+        let field_index = panel.focus + 3;
         let cursor_y = inner.y + field_index as u16;
         let label_width = 12u16;
         let cursor_x = inner

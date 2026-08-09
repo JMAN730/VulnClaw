@@ -1113,8 +1113,18 @@ impl App {
             Ok(output) if output.status.success() => {
                 let provider = panel.provider.clone();
                 let model = panel.model.clone();
+                let cleared_key_pool = serde_json::from_slice::<serde_json::Value>(&output.stdout)
+                    .ok()
+                    .and_then(|value| value.get("cleared_key_pool").and_then(|v| v.as_bool()))
+                    .unwrap_or(false);
                 self.config_panel = None;
-                self.status(format!("Configuration saved: {provider}/{model}"));
+                if cleared_key_pool {
+                    self.status(format!(
+                        "Configuration saved: {provider}/{model} (cleared failover key pool so the new key is used)"
+                    ));
+                } else {
+                    self.status(format!("Configuration saved: {provider}/{model}"));
+                }
             }
             Ok(output) => {
                 let message = String::from_utf8_lossy(&output.stderr).trim().to_owned();
@@ -1140,9 +1150,8 @@ impl App {
         let Some(panel) = self.config_panel.as_mut() else {
             return;
         };
-        if matches!((key.code, key.modifiers), (KeyCode::Char('r'), modifiers) if modifiers.contains(KeyModifiers::CONTROL))
-            || matches!(key.code, KeyCode::Char('v') | KeyCode::Char('V'))
-        {
+        let ctrl_r = matches!((key.code, key.modifiers), (KeyCode::Char('r'), modifiers) if modifiers.contains(KeyModifiers::CONTROL));
+        if ctrl_r || (!panel.editing && key.code == KeyCode::Char('V')) {
             panel.reveal_key = !panel.reveal_key;
             return;
         }

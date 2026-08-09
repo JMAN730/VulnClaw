@@ -2330,12 +2330,26 @@ def config_panel_save() -> None:
         raise typer.BadParameter("custom providers require a base URL")
 
     config = load_config()
+    cleared_key_pool = bool(config.llm.api_keys)
     config.llm.provider = provider.strip()
     config.llm.base_url = base_url.strip()
     config.llm.api_key = api_key
+    # llm.api_keys (a failover pool) takes precedence over llm.api_key in
+    # key_pool()/AgentCore. Clear it here so the key just saved from this
+    # panel is the one actually used, rather than silently persisting an
+    # ineffective credential.
+    config.llm.api_keys = []
     config.llm.model = model.strip()
     save_config(config)
-    typer.echo(json.dumps({"provider": config.llm.provider, "model": config.llm.model}))
+    typer.echo(
+        json.dumps(
+            {
+                "provider": config.llm.provider,
+                "model": config.llm.model,
+                "cleared_key_pool": cleared_key_pool,
+            }
+        )
+    )
 
 
 @config_app.command("panel-fetch", hidden=True)
