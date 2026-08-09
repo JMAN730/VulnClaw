@@ -31,13 +31,10 @@ def test_collapsed_view_shows_one_line_per_section():
     model = ConfigPanelModel(config)
 
     output = _render(model)
-    from pathlib import Path
-    Path("_fail_render.txt").write_text(output, encoding="utf-8")
-    Path("_fail_rows.txt").write_text("\n".join(r.key for r in model.rows()), encoding="utf-8")
 
     assert "LLM" in output
     assert "openai" in output
-    assert "Session" in output, f"keys={output!r}"
+    assert "Session" in output
     assert "Base URL" not in output
 
 
