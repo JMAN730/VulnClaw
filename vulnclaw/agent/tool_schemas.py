@@ -615,6 +615,39 @@ def append_builtin_tool_schemas(
         {
             "type": "function",
             "function": {
+                "name": "hackerone_scope",
+                "description": (
+                    "Fetch a HackerOne bug-bounty program's structured scope via the public "
+                    "GraphQL API. Accepts a program handle, program URL, or "
+                    ".../policy_scopes link. Returns in-scope and out-of-scope asset lists with "
+                    "types and bounty/submission eligibility. Use this instead of fetching the "
+                    "SPA HTML or running js_recon against hackerone.com."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "program": {
+                            "type": "string",
+                            "description": (
+                                "Program handle (e.g. crypto), program URL "
+                                "(https://hackerone.com/crypto), or policy scopes URL."
+                            ),
+                        },
+                        "page_size": {
+                            "type": "integer",
+                            "description": "Page size for GraphQL pagination (default 100, max 200).",
+                        },
+                    },
+                    "required": ["program"],
+                },
+            },
+        }
+    )
+
+    append_tool(
+        {
+            "type": "function",
+            "function": {
                 "name": "js_recon",
                 "description": (
                     "JS 信息收集(参考 URLFinder)。抓取目标页面及其引用的全部 .js 文件,"

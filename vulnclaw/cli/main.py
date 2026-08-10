@@ -226,7 +226,14 @@ def _read_repl_line(
     return pt_session.prompt(HTML(f"vulnclaw {body}<b>&gt; </b>"))
 
 
-def _run_repl_command(name: str, args: str, agent: Any, config: Any) -> Any:
+def _run_repl_command(
+    name: str,
+    args: str,
+    agent: Any,
+    config: Any,
+    *,
+    mcp_manager: Any = None,
+) -> Any:
     """Execute a built-in classic-REPL slash command.
 
     Returns the (possibly reloaded) config so the caller can keep using it.
@@ -247,6 +254,18 @@ def _run_repl_command(name: str, args: str, agent: Any, config: Any) -> Any:
 
     if name == "language":
         return _repl_switch_language(args, agent, config)
+
+    if name == "wizard":
+        from vulnclaw.cli.wizard import run_setup_wizard
+
+        result = run_setup_wizard(
+            console=console,
+            mcp_manager=mcp_manager,
+            agent=agent,
+        )
+        if result.config is not None:
+            return result.config
+        return load_config()
 
     return config
 
@@ -356,7 +375,13 @@ def _run_repl() -> None:
                     console.print(_("cli.target_set", target=current_target))
                     continue
                 if result.kind == "command":
-                    config = _run_repl_command(result.value, result.text, agent, config)
+                    config = _run_repl_command(
+                        result.value,
+                        result.text,
+                        agent,
+                        config,
+                        mcp_manager=mcp_manager,
+                    )
                     continue
                 # result.kind == "run": fall through with the rewritten prompt.
                 user_input = result.text
@@ -565,7 +590,21 @@ def _run_repl() -> None:
                 console.print(_("cli.auto_mode_exited"))
                 is_auto_mode = False
             elif auto_mode_active:
-                is_auto_mode = True
+                from vulnclaw.cli.user_intent import (
+                    continue_task_prompt,
+                    is_affirmative_continue,
+                    is_conversational_checkin,
+                )
+
+                # Sticky auto mode must not swallow readiness check-ins
+                # ("ready to begin?") — answer first via single-turn chat.
+                if is_conversational_checkin(user_input):
+                    is_auto_mode = False
+                elif is_affirmative_continue(user_input):
+                    is_auto_mode = True
+                    user_input = continue_task_prompt(last_auto_input, current_target)
+                else:
+                    is_auto_mode = True
             else:
                 # Route to agent and detect whether this should be an autonomous loop
                 is_auto_mode = _should_auto_pentest(user_input, current_target)
@@ -2946,6 +2985,13 @@ def _should_auto_pentest(user_input: str, current_target: Optional[str]) -> bool
     - User asks for information gathering / recon / OSINT with a target
     - A target is present + multi-step task indicators
     """
+    from vulnclaw.cli.user_intent import is_conversational_checkin
+
+    # Readiness / meta questions (e.g. "ready to begin bug hunting?") get a
+    # spoken answer first — never jump straight into the solve tool loop.
+    if is_conversational_checkin(user_input):
+        return False
+
     input_lower = user_input.lower()
 
     # Explicit auto-mode triggers

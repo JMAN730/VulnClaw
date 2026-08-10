@@ -48,6 +48,7 @@ LOCAL_META_TOOLS = {
     "evidence_search",
     "evidence_view",
     "load_skill_reference",
+    "hackerone_scope",
     "crypto_decode",
     "source_extract",
     "runtime_diff_probe",

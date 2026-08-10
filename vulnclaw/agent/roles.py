@@ -33,6 +33,7 @@ ROLE_REGISTRY: dict[str, AgentRole] = {
         ),
         allowed_tool_globs=(
             "load_skill_reference",
+            "hackerone_scope",
             "memory_search",
             "evidence_*",
             "vault_*",
@@ -94,6 +95,7 @@ ROLE_REGISTRY: dict[str, AgentRole] = {
         ),
         allowed_tool_globs=(
             "load_skill_reference",
+            "hackerone_scope",
             "memory_search",
             "evidence_*",
             "vault_*",

@@ -845,6 +845,7 @@ def _build_slash_commands() -> dict[str, str]:
         "diag": _("tui.slash_diag"),
         "config": _("tui.slash_config"),
         "language": _("tui.slash_lang"),
+        "wizard": _("tui.slash_wizard"),
         "quit": _("tui.slash_quit"),
     }
 
@@ -861,6 +862,7 @@ def _build_repl_commands() -> dict[str, str]:
     return {
         "config": _("tui.slash_config"),
         "language": _("tui.slash_lang"),
+        "wizard": _("tui.slash_wizard"),
     }
 
 
@@ -1536,6 +1538,22 @@ def _cmd_language(session: dict[str, Any], args: str) -> None:
             _apply_language_pt(session, choices[idx])
 
         _set_prompt_choice(session, _("tui.prompt_select_language"), choice_labels, _on_choice)
+
+
+@_register_handler("wizard")
+def _cmd_wizard(session: dict[str, Any], args: str) -> None:
+    """First-run setup: LLM, Chrome remote debugging, chrome-devtools MCP, Burp."""
+    from rich.console import Console
+
+    from vulnclaw.cli.wizard import run_setup_wizard
+
+    result = run_setup_wizard(console=Console())
+    if result.config is not None:
+        session["config"] = result.config
+    if result.completed:
+        session["_message"] = _("tui.wizard_complete")
+    else:
+        session["_message"] = _("tui.wizard_cancelled")
 
 
 def _apply_language_pt(session: dict[str, Any], lang: str) -> None:

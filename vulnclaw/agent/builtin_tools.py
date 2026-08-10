@@ -966,6 +966,14 @@ async def execute_mcp_tool(agent: AgentContext, tool_name: str, args: dict[str, 
     if tool_name == "brute_force_login":
         return await execute_brute_force(agent, args)
 
+    if tool_name == "hackerone_scope":
+        from vulnclaw.agent.hackerone_scope import execute_hackerone_scope
+
+        try:
+            return await asyncio.to_thread(execute_hackerone_scope, args)
+        except Exception as e:
+            return f"[!] 工具执行错误 (hackerone_scope): {e}"
+
     if tool_name in {"space_search", "subdomain_enum", "js_recon", "dir_enum", "unauth_test"}:
         from vulnclaw.agent import recon_tools
 

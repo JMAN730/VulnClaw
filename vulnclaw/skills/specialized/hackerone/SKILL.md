@@ -26,30 +26,34 @@ the program scope.
   references as observed program scope.
 - Once scope is confirmed, keep the status concise:
   `Scope defined: <count> in-scope, <count> out-of-scope. Starting recon on <asset>.`
-- Automatically begin recon on the first confirmed `URL` or `WILDCARD` asset.
+- Automatically begin recon on the first confirmed `URL` or `WILDCARD` asset
+  after you have printed that status in the same workflow that loaded scope.
   Do not pause for an asset-selection question unless scope is ambiguous,
   contains no directly supported assets, or the user explicitly asks to choose.
-- Do not print raw HTML, full reference text, or raw tool output. If the link
-  returns only an empty shell or is blocked, ask the user to paste the scope
-  and stop before testing.
+- Mid-session user **check-ins** (e.g. "ready to begin?", "are we ready?") are
+  not a green light by themselves: answer with scope summary, intended first
+  asset, and any blockers first. Start or resume recon tools only after an
+  explicit go-ahead or a clear recon/pentest command.
+- Do not print raw HTML, full reference text, or raw tool output. If scope cannot
+  be loaded, ask the user to paste the Scope tab and stop before testing.
+- **Never treat `hackerone.com` as the recon/pentest target.** The program link is
+  only a discovery seed. Do not run `js_recon`, `dir_enum`, `subdomain_enum`, or
+  attack tooling against HackerOne itself.
 
 ## Phase 1: Read scope
 
-1. **Fetch the link first**
-   - Use the fetch tool to access the supplied `<SCOPE LINK>`.
-   - HackerOne is a JavaScript SPA: fetching `hackerone.com/*` usually returns
-     only an **empty app shell**, without rendered scope rows. Scope data is
-     loaded from `hackerone.com/graphql` or the authenticated
-     `api.hackerone.com` API, so a naive fetch may not retrieve it.
-   - **Detect an empty shell**: if the response contains no recognizable scope
-     table or asset list and only includes a skeleton such as `<div id="app">`,
-     treat the fetch as unsuccessful.
+1. **Call `hackerone_scope` first (required)**
+   - Immediately call: `hackerone_scope(program="<SCOPE LINK or handle>")`.
+   - This tool queries HackerOne public GraphQL and returns structured in-scope
+     and out-of-scope assets. Use it even if a prior HTML fetch showed an empty SPA shell.
+   - **Do not** reverse-engineer HackerOne JavaScript bundles, dump `/assets/static/*`,
+     or run `js_recon` on `hackerone.com/*` to discover the GraphQL endpoint.
 
-2. **Fallback: ask the user to paste the scope**
-   - An empty fetch, login wall, or JavaScript-only response is normal rather
-     than exceptional.
-   - Ask the user to paste the in-scope and out-of-scope tables directly from
-     the program page's **Scope** tab. Provide this example format:
+2. **Fallback only if `hackerone_scope` fails**
+   - Optional one-shot GET of the program page is allowed only as diagnostics;
+     an empty SPA shell is normal and not a scope source.
+   - Ask the user to paste the in-scope and out-of-scope tables from the program
+     page **Scope** tab. Provide this example format:
 
      ```
      In scope:
@@ -64,7 +68,7 @@ the program scope.
      ```
 
 3. **Parse leniently**
-   - Extract two lists from the pasted or fetched result: **in-scope** and
+   - Extract two lists from the tool result or paste: **in-scope** and
      **out-of-scope**.
    - Recognize asset types by human label or API enum:
      `URL`, `WILDCARD` (`*.x.com`), `CIDR`/IP, `SOURCE_CODE`,
@@ -120,10 +124,11 @@ Before any testing begins, state and follow these **hard rules** throughout:
 
 ## Phase 4: Delegate to pentest-flow
 
-For the user's selected **single in-scope asset**:
+For the selected **single in-scope asset**:
 
-1. Pass the asset as the target to `pentest-flow` and run the full
-   recon → vulnerability-discovery → exploitation workflow.
+1. Treat that asset as the active target. Run the full
+   recon → vulnerability-discovery → exploitation workflow against **it**, not
+   against the HackerOne scope link.
 2. Stay within scope throughout. Exclude and report any newly discovered
    subdomain or endpoint that is outside the in-scope definition, especially
    one that does not match an in-scope `WILDCARD`.

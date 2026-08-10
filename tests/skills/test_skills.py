@@ -159,6 +159,8 @@ class TestSkillLoader:
         assert "Scope defined:" in skill["content"]
         assert "Automatically begin recon" in skill["content"]
         assert "Do not load or print the reference document during startup" in skill["content"]
+        assert "hackerone_scope" in skill["content"]
+        assert "Never treat `hackerone.com` as the recon/pentest target" in skill["content"]
 
     def test_load_skill_reference(self):
         """Test loading a specific reference file from a skill."""

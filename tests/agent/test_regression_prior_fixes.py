@@ -133,6 +133,7 @@ class TestBuiltinToolSchemaSet:
         "nmap_scan",
         "subdomain_enum",
         "js_recon",
+        "hackerone_scope",
         "space_search",
         "crypto_decode",
         "brute_force_login",
