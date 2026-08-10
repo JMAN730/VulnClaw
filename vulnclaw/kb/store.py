@@ -13,7 +13,8 @@ class KnowledgeStore:
     """Manages the security knowledge base.
 
     Knowledge entries are stored as JSON files in the KB directory,
-    organized by category (cve, techniques, protocols, tools, payloads).
+    organized by category (cve, techniques, protocols, tools, payloads,
+    experience).
     """
 
     def __init__(self, store_dir: Optional[Path] = None) -> None:

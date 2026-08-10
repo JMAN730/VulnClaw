@@ -288,7 +288,6 @@ async def _run_cli_orchestrated_task(
             target=target,
             resume=resume,
             snapshot_id=snapshot,
-            wait_for_distillation=True,
             on_restored=on_restored,
             runner=lambda shared_agent: runner(shared_agent, config),
         )

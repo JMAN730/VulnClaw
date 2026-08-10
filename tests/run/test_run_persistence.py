@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import threading
 from pathlib import Path
 
 import pytest
@@ -338,34 +337,56 @@ async def test_orchestrator_checkpoints_and_resumes_exact_run(tmp_path, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_waits_for_distillation_worker(tmp_path, monkeypatch):
+async def test_completed_run_starts_distillation_after_status_is_durable(tmp_path, monkeypatch):
     import vulnclaw.orchestrator as orchestrator
+    import vulnclaw.target_state.store as store
 
+    monkeypatch.setattr(store, "TARGETS_DIR", tmp_path / "targets")
     agent = DummyAgent(tmp_path / "runs")
-    joined = threading.Event()
+    scheduled: list[str] = []
 
-    class FakeDistillationThread:
-        def join(self):
-            joined.set()
+    def fake_schedule(shared_agent, context, target):
+        assert context.manifest["status"] == "completed"
+        assert target.raw == "https://example.com"
+        scheduled.append(context.run_name)
 
-    def fake_schedule(_run_context, _agent):
-        return FakeDistillationThread()
-
-    monkeypatch.setattr(orchestrator, "schedule_run_distillation", fake_schedule)
+    monkeypatch.setattr(orchestrator, "_schedule_completed_run_distillation", fake_schedule)
 
     async def noop(_shared_agent):
         return None
 
-    await orchestrator.run_agent_task(
+    result = await orchestrator.run_agent_task(
         agent=agent,
         command="recon",
         target="https://example.com",
         resume=False,
-        wait_for_distillation=True,
         runner=noop,
     )
 
-    assert joined.is_set()
+    assert result.status == "completed"
+    assert scheduled == [result.run_context.run_name]
+
+
+def test_distillation_setup_failure_is_logged_without_affecting_completed_run(tmp_path, monkeypatch):
+    import vulnclaw.agent.distiller as distiller
+    import vulnclaw.orchestrator as orchestrator
+
+    target = parse_target("https://example.com")
+    context = create_run_context(
+        command="recon", targets=[target], runs_dir=tmp_path / "runs", run_name="done-run"
+    )
+    context.update_manifest(status="completed")
+    agent = DummyAgent(tmp_path / "runs")
+    agent.config.llm.api_key = "test-key"
+    monkeypatch.setattr(
+        distiller, "configured_distiller", lambda _config: (_ for _ in ()).throw(RuntimeError())
+    )
+
+    orchestrator._schedule_completed_run_distillation(agent, context, target)
+
+    assert context.manifest["status"] == "completed"
+    events = (context.run_dir / "events" / "events.jsonl").read_text(encoding="utf-8")
+    assert '"kind": "distillation_failed"' in events
 
 
 @pytest.mark.asyncio
