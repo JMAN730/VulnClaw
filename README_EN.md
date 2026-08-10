@@ -130,22 +130,31 @@ docker run --rm -it \
 ### Four-Step Launch
 
 ```bash
-# 1. Select provider (auto-fills Base URL and model name)
-vulnclaw config provider minimax   # or openai / anthropic / deepseek / zhipu / moonshot / qwen / siliconflow / ollama
+# 1. Launch CLI 
+vulnclaw 
 
 # 1.2 (optional) custom Base URL or model name
 vulnclaw config set llm.base_url https://your-own-api.example.com/v1
 vulnclaw config set llm.model your-model-name
 
-# 2. Set API Key
-vulnclaw config set llm.api_key sk-your-key-here
-#    — or sign in with ChatGPT subscription (no API key needed):
+# 2. Select provider 
+vulnclaw /config 
+
+# 3. Perform Pentest / Bug-Bounty / Whatever you want
+vulnclaw perform a pentest on example.com 
+vulnclaw recon on example.com
+
+
+#    — or sign in with ChatGPT subscription (no API key needed):  ***YOUR ACCOUNT MAY GET FLAGGED FOR CYBER ABUSE
 #      vulnclaw login   (browser sign-in; see docs/keyless-auth.md, note ToS caveat)
 
 # 3. Default: open the original CLI / REPL
 vulnclaw
 
-# 4. Optional: open the TUI workbench
+# 3.1 Optional: open the web interface
+vulnclaw web 
+
+# 3.2 Optional: open the TUI workbench
 vulnclaw tui
 ```
 
