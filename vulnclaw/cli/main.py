@@ -2249,6 +2249,7 @@ def feedback(
         ..., "--rating", "-r", help="Operator rating from 1 (poor) to 5 (excellent)"
     ),
     notes: str = typer.Option(..., "--notes", "-n", help="Operator notes for lesson distillation"),
+    runs_dir: Optional[str] = typer.Option(None, "--runs-dir", help="Run-directory root"),
 ) -> None:
     """Attach or update an operator assessment for a completed run."""
 
@@ -2256,7 +2257,7 @@ def feedback(
     from vulnclaw.run_context import RunContextError, load_run_context
 
     try:
-        run_context = load_run_context(run, runs_dir=RUNS_DIR)
+        run_context = load_run_context(run, runs_dir=runs_dir, config=load_config())
     except (RunContextError, ValueError) as exc:
         err_console.print(f"[!] Unable to load run '{run}': {exc}")
         raise typer.Exit(1) from exc

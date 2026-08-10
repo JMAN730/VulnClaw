@@ -49,7 +49,6 @@ def test_invalid_feedback_is_ignored_for_optional_distillation_signal(tmp_path):
 
 
 def test_feedback_command_persists_and_updates_completed_run(runner, monkeypatch, tmp_path):
-    import vulnclaw.cli.main as cli_main
     from vulnclaw.cli.main import app
 
     target = parse_target("https://example.com")
@@ -66,15 +65,31 @@ def test_feedback_command_persists_and_updates_completed_run(runner, monkeypatch
         checkpoint_reason="test",
     )
     mark_run_status(context, "completed")
-    monkeypatch.setattr(cli_main, "RUNS_DIR", tmp_path)
-
     first = runner.invoke(
         app,
-        ["feedback", "completed-run", "--rating", "2", "--notes", "needs better coverage"],
+        [
+            "feedback",
+            "completed-run",
+            "--rating",
+            "2",
+            "--notes",
+            "needs better coverage",
+            "--runs-dir",
+            str(tmp_path),
+        ],
     )
     updated = runner.invoke(
         app,
-        ["feedback", "completed-run", "--rating", "4", "--notes", "follow-up fixed it"],
+        [
+            "feedback",
+            "completed-run",
+            "--rating",
+            "4",
+            "--notes",
+            "follow-up fixed it",
+            "--runs-dir",
+            str(tmp_path),
+        ],
     )
 
     assert first.exit_code == 0, first.output

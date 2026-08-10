@@ -111,3 +111,14 @@ def test_merge_threshold_respects_boundary_cases(tmp_path):
 
     assert store.find_near_duplicate(candidate, threshold=0.59) is not None
     assert store.find_near_duplicate(candidate, threshold=0.61) is None
+
+
+def test_only_pending_lessons_are_eligible_for_candidate_merges(tmp_path):
+    store = ExperienceStore(tmp_path)
+    candidate = make_lesson("candidate", run_id="run-2")
+    approved = store.add(make_lesson("approved", run_id="run-1"))
+    store.approve(approved.id)
+    rejected = store.add(make_lesson("rejected", run_id="run-3"))
+    store.reject(rejected.id)
+
+    assert store.find_near_duplicate(candidate, threshold=0.8) is None

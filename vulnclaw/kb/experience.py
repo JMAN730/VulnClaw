@@ -227,7 +227,7 @@ class ExperienceStore:
         candidate = self._coerce_lesson(lesson)
         best: tuple[float, Lesson] | None = None
         candidate_terms = self._terms(candidate)
-        for existing in self._all():
+        for existing in self.list_by_status(LessonStatus.PENDING):
             if existing.scope is not candidate.scope:
                 continue
             if existing.scope is LessonScope.TARGET and existing.target_key != candidate.target_key:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from vulnclaw.agent.distiller import (
+    _LESSON_SCHEMA,
     RunArtifacts,
     distill_run,
     persist_distilled_lessons,
@@ -111,5 +112,18 @@ def test_background_distillation_logs_and_swallows_errors(tmp_path: Path):
     thread.join(timeout=2)
 
     assert not thread.is_alive()
+    assert thread.daemon is False
     assert context.status == "completed"
     assert context.events == [("distillation_failed", {"error": "RuntimeError"})]
+
+
+def test_openai_strict_schema_requires_every_object_property():
+    candidate = _LESSON_SCHEMA["properties"]["lessons"]["items"]
+
+    assert set(candidate["properties"]) == set(candidate["required"])
+    assert set(candidate["properties"]["tags"]["properties"]) == set(
+        candidate["properties"]["tags"]["required"]
+    )
+    assert set(candidate["properties"]["evidence_refs"]["properties"]) == set(
+        candidate["properties"]["evidence_refs"]["required"]
+    )

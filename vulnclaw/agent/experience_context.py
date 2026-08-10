@@ -14,6 +14,7 @@ from typing import Any
 
 from vulnclaw.kb.experience import ExperienceStore
 from vulnclaw.kb.retriever import _tokenize
+from vulnclaw.targets import parse_target
 
 _MAX_LESSONS = 5
 _MAX_LESSON_CHARS = 800
@@ -36,8 +37,8 @@ def build_experience_context(target_ctx: Any, store: ExperienceStore) -> str:
         if not lessons:
             return ""
 
-        live_tags, query, target = _live_target_context(target_ctx)
-        ranked = _rank_lessons(lessons, live_tags, query, target, store)
+        live_tags, query, target_key = _live_target_context(target_ctx)
+        ranked = _rank_lessons(lessons, live_tags, query, target_key, store)
         if not ranked:
             return ""
 
@@ -68,7 +69,11 @@ def _live_target_context(target_ctx: Any) -> tuple[set[str], str, str]:
     if not isinstance(recon, Mapping):
         recon = {}
 
-    target = str(_value(state, "target", "") or "").strip().lower()
+    target = str(_value(state, "target", "") or "").strip()
+    try:
+        target_key = parse_target(target).target_id if target else ""
+    except ValueError:
+        target_key = ""
     tags: set[str] = set()
     for key in ("services", "technologies", "tech", "tech_stack", "detected_tech", "fingerprints", "waf"):
         for item in _as_items(recon.get(key)):
@@ -78,14 +83,14 @@ def _live_target_context(target_ctx: Any) -> tuple[set[str], str, str]:
         tags.update(_terms(_value(finding, "vuln_type", "")))
 
     query = " ".join(sorted(tags | _terms(target)))
-    return tags, query, target
+    return tags, query, target_key
 
 
 def _rank_lessons(
     lessons: list[Any],
     live_tags: set[str],
     query: str,
-    target: str,
+    target_key: str,
     store: ExperienceStore,
 ) -> list[Any]:
     """Rank tag-matched lessons by overlap, then TF-IDF text similarity."""
@@ -93,7 +98,7 @@ def _rank_lessons(
     documents: list[str] = []
     for lesson in lessons:
         lesson_tags = _lesson_tags(lesson)
-        target_match = bool(target and _value(lesson, "target_key", "") == target)
+        target_match = bool(target_key and _value(lesson, "target_key", "") == target_key)
         if not (lesson_tags & live_tags) and not target_match:
             continue
         candidates.append((lesson, lesson_tags, target_match))

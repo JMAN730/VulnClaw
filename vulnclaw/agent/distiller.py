@@ -210,7 +210,10 @@ def schedule_run_distillation(
             except Exception:
                 logger.debug("failed to record distillation error", exc_info=True)
 
-    thread = Thread(target=_run, name=f"vulnclaw-distill-{artifacts.run_id}", daemon=True)
+    # This must be a non-daemon worker: a short-lived CLI process waits for
+    # non-daemon threads during interpreter shutdown, so successful runs are
+    # not silently abandoned before their lesson artifacts are durable.
+    thread = Thread(target=_run, name=f"vulnclaw-distill-{artifacts.run_id}", daemon=False)
     thread.start()
     return thread
 
@@ -341,13 +344,22 @@ _LESSON_SCHEMA: dict[str, Any] = {
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["scope", "signal", "tags", "context", "lesson", "evidence_refs"],
+                "required": [
+                    "scope",
+                    "signal",
+                    "tags",
+                    "context",
+                    "lesson",
+                    "confidence",
+                    "evidence_refs",
+                ],
                 "properties": {
                     "scope": {"type": "string", "enum": ["technique", "target"]},
                     "signal": {"type": "string", "enum": ["success", "deadend"]},
                     "tags": {
                         "type": "object",
                         "additionalProperties": False,
+                        "required": ["tech", "vuln_type", "waf", "service"],
                         "properties": {
                             "tech": {"type": "array", "items": {"type": "string"}},
                             "vuln_type": {"type": "string"},
@@ -361,9 +373,10 @@ _LESSON_SCHEMA: dict[str, Any] = {
                     "evidence_refs": {
                         "type": "object",
                         "additionalProperties": False,
+                        "required": ["finding_id", "path"],
                         "properties": {
-                            "finding_id": {"type": "string"},
-                            "path": {"type": "string"},
+                            "finding_id": {"type": ["string", "null"]},
+                            "path": {"type": ["string", "null"]},
                         },
                     },
                 },

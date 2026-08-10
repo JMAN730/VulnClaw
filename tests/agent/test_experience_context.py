@@ -7,6 +7,7 @@ from vulnclaw.agent.experience_context import build_experience_context
 from vulnclaw.agent.system_prompt import build_dynamic_system_prompt
 from vulnclaw.i18n import current_lang, init_i18n
 from vulnclaw.kb.experience import ExperienceStore, Lesson
+from vulnclaw.targets import parse_target
 
 
 def _lesson(lesson_id: str, *, service: str = "nginx", vuln_type: str = "sqli", **overrides):
@@ -129,3 +130,22 @@ def test_experience_retrieval_failure_degrades_to_an_empty_block():
             raise OSError("store unavailable")
 
     assert build_experience_context(_target_context(), _BrokenStore()) == ""
+
+
+def test_target_scoped_lesson_matches_the_persisted_target_identifier(tmp_path):
+    store = ExperienceStore(store_dir=tmp_path)
+    target_lesson = store.add(
+        _lesson(
+            "target-only",
+            scope="target",
+            target_key=parse_target("demo.example").target_id,
+            tags={"tech": [], "vuln_type": "", "waf": "", "service": ""},
+        )
+    )
+    store.approve(target_lesson.id)
+
+    context = build_experience_context(
+        SimpleNamespace(target="demo.example", recon_data={}, findings=[]), store
+    )
+
+    assert "target-only" in context
