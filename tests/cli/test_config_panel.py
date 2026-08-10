@@ -416,6 +416,41 @@ def test_save_is_allowed_when_oauth_has_no_static_key(model):
     assert model.request_save() is True
 
 
+def test_save_is_blocked_when_a_custom_provider_has_no_base_url(model):
+    model.draft.llm.api_key = "sk-test"
+    model.draft.llm.provider = "custom"
+    model.draft.llm.base_url = ""
+
+    assert model.request_save() is False
+    assert "base URL" in model.save_error
+
+    model.draft.llm.base_url = "https://example.test/v1"
+    assert model.request_save() is True
+
+
+def test_a_preset_provider_saves_without_touching_the_base_url_rule(model):
+    model.draft.llm.api_key = "sk-test"
+    model.draft.llm.provider = "openai"
+    model.draft.llm.base_url = ""
+
+    assert model.request_save() is True
+
+
+def test_a_previously_configured_model_is_preselected_after_a_fetch(model):
+    model.draft.llm.base_url = "https://example.test/v1"
+    model.draft.llm.api_key = "sk-test"
+    model.draft.llm.model = "gpt-4o"
+    generation = model.begin_fetch()
+    model.apply_fetch_result(generation, ["gpt-3.5", "gpt-4o"], None)
+
+    _focus(model, "llm.model")
+    model.activate()
+
+    assert model.draft.llm.model == "gpt-4o"
+    assert model.dropdown_options == ["gpt-3.5", "gpt-4o"]
+    assert model.dropdown_index == 1
+
+
 def test_a_malformed_base_url_warns_once_then_saves(model):
     model.draft.llm.api_key = "sk-test"
     model.draft.llm.base_url = "example.test/v1"

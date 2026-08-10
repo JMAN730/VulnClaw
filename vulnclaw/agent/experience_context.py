@@ -10,7 +10,8 @@ from __future__ import annotations
 import math
 from collections import Counter
 from collections.abc import Mapping
-from typing import Any
+from datetime import datetime
+from typing import Any, Optional
 
 from vulnclaw.kb.experience import ExperienceStore
 from vulnclaw.kb.retriever import _tokenize
@@ -20,13 +21,21 @@ _MAX_LESSONS = 5
 _MAX_LESSON_CHARS = 800
 
 
-def build_experience_context(target_ctx: Any, store: ExperienceStore) -> str:
+def build_experience_context(
+    target_ctx: Any,
+    store: ExperienceStore,
+    *,
+    now: Optional[datetime] = None,
+) -> str:
     """Return approved, target-relevant lessons as a distinct prompt block.
 
     Failures are intentionally contained: learning must never prevent a scan
     from starting or a turn from completing.  This function never consults
     ``current_lang``; approved experience is a separate path from the
     language-gated legacy KB corpus.
+
+    ``now`` overrides the reference time used for confidence decay so callers
+    and tests can rank against a fixed instant instead of the wall clock.
     """
     try:
         lessons = [
@@ -38,7 +47,7 @@ def build_experience_context(target_ctx: Any, store: ExperienceStore) -> str:
             return ""
 
         live_tags, query, target_key = _live_target_context(target_ctx)
-        ranked = _rank_lessons(lessons, live_tags, query, target_key, store)
+        ranked = _rank_lessons(lessons, live_tags, query, target_key, store, now=now)
         if not ranked:
             return ""
 
@@ -92,6 +101,8 @@ def _rank_lessons(
     query: str,
     target_key: str,
     store: ExperienceStore,
+    *,
+    now: Optional[datetime] = None,
 ) -> list[Any]:
     """Rank tag-matched lessons by overlap, then TF-IDF text similarity."""
     candidates: list[tuple[Any, set[str], bool]] = []
@@ -121,7 +132,7 @@ def _rank_lessons(
         # Confidence is intentionally decayed by the store at retrieval time:
         # old lessons remain auditable and retrievable, but fresh/reinforced
         # evidence ranks ahead when relevance is otherwise comparable.
-        confidence = store.effective_confidence(lesson)
+        confidence = store.effective_confidence(lesson, now=now)
         score = (overlap * 10.0 + similarity + (1.0 if target_match else 0.0)) * confidence
         scored.append((score, str(_value(lesson, "id", "")), lesson))
     scored.sort(key=lambda item: (-item[0], item[1]))

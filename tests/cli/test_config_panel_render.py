@@ -62,6 +62,27 @@ def test_open_dropdown_lists_its_options():
     assert "html" in output
 
 
+def test_expanded_llm_section_shows_the_idle_fetch_hint():
+    model = ConfigPanelModel(VulnClawConfig())
+    model.toggle_expand()  # focus starts on the llm group
+
+    output = _render(model)
+
+    assert "Press Fetch to load models" in output
+
+
+def test_the_idle_hint_gives_way_to_the_fetch_outcome():
+    model = ConfigPanelModel(VulnClawConfig())
+    model.toggle_expand()
+    generation = model.begin_fetch()
+    model.apply_fetch_result(generation, ["a", "b"], None)
+
+    output = _render(model)
+
+    assert "Press Fetch to load models" not in output
+    assert "2 models loaded." in output
+
+
 def test_errors_render_inside_the_panel():
     model = ConfigPanelModel(VulnClawConfig())
     model.draft.llm.auth_mode = "static"

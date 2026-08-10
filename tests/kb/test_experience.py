@@ -2,7 +2,11 @@
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from vulnclaw.kb.experience import (
+    CONFIDENCE_HALF_LIFE_ENV,
+    DEFAULT_CONFIDENCE_HALF_LIFE_DAYS,
     EvidenceRefs,
     ExperienceStore,
     Lesson,
@@ -10,6 +14,7 @@ from vulnclaw.kb.experience import (
     LessonSignal,
     LessonStatus,
     LessonTags,
+    default_confidence_half_life_days,
 )
 
 
@@ -88,6 +93,42 @@ def test_confidence_decays_without_deleting_and_merge_refreshes_it(tmp_path):
     assert store.effective_confidence(refreshed) > store.effective_confidence(stale)
 
 
+def test_decay_reweights_without_mutating_or_deleting_stored_lessons(tmp_path):
+    store = ExperienceStore(tmp_path, confidence_half_life_days=10)
+    reference = datetime(2026, 1, 31, tzinfo=timezone.utc)
+    lesson = make_lesson("lesson-immutable", confidence=0.8).model_copy(
+        update={"reinforced_at": reference - timedelta(days=30)}
+    )
+    store.add(lesson)
+
+    # Three half-lives at an injected reference time: 0.8 -> 0.1.
+    assert store.effective_confidence(lesson, now=reference) == pytest.approx(0.1)
+    # A reference time before the anchor never inflates the weight.
+    assert store.effective_confidence(lesson, now=reference - timedelta(days=60)) == 0.8
+
+    stored = store.get(lesson.id)
+    assert stored is not None
+    assert stored.confidence == 0.8
+    assert stored.status is LessonStatus.PENDING
+    assert store.list_by_status("pending") == [stored]
+
+
+def test_confidence_half_life_is_environment_configurable(monkeypatch, tmp_path):
+    monkeypatch.setenv(CONFIDENCE_HALF_LIFE_ENV, "5")
+    assert default_confidence_half_life_days() == 5.0
+    assert ExperienceStore(tmp_path).confidence_half_life_days == 5.0
+
+    for invalid in ("nonsense", "0", "-3", "   "):
+        monkeypatch.setenv(CONFIDENCE_HALF_LIFE_ENV, invalid)
+        assert default_confidence_half_life_days() == DEFAULT_CONFIDENCE_HALF_LIFE_DAYS
+
+    monkeypatch.delenv(CONFIDENCE_HALF_LIFE_ENV)
+    assert ExperienceStore(tmp_path).confidence_half_life_days == DEFAULT_CONFIDENCE_HALF_LIFE_DAYS
+
+    with pytest.raises(ValueError):
+        ExperienceStore(tmp_path, confidence_half_life_days=0)
+
+
 def test_merge_threshold_respects_boundary_cases(tmp_path):
     store = ExperienceStore(tmp_path)
     existing = Lesson(
@@ -109,7 +150,9 @@ def test_merge_threshold_respects_boundary_cases(tmp_path):
     )
     store.add(existing)
 
+    # Token overlap here is exactly 0.6 (3 shared of 5 distinct terms).
     assert store.find_near_duplicate(candidate, threshold=0.59) is not None
+    assert store.find_near_duplicate(candidate, threshold=0.60) is not None
     assert store.find_near_duplicate(candidate, threshold=0.61) is None
 
 

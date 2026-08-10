@@ -746,6 +746,8 @@ class ConfigPanelModel:
         llm = self.draft.llm
         if llm.auth_mode == "static" and not self._usable_key():
             errors.append("An API key is required for static auth mode.")
+        if llm.provider == "custom" and not llm.base_url.strip():
+            errors.append("A base URL is required for the custom provider.")
         for name, server in self.draft.mcp.servers.items():
             if not name.strip():
                 errors.append("MCP server names cannot be blank.")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from collections.abc import Mapping
 from hashlib import sha256
 from threading import Thread
@@ -16,6 +17,25 @@ from vulnclaw.kb.experience import EvidenceRefs, ExperienceStore, Lesson, Lesson
 logger = logging.getLogger(__name__)
 
 DEFAULT_MERGE_THRESHOLD = 0.88
+MERGE_THRESHOLD_ENV = "VULNCLAW_EXPERIENCE_MERGE_THRESHOLD"
+
+
+def default_merge_threshold() -> float:
+    """Return the operator-tunable near-duplicate merge threshold.
+
+    Callers that pass an explicit threshold always win; this only supplies the
+    default for the run-completion and backfill paths, which have no other way
+    to retune dedup aggressiveness.  Out-of-range or unparsable overrides fall
+    back to the built-in default rather than raising into a completed run.
+    """
+    raw = os.environ.get(MERGE_THRESHOLD_ENV, "").strip()
+    if not raw:
+        return DEFAULT_MERGE_THRESHOLD
+    try:
+        value = float(raw)
+    except ValueError:
+        return DEFAULT_MERGE_THRESHOLD
+    return value if 0.0 <= value <= 1.0 else DEFAULT_MERGE_THRESHOLD
 
 
 class RunArtifacts(BaseModel):
@@ -138,10 +158,12 @@ def persist_distilled_lessons(
     llm: Any,
     store: ExperienceStore,
     *,
-    merge_threshold: float = DEFAULT_MERGE_THRESHOLD,
+    merge_threshold: float | None = None,
 ) -> list[Lesson]:
     """Write candidates as pending lessons, merging semantic near-duplicates."""
 
+    if merge_threshold is None:
+        merge_threshold = default_merge_threshold()
     written: list[Lesson] = []
     for lesson in distill_run(artifacts, llm):
         existing = store.find_near_duplicate(lesson, threshold=merge_threshold)
@@ -213,7 +235,7 @@ def schedule_run_distillation(
     llm: Any,
     store: ExperienceStore,
     run_context: Any,
-    merge_threshold: float = DEFAULT_MERGE_THRESHOLD,
+    merge_threshold: float | None = None,
 ) -> Thread:
     """Start best-effort background distillation without delaying run completion."""
 
