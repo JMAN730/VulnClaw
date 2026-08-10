@@ -291,6 +291,8 @@ class ExperienceStore:
         review status or persisted base confidence.
         """
         current = now or datetime.now(timezone.utc)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=timezone.utc)
         reinforced = lesson.reinforced_at
         if reinforced.tzinfo is None:
             reinforced = reinforced.replace(tzinfo=timezone.utc)

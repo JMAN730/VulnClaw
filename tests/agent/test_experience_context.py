@@ -127,6 +127,24 @@ def test_experience_ranking_uses_an_injected_reference_time(tmp_path):
     assert when_fresh.index("older procedure") < when_fresh.index("newer procedure")
 
 
+def test_experience_ranking_treats_a_naive_reference_time_as_utc(tmp_path):
+    store = ExperienceStore(store_dir=tmp_path, confidence_half_life_days=10)
+    reference = datetime(2026, 1, 31, tzinfo=timezone.utc)
+    lesson = store.add(
+        _lesson(
+            "naive-reference",
+            reinforced_at=reference - timedelta(days=1),
+        )
+    )
+    store.approve(lesson.id)
+
+    context = build_experience_context(
+        _target_context(), store, now=reference.replace(tzinfo=None)
+    )
+
+    assert "naive-reference" in context
+
+
 def test_reinforcing_a_stale_lesson_restores_its_ranking(tmp_path):
     store = ExperienceStore(store_dir=tmp_path, confidence_half_life_days=10)
     stale = _lesson(
