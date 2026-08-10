@@ -102,6 +102,26 @@ class Lesson(BaseModel):
 _SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 _PROCESS_LOCK = threading.RLock()
 
+DEFAULT_CONFIDENCE_HALF_LIFE_DAYS = 90.0
+CONFIDENCE_HALF_LIFE_ENV = "VULNCLAW_EXPERIENCE_HALF_LIFE_DAYS"
+
+
+def default_confidence_half_life_days() -> float:
+    """Return the operator-tunable decay half-life, in days.
+
+    Read at call time rather than import time so a deployment can retune decay
+    without reinstalling.  An unparsable or non-positive override is ignored
+    instead of raising: learning is best-effort and must not break a run.
+    """
+    raw = os.environ.get(CONFIDENCE_HALF_LIFE_ENV, "").strip()
+    if not raw:
+        return DEFAULT_CONFIDENCE_HALF_LIFE_DAYS
+    try:
+        value = float(raw)
+    except ValueError:
+        return DEFAULT_CONFIDENCE_HALF_LIFE_DAYS
+    return value if value > 0 else DEFAULT_CONFIDENCE_HALF_LIFE_DAYS
+
 
 @contextmanager
 def _file_lock(path: Path) -> Iterator[None]:
@@ -143,9 +163,11 @@ class ExperienceStore:
         self,
         store_dir: Optional[Path] = None,
         *,
-        confidence_half_life_days: float = 90.0,
+        confidence_half_life_days: Optional[float] = None,
     ) -> None:
-        if confidence_half_life_days <= 0:
+        if confidence_half_life_days is None:
+            confidence_half_life_days = default_confidence_half_life_days()
+        elif confidence_half_life_days <= 0:
             raise ValueError("confidence_half_life_days must be positive")
         self.store_dir = Path(store_dir) if store_dir else KB_DIR
         self.experience_dir = self.store_dir / "experience"
@@ -269,6 +291,8 @@ class ExperienceStore:
         review status or persisted base confidence.
         """
         current = now or datetime.now(timezone.utc)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=timezone.utc)
         reinforced = lesson.reinforced_at
         if reinforced.tzinfo is None:
             reinforced = reinforced.replace(tzinfo=timezone.utc)

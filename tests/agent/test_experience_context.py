@@ -97,6 +97,80 @@ def test_experience_ranking_applies_confidence_decay(tmp_path):
     assert context.index("fresh procedure") < context.index("stale procedure")
 
 
+def test_experience_ranking_uses_an_injected_reference_time(tmp_path):
+    store = ExperienceStore(store_dir=tmp_path, confidence_half_life_days=10)
+    reference = datetime(2026, 1, 31, tzinfo=timezone.utc)
+    older = _lesson(
+        "older",
+        lesson="Use the older procedure.",
+        confidence=0.9,
+        reinforced_at=reference - timedelta(days=40),
+    )
+    newer = _lesson(
+        "newer",
+        lesson="Use the newer procedure.",
+        confidence=0.5,
+        reinforced_at=reference - timedelta(days=1),
+    )
+    for lesson in (older, newer):
+        store.add(lesson)
+        store.approve(lesson.id)
+
+    # At the reference time the older lesson has decayed below the newer one.
+    at_reference = build_experience_context(_target_context(), store, now=reference)
+    assert at_reference.index("newer procedure") < at_reference.index("older procedure")
+
+    # Evaluated when both were fresh, raw confidence decides the order instead.
+    when_fresh = build_experience_context(
+        _target_context(), store, now=reference - timedelta(days=40)
+    )
+    assert when_fresh.index("older procedure") < when_fresh.index("newer procedure")
+
+
+def test_experience_ranking_treats_a_naive_reference_time_as_utc(tmp_path):
+    store = ExperienceStore(store_dir=tmp_path, confidence_half_life_days=10)
+    reference = datetime(2026, 1, 31, tzinfo=timezone.utc)
+    lesson = store.add(
+        _lesson(
+            "naive-reference",
+            reinforced_at=reference - timedelta(days=1),
+        )
+    )
+    store.approve(lesson.id)
+
+    context = build_experience_context(
+        _target_context(), store, now=reference.replace(tzinfo=None)
+    )
+
+    assert "naive-reference" in context
+
+
+def test_reinforcing_a_stale_lesson_restores_its_ranking(tmp_path):
+    store = ExperienceStore(store_dir=tmp_path, confidence_half_life_days=10)
+    stale = _lesson(
+        "stale",
+        lesson="Use the stale procedure.",
+        reinforced_at=datetime.now(timezone.utc) - timedelta(days=40),
+    )
+    fresh = _lesson("fresh", lesson="Use the fresh procedure.", confidence=0.4)
+    for lesson in (stale, fresh):
+        store.add(lesson)
+        store.approve(lesson.id)
+
+    before = build_experience_context(_target_context(), store)
+    assert before.index("fresh procedure") < before.index("stale procedure")
+
+    reinforced = store.merge(
+        stale.id,
+        _lesson("reinforcing", confidence=0.5, evidence_refs={"run_id": "run-2"}),
+    )
+    assert reinforced is not None
+    store.approve(stale.id)
+
+    after = build_experience_context(_target_context(), store)
+    assert after.index("stale procedure") < after.index("fresh procedure")
+
+
 def test_experience_context_is_not_suppressed_for_english_runs(tmp_path):
     store = ExperienceStore(store_dir=tmp_path)
     lesson = store.add(_lesson("english-approved"))

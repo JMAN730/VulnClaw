@@ -55,11 +55,14 @@ def render_panel(model: ConfigPanelModel) -> Group:
                 )
 
     body: list[object] = [table]
+    llm_open = any(row.key == "action.fetch_models" for row in model.rows())
     if model.fetch_state == "loading":
         body.append(Text(_("tui.config_panel.fetch_loading"), style=C_MUTED))
     elif model.fetch_message:
         style = C_ERROR if model.fetch_state == "error" else C_MUTED
         body.append(Text(model.fetch_message, style=style))
+    elif llm_open and not model.models:
+        body.append(Text(_("tui.config_panel.fetch_idle"), style=C_MUTED))
     for message in (model.row_error, model.save_error):
         if message:
             body.append(Text(message, style=C_ERROR))
