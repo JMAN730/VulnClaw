@@ -210,6 +210,12 @@ def after_tool_call(
         error=error_text,
     )
 
+    # Skill references are instructions, not observations from the target.
+    # Parsing their examples as live evidence creates misleading diagnostics
+    # (for example, treating a reference example URL as an observed asset).
+    if tool == "load_skill_reference":
+        return signal
+
     if duration_ms >= 15_000:
         hint = f"Diagnostic: {tool} took {duration_ms}ms; recent tool latency is high."
         signal.hints.append(hint)

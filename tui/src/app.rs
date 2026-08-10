@@ -229,6 +229,10 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
         description: "attempt an exploit against a target",
     },
     SlashCommand {
+        command: "/hackerone ",
+        description: "start the HackerOne scope-guard flow with a program link",
+    },
+    SlashCommand {
         command: "/report",
         description: "show report export guidance",
     },
@@ -789,6 +793,10 @@ impl App {
             self.request_task("recon", arguments);
         } else if let Some(arguments) = command.strip_prefix("/exploit ") {
             self.request_task("exploit", arguments);
+        } else if command == "/hackerone" {
+            self.request_hackerone("");
+        } else if let Some(arguments) = command.strip_prefix("/hackerone ") {
+            self.request_hackerone(arguments);
         } else if command == "/report" {
             self.status(
                 "Use vulnclaw report <result.json> [--pdf] to write the report; the TUI shows findings live.",
@@ -1684,6 +1692,42 @@ impl App {
         ));
     }
 
+    fn request_hackerone(&mut self, arguments: &str) {
+        if self.mode == ExecutionMode::Plan {
+            self.error(
+                "Plan mode is read-only. Press Tab to switch to Agent before running a task.",
+            );
+            return;
+        }
+
+        let parts = match split_arguments(arguments) {
+            Ok(parts) => parts,
+            Err(error) => {
+                self.error(error);
+                return;
+            }
+        };
+        if parts.len() != 1 {
+            self.error(
+                "/hackerone requires one HackerOne program scope link: /hackerone <scope-link>",
+            );
+            return;
+        }
+
+        let scope_link = &parts[0];
+        let prompt = format!("Use VulnClaw skill hackerone. {scope_link}");
+        self.pending_task = Some(vec![
+            "run".to_owned(),
+            scope_link.to_owned(),
+            "--prompt".to_owned(),
+            prompt,
+            "--stream".to_owned(),
+        ]);
+        self.status(format!(
+            "/hackerone armed for {scope_link}. Press Y to run, or Esc to cancel."
+        ));
+    }
+
     fn start_worker(&mut self, args: Vec<String>) {
         if self.worker_active {
             self.error("A VulnClaw command is already running.");
@@ -2003,6 +2047,43 @@ mod tests {
 
         assert!(app.pending_task.is_some());
         assert!(!app.worker_active);
+    }
+
+    #[test]
+    fn hackerone_scope_link_routes_to_hackerone_skill_prompt() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+        app.mode = ExecutionMode::Agent;
+
+        app.insert_text("/hackerone \"https://hackerone.com/example/policy_scopes\"");
+        app.submit();
+
+        assert_eq!(
+            app.pending_task,
+            Some(vec![
+                "run".into(),
+                "https://hackerone.com/example/policy_scopes".into(),
+                "--prompt".into(),
+                "Use VulnClaw skill hackerone. https://hackerone.com/example/policy_scopes".into(),
+                "--stream".into(),
+            ])
+        );
+    }
+
+    #[test]
+    fn hackerone_requires_exactly_one_scope_link() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+        app.mode = ExecutionMode::Agent;
+
+        app.insert_text("/hackerone https://hackerone.com/example extra");
+        app.submit();
+
+        assert!(app.pending_task.is_none());
+        assert!(app
+            .transcript
+            .iter()
+            .any(|item| item.text.contains("requires one HackerOne program scope link")));
     }
 
     #[test]

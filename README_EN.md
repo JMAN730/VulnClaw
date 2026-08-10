@@ -287,6 +287,13 @@ Common menus:
 - **Menu 7** — Environment diagnostics (full details via `vulnclaw doctor`)
 - **Menu 8** — Model/API settings (switch Provider, Base URL, Model, API Key)
 
+The TUI also supports the HackerOne scope-guard flow. Pass one program scope link
+(quoted links are accepted), then confirm the run:
+
+```text
+/hackerone "https://hackerone.com/<program>/policy_scopes"
+```
+
 ### Mode 3: Single Command
 
 ```bash

@@ -854,6 +854,7 @@ def _build_slash_commands() -> dict[str, str]:
         "diag": _("tui.slash_diag"),
         "config": _("tui.slash_config"),
         "language": _("tui.slash_lang"),
+        "wizard": _("tui.slash_wizard"),
         "quit": _("tui.slash_quit"),
     }
 
@@ -870,6 +871,7 @@ def _build_repl_commands() -> dict[str, str]:
     return {
         "config": _("tui.slash_config"),
         "language": _("tui.slash_lang"),
+        "wizard": _("tui.slash_wizard"),
     }
 
 
@@ -1163,9 +1165,23 @@ def dispatch_repl_slash(text: str) -> ReplSlashResult:
         return ReplSlashResult("message", f"Unknown skill: /{name}")
 
     if task:
+        task = _strip_outer_quotes(task)
         return ReplSlashResult("run", f"Use VulnClaw skill {skill['name']}. {task}")
 
     return ReplSlashResult("message", render_slash_skill_help(skill))
+
+
+def _strip_outer_quotes(value: str) -> str:
+    """Remove one matching quote pair around a slash-command argument.
+
+    The classic REPL receives the raw input line rather than shell-tokenized
+    arguments. This keeps quoted URLs (for example a HackerOne scope link)
+    usable without changing quotes embedded in ordinary task text.
+    """
+    value = value.strip()
+    if len(value) >= 2 and value[0] in {'"', "'"} and value[-1] == value[0]:
+        return value[1:-1].strip()
+    return value
 
 
 def _dispatch_repl_flag_skill(text: str) -> ReplSlashResult:
@@ -1531,6 +1547,22 @@ def _cmd_language(session: dict[str, Any], args: str) -> None:
             _apply_language_pt(session, choices[idx])
 
         _set_prompt_choice(session, _("tui.prompt_select_language"), choice_labels, _on_choice)
+
+
+@_register_handler("wizard")
+def _cmd_wizard(session: dict[str, Any], args: str) -> None:
+    """First-run setup: LLM, Chrome remote debugging, chrome-devtools MCP, Burp."""
+    from rich.console import Console
+
+    from vulnclaw.cli.wizard import run_setup_wizard
+
+    result = run_setup_wizard(console=Console())
+    if result.config is not None:
+        session["config"] = result.config
+    if result.completed:
+        session["_message"] = _("tui.wizard_complete")
+    else:
+        session["_message"] = _("tui.wizard_cancelled")
 
 
 def _apply_language_pt(session: dict[str, Any], lang: str) -> None:

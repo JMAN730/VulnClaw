@@ -190,6 +190,31 @@ def test_correction_layer_hints_parser_filter_differential_for_runtime_boundary(
     assert "parser/filter boundary observed" in signal.model_hint()
 
 
+def test_correction_layer_does_not_analyze_advisory_skill_reference_as_target_evidence():
+    agent = _agent()
+    raw = """
+    # HackerOne Report Template and Scope Parsing Reference
+    regex/string filter guards a runtime parser. Parser/filter mismatch is an open hypothesis.
+    https://api.example.com
+    """
+    record = _record(agent, raw)
+
+    signal = after_tool_call(
+        agent,
+        tool="load_skill_reference",
+        arguments={"skill_name": "hackerone", "reference_name": "scope.md"},
+        raw_output=raw,
+        duration_ms=10,
+        evidence=record,
+    )
+
+    state = agent.context.state.agent_state
+    assert signal.progress == []
+    assert not state.progress_signals
+    assert not state.pinned_facts
+    assert not any("parser/filter" in item.lower() for item in state.correction_hints)
+
+
 def test_correction_layer_pins_php_pop_chain_entry_and_sink_hint():
     agent = _agent()
     raw = """
