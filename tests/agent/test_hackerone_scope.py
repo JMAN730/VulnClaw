@@ -9,10 +9,10 @@ from typing import Any
 import pytest
 
 from vulnclaw.agent.hackerone_scope import (
+    execute_hackerone_scope,
     extract_program_handle,
     fetch_program_scope,
     format_scope_report,
-    execute_hackerone_scope,
 )
 
 
