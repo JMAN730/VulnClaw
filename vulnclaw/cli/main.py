@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 import time
@@ -2283,6 +2284,89 @@ def config_list() -> None:
     config = load_config()
     raw = config.model_dump(mode="json")
     console.print(_yaml.dump(raw, default_flow_style=False, allow_unicode=True))
+
+
+def _read_config_panel_payload() -> dict[str, Any]:
+    """Read the native TUI's draft payload from stdin without exposing secrets in argv."""
+    try:
+        payload = json.loads(sys.stdin.read())
+    except (json.JSONDecodeError, OSError) as exc:
+        raise typer.BadParameter("config panel input must be valid JSON") from exc
+    if not isinstance(payload, dict):
+        raise typer.BadParameter("config panel input must be a JSON object")
+    return payload
+
+
+@config_app.command("panel-data", hidden=True)
+def config_panel_data() -> None:
+    """Return the LLM fields needed by the native TUI editor."""
+    config = load_config()
+    typer.echo(
+        json.dumps(
+            {
+                "provider": config.llm.provider,
+                "base_url": config.llm.base_url,
+                "api_key": config.llm.api_key,
+                "model": config.llm.model,
+                "providers": list_providers(),
+            },
+            ensure_ascii=False,
+        )
+    )
+
+
+@config_app.command("panel-save", hidden=True)
+def config_panel_save() -> None:
+    """Atomically save the native TUI's validated LLM draft from stdin."""
+    payload = _read_config_panel_payload()
+    provider = payload.get("provider")
+    base_url = payload.get("base_url")
+    api_key = payload.get("api_key")
+    model = payload.get("model")
+    if not all(isinstance(value, str) for value in (provider, base_url, api_key, model)):
+        raise typer.BadParameter("provider, base_url, api_key, and model must be strings")
+    if not api_key.strip():
+        raise typer.BadParameter("API key cannot be empty")
+    if provider == "custom" and not base_url.strip():
+        raise typer.BadParameter("custom providers require a base URL")
+
+    config = load_config()
+    cleared_key_pool = bool(config.llm.api_keys)
+    config.llm.provider = provider.strip()
+    config.llm.base_url = base_url.strip()
+    config.llm.api_key = api_key
+    # llm.api_keys (a failover pool) takes precedence over llm.api_key in
+    # key_pool()/AgentCore. Clear it here so the key just saved from this
+    # panel is the one actually used, rather than silently persisting an
+    # ineffective credential.
+    config.llm.api_keys = []
+    config.llm.model = model.strip()
+    save_config(config)
+    typer.echo(
+        json.dumps(
+            {
+                "provider": config.llm.provider,
+                "model": config.llm.model,
+                "cleared_key_pool": cleared_key_pool,
+            }
+        )
+    )
+
+
+@config_app.command("panel-fetch", hidden=True)
+def config_panel_fetch() -> None:
+    """Fetch models for an uncommitted native TUI draft from stdin."""
+    from vulnclaw.config.settings import fetch_provider_models
+
+    payload = _read_config_panel_payload()
+    base_url = payload.get("base_url")
+    api_key = payload.get("api_key")
+    if not isinstance(base_url, str) or not isinstance(api_key, str):
+        raise typer.BadParameter("base_url and api_key must be strings")
+    if not base_url.strip() or not api_key.strip():
+        raise typer.BadParameter("base_url and api_key cannot be empty")
+    models = fetch_provider_models(base_url.strip(), api_key)
+    typer.echo(json.dumps({"models": models}, ensure_ascii=False))
 
 
 @config_app.command("provider")

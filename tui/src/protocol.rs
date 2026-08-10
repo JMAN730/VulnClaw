@@ -6,6 +6,11 @@ pub enum AppEvent {
     Stream(StreamEvent),
     Error(String),
     Finished(bool),
+    ConfigModelsFetched {
+        generation: u64,
+        models: Vec<String>,
+        error: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug)]
