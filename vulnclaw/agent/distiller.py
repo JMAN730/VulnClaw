@@ -75,10 +75,30 @@ class RunArtifacts(BaseModel):
         )
 
     def failed_paths(self) -> set[str]:
-        paths = self.reflexion_snapshot.get("failed_paths", [])
-        if not isinstance(paths, list):
-            return set()
-        return {str(path).strip() for path in paths if str(path).strip()}
+        """Return every recorded failed/dead-end path in the artifact bundle.
+
+        Reflexion is the older source of failure history, but the structured
+        reasoning state is persisted independently and can remain enabled when
+        reflexion is disabled.  A candidate backed by either recorded source
+        is valid provenance; planned or successful reasoning paths are not.
+        """
+
+        snapshot_paths = self.reflexion_snapshot.get("failed_paths", [])
+        failed = (
+            {str(path).strip() for path in snapshot_paths if str(path).strip()}
+            if isinstance(snapshot_paths, list)
+            else set()
+        )
+        for path in self.reasoning_paths:
+            if not isinstance(path, Mapping):
+                continue
+            status = str(path.get("status") or "").strip().lower()
+            if status not in {"failed", "abandoned", "deadend", "dead_end"}:
+                continue
+            name = str(path.get("name") or path.get("path") or "").strip()
+            if name:
+                failed.add(name)
+        return failed
 
     def verified_finding_ids(self) -> set[str]:
         return {
