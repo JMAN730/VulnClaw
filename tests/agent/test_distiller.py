@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from vulnclaw.agent.distiller import (
     _LESSON_SCHEMA,
@@ -9,6 +10,7 @@ from vulnclaw.agent.distiller import (
     persist_distilled_lessons,
     schedule_run_distillation,
 )
+from vulnclaw.agent.reasoning_state import AttackPath, PathStatus, ReasoningState
 from vulnclaw.kb.experience import ExperienceStore, LessonStatus
 
 
@@ -79,6 +81,39 @@ def test_distill_run_accepts_a_recorded_failed_path_as_provenance():
     assert len(lessons) == 1
     assert lessons[0].target_key == "target-123"
     assert lessons[0].evidence_refs.path == "sqli-union"
+
+
+def test_distill_run_accepts_a_failed_structured_reasoning_path_as_provenance():
+    session = SimpleNamespace(
+        findings=[],
+        step_records=[],
+        reasoning=ReasoningState(
+            paths=[AttackPath(name="blocked-login-sqli", status=PathStatus.FAILED)]
+        ),
+        reflexion_snapshot={},
+    )
+    artifacts = RunArtifacts.from_session("run-1", session, target_key="target-123")
+
+    lessons = distill_run(
+        artifacts,
+        lambda _payload: {
+            "lessons": [
+                {
+                    "scope": "target",
+                    "signal": "deadend",
+                    "tags": {"waf": "example-waf"},
+                    "context": "The login SQL injection path was blocked.",
+                    "lesson": "Use a different attack surface after the block.",
+                    "confidence": 0.6,
+                    "evidence_refs": {"path": "blocked-login-sqli"},
+                }
+            ]
+        },
+    )
+
+    assert artifacts.failed_paths() == {"blocked-login-sqli"}
+    assert len(lessons) == 1
+    assert lessons[0].evidence_refs.path == "blocked-login-sqli"
 
 
 def test_persist_distilled_lessons_merges_near_duplicates(tmp_path: Path):
