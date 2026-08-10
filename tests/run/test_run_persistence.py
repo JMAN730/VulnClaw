@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 
 import pytest
@@ -334,6 +335,37 @@ async def test_orchestrator_checkpoints_and_resumes_exact_run(tmp_path, monkeypa
     (state_dir / "current.json").unlink()
     with pytest.raises(RunCorruptError, match="target state is missing"):
         load_run_context(run_name, runs_dir=tmp_path / "runs")
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_waits_for_distillation_worker(tmp_path, monkeypatch):
+    import vulnclaw.orchestrator as orchestrator
+
+    agent = DummyAgent(tmp_path / "runs")
+    joined = threading.Event()
+
+    class FakeDistillationThread:
+        def join(self):
+            joined.set()
+
+    def fake_schedule(_run_context, _agent):
+        return FakeDistillationThread()
+
+    monkeypatch.setattr(orchestrator, "schedule_run_distillation", fake_schedule)
+
+    async def noop(_shared_agent):
+        return None
+
+    await orchestrator.run_agent_task(
+        agent=agent,
+        command="recon",
+        target="https://example.com",
+        resume=False,
+        wait_for_distillation=True,
+        runner=noop,
+    )
+
+    assert joined.is_set()
 
 
 @pytest.mark.asyncio

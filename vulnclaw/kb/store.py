@@ -24,7 +24,7 @@ class KnowledgeStore:
 
     def _ensure_dirs(self) -> None:
         """Create KB directory structure."""
-        for category in ["cve", "techniques", "protocols", "tools", "payloads"]:
+        for category in ["cve", "techniques", "protocols", "tools", "payloads", "experience"]:
             (self.store_dir / category).mkdir(parents=True, exist_ok=True)
 
     def _load_index(self) -> None:
