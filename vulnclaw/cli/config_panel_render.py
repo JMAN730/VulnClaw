@@ -22,7 +22,7 @@ def _row_label(model: ConfigPanelModel, row: Row) -> str:
 def _row_value(model: ConfigPanelModel, row: Row, focused: bool) -> str:
     if row.kind == "group":
         marker = "▾" if row.expanded else "▸"
-        # MCP nested groups use the full key as section; summary() only knows top-level names.
+        # summary() accepts top-level section names and nested "mcp.<server>" keys.
         summary = "" if row.expanded else model.summary(row.key)
         return f"{marker} {summary}".rstrip()
     if focused and model.editing:
@@ -37,7 +37,8 @@ def render_panel(model: ConfigPanelModel) -> Group:
     table.add_column("value", style=C_TEXT, overflow="ellipsis", no_wrap=True, ratio=2)
 
     focused_key = model.focused.key
-    for row in model.rows():
+    # Only the viewport slice is drawn; focus still moves over the full list.
+    for row in model.visible_rows():
         focused = row.key == focused_key
         indent = "  " * row.depth
         mark = "›" if focused else " "
