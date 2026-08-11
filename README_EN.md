@@ -338,9 +338,20 @@ Operate the full pentest workflow through a browser.
 
 ```bash
 pip install 'vulnclaw[web]'  # install Web dependencies
+
+# First run: build the React frontend (Node.js 18+)
+cd frontend
+npm install
+npm run build
+cd ..
+
 vulnclaw web                  # launch (default 127.0.0.1:7788)
 vulnclaw web --port 8080      # custom port
 ```
+
+If you open the browser and see the **Fallback Web Shell** (no full scan UI),
+`frontend/dist/index.html` is missing. Build as above, restart `vulnclaw web`,
+and hard-refresh. API endpoints such as `/api/health` still work while the SPA is unbuilt.
 
 > ⚠️ By default binds to localhost only. For remote access pass `--host 0.0.0.0 --allow-remote`.
 

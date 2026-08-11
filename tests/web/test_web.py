@@ -1370,8 +1370,60 @@ class TestWebApp:
         assert "Fallback Web Shell" in source
         assert "授权安全测试助手" in source
         assert "输入目标，确认边界，再开始安全检查" in source
+        assert "frontend/dist/index.html" in source
+        assert "npm install" in source
+        assert "npm run build" in source
+        assert "vulnclaw web" in source
+        assert "Node.js 18+" in source
         assert "React 前端仍待后续阶段接入" not in source
         assert "Phase 1 的最小占位控制台" not in source
+
+    def test_frontend_usability_issue_112_checklist(self):
+        """Lightweight source checks for Web UI usability (issue #112)."""
+        root = Path(__file__).resolve().parents[2]
+        home = (root / "frontend" / "src" / "pages" / "HomePage.tsx").read_text(
+            encoding="utf-8"
+        )
+        app = (root / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
+        shell = (root / "frontend" / "src" / "components" / "AppShell.tsx").read_text(
+            encoding="utf-8"
+        )
+        sidebar = (
+            root / "frontend" / "src" / "components" / "Sidebar.tsx"
+        ).read_text(encoding="utf-8")
+        en = (root / "frontend" / "src" / "i18n" / "en.json").read_text(encoding="utf-8")
+        zh = (root / "frontend" / "src" / "i18n" / "zh.json").read_text(encoding="utf-8")
+        styles = (root / "frontend" / "src" / "styles.css").read_text(encoding="utf-8")
+
+        # 1) Action rail: icons + tooltips (not bare single-letter glyphs)
+        assert 'icon: "/icons/rail/plus.svg"' in app
+        assert "rail-icon" in shell
+        assert "rail-tooltip" in shell
+        assert "glyph:" not in app
+        assert ".rail-icon" in styles
+
+        # 2) Mode pills only — no Port-labeled mode <select>
+        assert "<select" not in home
+        assert 't("home.mode_label")' in home
+        assert "scan-mode-pill" in home
+
+        # 3) Excluded hosts copy + helper (en + zh)
+        assert '"home.excluded_hosts": "Excluded hosts"' in en
+        assert "home.excluded_hosts_help" in en
+        assert "blocklist" in en
+        assert '"home.excluded_hosts": "排除主机"' in zh
+        assert "home.excluded_hosts_help" in zh
+        assert "home.excluded_hosts_help" in home
+        assert "Black IP" not in en
+
+        # 4) Round / scan controls expose accessible names
+        assert "home.scan_start_aria" in home
+        assert "aria-pressed=" in home
+        assert 'aria-label={t("home.clear_target")}' in home
+        assert 'className="goby-map-illustration" aria-hidden="true"' in home
+        assert 'goby-welcome-panel" aria-hidden="true"' not in home
+        assert "aria-label={item.label}" in shell
+        assert "aria-label={action.label}" in sidebar
 
     def test_cli_web_dry_run(self):
         from vulnclaw.cli.main import app
