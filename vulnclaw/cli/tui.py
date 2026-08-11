@@ -2624,31 +2624,35 @@ def _run_config_panel() -> None:
     def _up(event: Any) -> None:
         if model.dropdown_open:
             model.select_option(-1)
-        else:
+        elif not model.editing:
             model.focus_prev()
 
     @kb.add("down")
     def _down(event: Any) -> None:
         if model.dropdown_open:
             model.select_option(1)
-        else:
+        elif not model.editing:
             model.focus_next()
 
     @kb.add("tab")
     def _tab(event: Any) -> None:
-        model.focus_next()
+        if not model.editing:
+            model.focus_next()
 
     @kb.add("s-tab")
     def _shift_tab(event: Any) -> None:
-        model.focus_prev()
+        if not model.editing:
+            model.focus_prev()
 
     @kb.add("left")
     def _left(event: Any) -> None:
-        model.collapse()
+        if not model.editing:
+            model.collapse()
 
     @kb.add("right")
     def _right(event: Any) -> None:
-        model.expand()
+        if not model.editing:
+            model.expand()
 
     @kb.add("c-r")
     def _reveal(event: Any) -> None:
