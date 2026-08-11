@@ -165,3 +165,99 @@ def test_only_pending_lessons_are_eligible_for_candidate_merges(tmp_path):
     store.reject(rejected.id)
 
     assert store.find_near_duplicate(candidate, threshold=0.8) is None
+
+
+def _experience_index_rows(tmp_path, lesson_id: str) -> list[dict]:
+    import json
+
+    index = json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))
+    return [row for row in index.get("experience", []) if row.get("id") == lesson_id]
+
+
+def test_lifecycle_keeps_index_consistent_without_duplicates(tmp_path):
+    store = ExperienceStore(tmp_path)
+    pending = store.add(make_lesson("lesson-index-1"))
+
+    rows = _experience_index_rows(tmp_path, pending.id)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "pending"
+    assert "sqli" in rows[0]["tags"]
+    assert "status:pending" in rows[0]["tags"]
+    assert (tmp_path / "experience" / f"{pending.id}.json").exists()
+
+    approved = store.approve(pending.id)
+    assert approved is not None
+    rows = _experience_index_rows(tmp_path, pending.id)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "approved"
+    assert "status:approved" in rows[0]["tags"]
+    assert "status:pending" not in rows[0]["tags"]
+
+    updated = store.update(pending.id, lesson="Prefer bound parameters before fuzzing variants.")
+    assert updated is not None
+    rows = _experience_index_rows(tmp_path, pending.id)
+    assert len(rows) == 1
+    assert "bound parameters" in rows[0]["title"]
+
+    store.merge(pending.id, make_lesson("candidate-index-1", confidence=0.4, run_id="run-9"))
+    assert len(_experience_index_rows(tmp_path, pending.id)) == 1
+    assert _experience_index_rows(tmp_path, "candidate-index-1") == []
+
+    assert store.delete(pending.id) is True
+    assert _experience_index_rows(tmp_path, pending.id) == []
+    assert not (tmp_path / "experience" / f"{pending.id}.json").exists()
+
+
+def test_orphan_experience_files_are_indexed_on_reconcile(tmp_path):
+    """Lessons written before index maintenance become searchable via rebuild."""
+    import json
+
+    experience_dir = tmp_path / "experience"
+    experience_dir.mkdir(parents=True)
+    orphan = make_lesson("orphan-lesson")
+    payload = orphan.model_dump(mode="json")
+    payload["status"] = "approved"
+    (experience_dir / f"{orphan.id}.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    # Stale index that omits the orphan file.
+    (tmp_path / "index.json").write_text(json.dumps({"experience": []}), encoding="utf-8")
+
+    store = ExperienceStore(tmp_path)
+    stats = store.reconcile_index()
+    assert stats.get("experience", 0) >= 1
+
+    from vulnclaw.kb.store import KnowledgeStore
+
+    kb = KnowledgeStore(store_dir=tmp_path)
+    listed = {row["id"] for row in kb.list_entries("experience")}
+    assert orphan.id in listed
+
+
+def test_approved_lesson_discoverable_via_kb_search(tmp_path):
+    """Integration: approve a lesson → KnowledgeStore search/index consumers see it."""
+    from vulnclaw.kb.store import KnowledgeStore
+
+    exp = ExperienceStore(tmp_path)
+    lesson = exp.add(
+        make_lesson("discoverable-1").model_copy(
+            update={
+                "lesson": "Prioritize parameterized-query verification before payload variation.",
+                "tags": LessonTags(tech=["sqli"], vuln_type="sql-injection", service="http"),
+            }
+        )
+    )
+    exp.approve(lesson.id)
+
+    kb = KnowledgeStore(store_dir=tmp_path)
+    by_tag = kb.search("sqli", category="experience")
+    assert any(entry.get("id") == lesson.id for entry in by_tag)
+
+    by_title = kb.search("parameterized-query", category="experience")
+    assert any(entry.get("id") == lesson.id for entry in by_title)
+
+    listed = kb.list_entries("experience")
+    meta = next(row for row in listed if row["id"] == lesson.id)
+    assert meta["status"] == "approved"
+    assert "sql-injection" in meta["tags"]
