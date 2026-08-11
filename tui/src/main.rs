@@ -1,6 +1,7 @@
 mod app;
 mod events;
 mod exec;
+mod i18n;
 mod prompts;
 mod protocol;
 mod sessions;

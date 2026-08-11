@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use crate::app::{ActivePane, App, PROVIDERS};
+use crate::i18n::t;
 use crate::theme;
 use crate::views::skills_manager;
 
@@ -140,11 +141,12 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
         width,
         height,
     };
+    let title = format!(" {} ", t("tui.native_config.title"));
     let outer = Block::default()
         .borders(Borders::ALL)
         .border_style(theme::CORAL)
         .style(Style::default().bg(theme::PANEL))
-        .title(" Configure LLM ");
+        .title(title);
     let inner = outer.inner(outer_area);
     frame.render_widget(outer, outer_area);
 
@@ -154,7 +156,7 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
     ))];
     lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
-        "Configure LLM",
+        t("tui.native_config.title"),
         Style::default().fg(theme::ACTION).add_modifier(Modifier::BOLD),
     )));
 
@@ -175,13 +177,22 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
     };
 
     let base_offset = usize::from(panel.has_base_url_row());
+    let provider_hint = if panel.provider_dropdown {
+        t("tui.native_config.choose")
+    } else {
+        t("tui.native_config.enter_to_edit")
+    };
     add_row(
-        "Provider",
-        format!("{}  ({})", panel.provider, if panel.provider_dropdown { "choose" } else { "Enter to edit" }),
+        &t("tui.native_config.label_provider"),
+        format!("{}  ({})", panel.provider, provider_hint),
         panel.focus == 0,
     );
     if panel.has_base_url_row() {
-        add_row("Base URL", panel.base_url.clone(), panel.focus == 1);
+        add_row(
+            &t("tui.native_config.label_base_url"),
+            panel.base_url.clone(),
+            panel.focus == 1,
+        );
     }
     let key_value = if panel.api_key.is_empty() {
         "—".to_owned()
@@ -190,32 +201,52 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
     } else {
         "•".repeat(panel.api_key.chars().count().min(8))
     };
-    add_row("API key", key_value, panel.focus == 1 + base_offset);
     add_row(
-        "Model",
-        if panel.model.is_empty() { "(none)".to_owned() } else { panel.model.clone() },
+        &t("tui.native_config.label_api_key"),
+        key_value,
+        panel.focus == 1 + base_offset,
+    );
+    add_row(
+        &t("tui.native_config.label_model"),
+        if panel.model.is_empty() {
+            t("tui.native_config.none")
+        } else {
+            panel.model.clone()
+        },
         panel.focus == 2 + base_offset,
     );
     let fetch_focused = panel.focus == 3 + base_offset;
     let save_focused = panel.focus == 4 + base_offset;
     let active_style = Style::default().fg(theme::TEXT_BODY).add_modifier(Modifier::BOLD);
     let inactive_style = Style::default().fg(theme::TEXT_SOFT);
+    let fetch_suffix = if panel.loading {
+        t("tui.native_config.suffix_loading")
+    } else if !panel.can_fetch() {
+        t("tui.native_config.suffix_disabled")
+    } else {
+        String::new()
+    };
+    let save_suffix = if panel.can_save() {
+        String::new()
+    } else {
+        t("tui.native_config.suffix_disabled")
+    };
     lines.push(Line::from(vec![
         Span::styled(
             if fetch_focused || save_focused { "▶ " } else { "  " },
             Style::default().fg(theme::ACTION),
         ),
-        Span::styled(format!("{:<10}", "Actions"), Style::default().fg(theme::TEXT_MUTED)),
         Span::styled(
-            format!(
-                "[Fetch{}]",
-                if panel.loading { " (loading…)" } else if !panel.can_fetch() { " (disabled)" } else { "" }
-            ),
+            format!("{:<10}", t("tui.native_config.label_actions")),
+            Style::default().fg(theme::TEXT_MUTED),
+        ),
+        Span::styled(
+            format!("[{}{}]", t("tui.native_config.fetch"), fetch_suffix),
             if fetch_focused { active_style } else { inactive_style },
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[Save{}]", if panel.can_save() { "" } else { " (disabled)" }),
+            format!("[{}{}]", t("tui.native_config.save"), save_suffix),
             if save_focused { active_style } else { inactive_style },
         ),
     ]));
@@ -224,7 +255,7 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
 
     if panel.provider_dropdown {
         lines.push(Line::from(Span::styled(
-            "Providers (Up/Down, Enter commits):",
+            t("tui.native_config.providers_hint"),
             Style::default().fg(theme::TEXT_HINT),
         )));
         for provider in &panel.providers {
@@ -240,7 +271,7 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
         }
     } else if panel.model_dropdown {
         lines.push(Line::from(Span::styled(
-            "Models (Up/Down, Enter commits):",
+            t("tui.native_config.models_hint"),
             Style::default().fg(theme::TEXT_HINT),
         )));
         for model in panel.models.iter().take(8) {
@@ -258,7 +289,7 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
 
     lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
-        "Enter edit/select  ·  ↑/↓ navigate  ·  Tab/Shift+Tab move  ·  V/Ctrl+R reveal key  ·  Esc discard",
+        t("tui.native_config.nav_hint"),
         Style::default().fg(theme::TEXT_HINT),
     )));
     if !panel.message.is_empty() {
@@ -686,5 +717,72 @@ mod tests {
             .collect::<String>();
         assert!(rendered.contains("Task confirmation required"));
         assert!(rendered.contains("Y confirm"));
+    }
+
+    fn buffer_text(terminal: &Terminal<TestBackend>) -> String {
+        terminal
+            .backend()
+            .buffer()
+            .content
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect::<String>()
+    }
+
+    /// ratatui TestBackend pads fullwidth glyphs with empty spacer cells.
+    fn compact(text: &str) -> String {
+        text.chars().filter(|c| !c.is_whitespace()).collect()
+    }
+
+    fn fixture_panel() -> crate::app::ConfigPanelState {
+        crate::app::ConfigPanelState::from_json(&serde_json::json!({
+            "provider": "openai",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "sk-secret-value",
+            "model": "gpt-4o",
+            "providers": [
+                {"provider": "openai", "label": "OpenAI", "base_url": "https://api.openai.com/v1", "default_model": "gpt-4o"},
+                {"provider": "custom", "label": "Custom", "base_url": "", "default_model": ""}
+            ]
+        }))
+        .expect("valid config panel fixture")
+    }
+
+    #[test]
+    fn config_panel_renders_english_chrome() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+        crate::i18n::set_lang(crate::i18n::Lang::En);
+        let mut panel = fixture_panel();
+        panel.message = crate::i18n::t("tui.native_config.fetch_idle");
+        app.config_panel = Some(panel);
+        let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        terminal.draw(|frame| render(frame, &app)).unwrap();
+        let rendered = buffer_text(&terminal);
+        assert!(rendered.contains("Configure LLM"), "rendered={rendered}");
+        assert!(rendered.contains("Provider"), "rendered={rendered}");
+        assert!(rendered.contains("API key"), "rendered={rendered}");
+        assert!(rendered.contains("[Fetch]"), "rendered={rendered}");
+        assert!(rendered.contains("[Save]"), "rendered={rendered}");
+        assert!(rendered.contains("Press Fetch to load models."), "rendered={rendered}");
+    }
+
+    #[test]
+    fn config_panel_renders_chinese_chrome() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+        crate::i18n::set_lang(crate::i18n::Lang::Zh);
+        let mut panel = fixture_panel();
+        panel.message = crate::i18n::t("tui.native_config.fetch_idle");
+        app.config_panel = Some(panel);
+        let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        terminal.draw(|frame| render(frame, &app)).unwrap();
+        let rendered = compact(&buffer_text(&terminal));
+        assert!(rendered.contains("配置LLM"), "rendered={rendered}");
+        assert!(rendered.contains("提供商"), "rendered={rendered}");
+        assert!(rendered.contains("API密钥"), "rendered={rendered}");
+        assert!(rendered.contains("[拉取]"), "rendered={rendered}");
+        assert!(rendered.contains("[保存]"), "rendered={rendered}");
+        assert!(rendered.contains("按「拉取」加载模型。"), "rendered={rendered}");
     }
 }
