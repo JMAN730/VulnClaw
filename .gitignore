@@ -89,3 +89,6 @@ docs/
 # Rust TUI build artifacts
 tui/target/
 
+
+# Agent scratch / working files
+.scratch/
