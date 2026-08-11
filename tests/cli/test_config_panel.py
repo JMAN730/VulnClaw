@@ -116,6 +116,21 @@ def test_text_edit_cancel_restores_previous_value(model):
     assert model.draft.llm.reasoning_effort == "medium"
 
 
+def test_commit_edit_targets_the_originating_field_not_current_focus(model):
+    """If focus jumps to a section header (path="") mid-edit, commit must not
+    crash and must apply the value to the field editing began on."""
+    _focus(model, "llm.base_url")
+
+    model.activate()
+    model.set_edit_text("https://typed.test/v1")
+    # Simulate focus jumping to the "llm" section header (path="") before Enter.
+    model._focus_key = "llm"
+    model.commit_edit()  # must not raise despite focused row having an empty path
+
+    assert model.draft.llm.base_url == "https://typed.test/v1"
+    assert model.editing is False
+
+
 def test_blank_text_keeps_current_value_and_clear_sentinel_empties_it(model):
     model.draft.recon.fofa_email = "a@b.test"
     _focus(model, "recon.fofa_email")
