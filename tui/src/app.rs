@@ -347,6 +347,12 @@ pub const PROVIDERS: &[ProviderPreset] = &[
         model: "gpt-4o",
     },
     ProviderPreset {
+        name: "openrouter",
+        label: "OpenRouter",
+        base_url: "https://openrouter.ai/api/v1",
+        model: "anthropic/claude-sonnet-5",
+    },
+    ProviderPreset {
         name: "siliconflow",
         label: "SiliconFlow",
         base_url: "https://api.siliconflow.cn/v1",
@@ -1883,8 +1889,8 @@ mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     use super::{
-        App, ActivePane, ConfigPanelState, ExecutionMode, PermissionMode, SetupState,
-        strip_prompt_prefix,
+        strip_prompt_prefix, ActivePane, App, ConfigPanelState, ExecutionMode, PermissionMode,
+        SetupState, PROVIDERS,
     };
 
     fn panel() -> ConfigPanelState {
@@ -1899,6 +1905,17 @@ mod tests {
             ]
         }))
         .expect("valid config panel fixture")
+    }
+
+    #[test]
+    fn setup_wizard_exposes_openrouter_preset() {
+        let preset = PROVIDERS
+            .iter()
+            .find(|preset| preset.name == "openrouter")
+            .expect("OpenRouter preset should be available");
+
+        assert_eq!(preset.base_url, "https://openrouter.ai/api/v1");
+        assert_eq!(preset.model, "anthropic/claude-sonnet-5");
     }
 
     #[test]
