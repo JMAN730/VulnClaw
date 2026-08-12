@@ -1,5 +1,9 @@
 """Approved cross-session experience retrieval for agent prompts.
 
+Canonical production retrieval for lessons stored by
+``vulnclaw.kb.experience.ExperienceStore``.  AgentCore injects the result via
+``build_dynamic_system_prompt(..., experience_context=...)``.
+
 Experience is deliberately separate from the legacy knowledge-base context:
 the latter is language-gated because its corpus is Chinese, whereas approved
 lessons are explicitly reviewed before they can influence a future run.
