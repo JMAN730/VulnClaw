@@ -2439,6 +2439,9 @@ def config_panel_data() -> None:
                 "api_key": config.llm.api_key,
                 "model": config.llm.model,
                 "providers": list_providers(),
+                # Lets the native TUI match CLI language selection
+                # (session.language: auto | zh | en).
+                "language": getattr(config.session, "language", "auto") or "auto",
             },
             ensure_ascii=False,
         )

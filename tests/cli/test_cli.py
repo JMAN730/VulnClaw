@@ -118,6 +118,7 @@ class TestCLI:
         assert payload["provider"] == config.llm.provider
         assert payload["api_key"] == "sk-panel-test"
         assert any(item["provider"] == "custom" for item in payload["providers"])
+        assert payload["language"] in ("auto", "zh", "en")
 
     def test_cli_config_panel_save_validates_and_persists_the_complete_draft(self, runner, monkeypatch):
         from vulnclaw.cli.main import app
