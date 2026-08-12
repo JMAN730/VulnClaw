@@ -6,10 +6,25 @@ use ratatui::{
     Frame,
 };
 
+use unicode_width::UnicodeWidthStr;
+
 use crate::app::{ActivePane, App, PROVIDERS};
 use crate::i18n::t;
 use crate::theme;
 use crate::views::skills_manager;
+
+/// Pad `text` with trailing spaces so its terminal display width reaches
+/// `width` columns, accounting for double-width (e.g. CJK) glyphs. Unlike
+/// `format!("{text:<width$}")`, which pads by Unicode scalar count, this
+/// keeps columns aligned regardless of script.
+fn pad_to_display_width(text: &str, width: usize) -> String {
+    let text_width = UnicodeWidthStr::width(text);
+    if text_width >= width {
+        text.to_owned()
+    } else {
+        format!("{text}{}", " ".repeat(width - text_width))
+    }
+}
 
 /// Full-screen first-run API configuration wizard.
 pub fn render_setup(frame: &mut Frame, app: &App) {
@@ -161,8 +176,14 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
     )));
 
     let mut row_y = 3u16;
+    let mut editing_label_width = 12u16;
     let mut add_row = |label: &str, value: String, active: bool| {
         let marker = if active { "▶ " } else { "  " };
+        let padded_label = pad_to_display_width(label, 10);
+        if active {
+            editing_label_width = (UnicodeWidthStr::width(marker)
+                + UnicodeWidthStr::width(padded_label.as_str())) as u16;
+        }
         let style = if active {
             Style::default().fg(theme::TEXT_BODY).add_modifier(Modifier::BOLD)
         } else {
@@ -170,7 +191,7 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
         };
         lines.push(Line::from(vec![
             Span::styled(marker, Style::default().fg(theme::ACTION)),
-            Span::styled(format!("{label:<10}"), Style::default().fg(theme::TEXT_MUTED)),
+            Span::styled(padded_label, Style::default().fg(theme::TEXT_MUTED)),
             Span::styled(value, style),
         ]));
         row_y += 1;
@@ -307,10 +328,9 @@ pub fn render_config_panel(frame: &mut Frame, app: &App) {
     if panel.editing {
         let field_index = panel.focus + 3;
         let cursor_y = inner.y + field_index as u16;
-        let label_width = 12u16;
         let cursor_x = inner
             .x
-            .saturating_add(label_width)
+            .saturating_add(editing_label_width)
             .saturating_add(panel.cursor as u16)
             .min(inner.right().saturating_sub(1));
         frame.set_cursor_position((cursor_x, cursor_y));
