@@ -2,10 +2,14 @@
 //!
 //! Language resolution mirrors the Python CLI (`vulnclaw.i18n.init_i18n`):
 //! 1. Explicit override via `set_lang` / `init(Some(..))`
-//! 2. Config `session.language` when set to `zh` or `en` (not `auto`)
-//! 3. `VULNCLAW_LANG` environment variable
+//! 2. Config `session.language` when exactly `zh` or `en` (not `auto`)
+//! 3. `VULNCLAW_LANG` environment variable, exactly `zh` or `en`
 //! 4. System `LANG` prefix (`zh*` / `en*`)
 //! 5. Default English
+//!
+//! Only exact `zh`/`en` are honored for the explicit config/`VULNCLAW_LANG`
+//! overrides so this panel never disagrees with the Python CLI, which matches
+//! `VULNCLAW_LANG in ("zh", "en")` and treats unknown config values as English.
 //!
 //! **Missing-translation fallback:** active catalog → English catalog → key
 //! string. English is the defined fallback language.
@@ -22,10 +26,19 @@ pub enum Lang {
 }
 
 impl Lang {
+    /// Parse an explicit language override (config `session.language` or
+    /// `VULNCLAW_LANG`).
+    ///
+    /// Only exact `zh`/`en` are accepted, mirroring the Python CLI: its
+    /// `detect_language` matches `VULNCLAW_LANG` with `in ("zh", "en")`, and a
+    /// config value like `zh-CN` resolves to a missing `zh-CN.json` and falls
+    /// back to English. Accepting locale aliases (`zh-CN`, `en_US`, `zh-Hans`,
+    /// …) here would make the native panel disagree with the rest of the CLI,
+    /// so they intentionally fall through to `LANG`-prefix detection instead.
     pub fn parse(value: &str) -> Option<Self> {
         match value.trim().to_ascii_lowercase().as_str() {
-            "en" | "en-us" | "en_us" => Some(Lang::En),
-            "zh" | "zh-cn" | "zh_cn" | "zh-hans" | "zh_hans" | "zh-tw" | "zh_tw" => Some(Lang::Zh),
+            "en" => Some(Lang::En),
+            "zh" => Some(Lang::Zh),
             _ => None,
         }
     }
@@ -398,5 +411,18 @@ mod tests {
             resolve_lang(Some("auto")),
             Lang::En | Lang::Zh
         ));
+    }
+
+    #[test]
+    fn parse_accepts_only_exact_zh_and_en() {
+        // Exact values (case-insensitive, trimmed) mirror the Python CLI.
+        assert_eq!(Lang::parse("zh"), Some(Lang::Zh));
+        assert_eq!(Lang::parse(" EN "), Some(Lang::En));
+        // Locale aliases are intentionally rejected here: the Python CLI would
+        // treat them as English (missing `zh-CN.json`) or fall through to
+        // `LANG`, so accepting them would desync the native panel.
+        for alias in ["zh-CN", "zh_cn", "zh-Hans", "zh-TW", "en-US", "en_us", "fr"] {
+            assert_eq!(Lang::parse(alias), None, "alias {alias} should not parse");
+        }
     }
 }
