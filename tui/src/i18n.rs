@@ -4,7 +4,7 @@
 //! 1. Explicit override via `set_lang` / `init(Some(..))`
 //! 2. Config `session.language` when set to `zh` or `en` (not `auto`)
 //! 3. `VULNCLAW_LANG` environment variable
-//! 4. System `LANG` / `LC_ALL` prefix (`zh*` / `en*`)
+//! 4. System `LANG` prefix (`zh*` / `en*`)
 //! 5. Default English
 //!
 //! **Missing-translation fallback:** active catalog → English catalog → key
@@ -56,15 +56,13 @@ fn detect_language() -> Lang {
             return lang;
         }
     }
-    for var in ["LC_ALL", "LANG"] {
-        if let Ok(value) = env::var(var) {
-            let lower = value.to_ascii_lowercase();
-            if lower.starts_with("zh") {
-                return Lang::Zh;
-            }
-            if lower.starts_with("en") {
-                return Lang::En;
-            }
+    if let Ok(value) = env::var("LANG") {
+        let lower = value.to_ascii_lowercase();
+        if lower.starts_with("zh") {
+            return Lang::Zh;
+        }
+        if lower.starts_with("en") {
+            return Lang::En;
         }
     }
     Lang::En
