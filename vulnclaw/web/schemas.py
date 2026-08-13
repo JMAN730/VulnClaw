@@ -76,7 +76,9 @@ class TaskOptions(BaseModel):
         default=None, max_length=2048, description="Restrict task scope to a single path"
     )
     blocked_host: Optional[str] = Field(
-        default=None, max_length=253, description="Explicitly blocked host"
+        default=None,
+        max_length=4096,
+        description="Comma- or newline-separated explicitly blocked hosts",
     )
     blocked_path: Optional[str] = Field(
         default=None, max_length=2048, description="Explicitly blocked path"
