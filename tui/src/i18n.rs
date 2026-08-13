@@ -24,8 +24,8 @@ pub enum Lang {
 impl Lang {
     pub fn parse(value: &str) -> Option<Self> {
         match value.trim().to_ascii_lowercase().as_str() {
-            "en" | "en-us" | "en_us" => Some(Lang::En),
-            "zh" | "zh-cn" | "zh_cn" | "zh-hans" | "zh_hans" | "zh-tw" | "zh_tw" => Some(Lang::Zh),
+            "en" => Some(Lang::En),
+            "zh" => Some(Lang::Zh),
             _ => None,
         }
     }
@@ -398,5 +398,14 @@ mod tests {
             resolve_lang(Some("auto")),
             Lang::En | Lang::Zh
         ));
+    }
+
+    #[test]
+    fn explicit_locale_parser_matches_python_supported_values() {
+        assert_eq!(Lang::parse("en"), Some(Lang::En));
+        assert_eq!(Lang::parse("zh"), Some(Lang::Zh));
+        for unsupported in ["en-US", "en_US", "zh-CN", "zh_Hans", "zh-TW"] {
+            assert_eq!(Lang::parse(unsupported), None);
+        }
     }
 }
