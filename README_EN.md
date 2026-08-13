@@ -156,7 +156,7 @@ vulnclaw recon example.com
 vulnclaw
 
 # 3.1 Optional: open the web interface
-vulnclaw web 
+vulnclaw web
 
 # 3.2 Optional: open the TUI workbench
 vulnclaw tui
