@@ -348,6 +348,12 @@ pub const PROVIDERS: &[ProviderPreset] = &[
         model: "gpt-4o",
     },
     ProviderPreset {
+        name: "openrouter",
+        label: "OpenRouter",
+        base_url: "https://openrouter.ai/api/v1",
+        model: "anthropic/claude-sonnet-5",
+    },
+    ProviderPreset {
         name: "siliconflow",
         label: "SiliconFlow",
         base_url: "https://api.siliconflow.cn/v1",
@@ -1649,21 +1655,17 @@ impl App {
                     panel.error = true;
                     return;
                 }
-                let previous_model = panel.model.clone();
+                // Refresh the catalog only. Keep the typed/current model, focus, and
+                // dropdown closed state — operators mid-flow should not be interrupted.
+                // If the previous model is absent from results, leave the typed value
+                // and surface the loaded status so they can re-enter or open the list.
                 panel.models = models;
-                panel.focus = 2 + usize::from(panel.has_base_url_row());
-                panel.model_dropdown_original = Some(previous_model.clone());
-                panel.model_dropdown = true;
                 let count = panel.models.len().to_string();
                 panel.message = t_args(
                     "tui.native_config.models_loaded",
                     &[("count", &count)],
                 );
                 panel.error = false;
-                if panel.models.iter().any(|model| model == &previous_model) {
-                    panel.model = previous_model;
-                }
-                panel.cursor = panel.model.chars().count();
             }
         }
     }
@@ -1914,8 +1916,8 @@ mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     use super::{
-        App, ActivePane, ConfigPanelState, ExecutionMode, PermissionMode, SetupState,
-        strip_prompt_prefix,
+        strip_prompt_prefix, ActivePane, App, ConfigPanelState, ExecutionMode, PermissionMode,
+        SetupState, PROVIDERS,
     };
     use crate::i18n::{self, Lang, t};
 
@@ -1932,6 +1934,17 @@ mod tests {
             ]
         }))
         .expect("valid config panel fixture")
+    }
+
+    #[test]
+    fn setup_wizard_exposes_openrouter_preset() {
+        let preset = PROVIDERS
+            .iter()
+            .find(|preset| preset.name == "openrouter")
+            .expect("OpenRouter preset should be available");
+
+        assert_eq!(preset.base_url, "https://openrouter.ai/api/v1");
+        assert_eq!(preset.model, "anthropic/claude-sonnet-5");
     }
 
     #[test]
@@ -2009,6 +2022,90 @@ mod tests {
         assert!(app.config_panel.as_ref().unwrap().reveal_key);
         app.config_panel_handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
         assert!(app.config_panel.is_none(), "escape must discard the draft");
+    }
+
+    #[test]
+    fn config_models_fetch_success_keeps_current_model_without_stealing_focus() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+        let mut state = panel();
+        state.model = "gpt-4o".to_owned();
+        state.loading = true;
+        state.generation = 1;
+        state.focus = 1; // api_key row, mid-flow
+        state.editing = true;
+        state.model_dropdown = false;
+        app.config_panel = Some(state);
+
+        app.apply_event(super::AppEvent::ConfigModelsFetched {
+            generation: 1,
+            models: vec!["gpt-4o".to_owned(), "gpt-4o-mini".to_owned()],
+            error: None,
+        });
+
+        let state = app.config_panel.as_ref().expect("panel remains open");
+        assert!(!state.loading);
+        assert!(!state.error);
+        assert_eq!(state.model, "gpt-4o");
+        assert_eq!(state.focus, 1);
+        assert!(state.editing);
+        assert!(!state.model_dropdown);
+        assert_eq!(state.models, vec!["gpt-4o".to_owned(), "gpt-4o-mini".to_owned()]);
+        assert!(state.message.contains("Loaded 2 model"));
+    }
+
+    #[test]
+    fn config_models_fetch_success_missing_model_keeps_typed_value_quietly() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+        let mut state = panel();
+        state.model = "my-custom-model".to_owned();
+        state.loading = true;
+        state.generation = 3;
+        state.focus = 0;
+        state.model_dropdown = false;
+        app.config_panel = Some(state);
+
+        app.apply_event(super::AppEvent::ConfigModelsFetched {
+            generation: 3,
+            models: vec!["gpt-4o".to_owned()],
+            error: None,
+        });
+
+        let state = app.config_panel.as_ref().expect("panel remains open");
+        assert!(!state.loading);
+        assert!(!state.error);
+        assert_eq!(state.model, "my-custom-model");
+        assert_eq!(state.focus, 0);
+        assert!(!state.model_dropdown);
+        assert!(state.message.contains("Loaded 1 model"));
+    }
+
+    #[test]
+    fn config_models_fetch_failure_preserves_manual_entry_messaging() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+        let mut state = panel();
+        state.model = "gpt-4o".to_owned();
+        state.loading = true;
+        state.generation = 4;
+        state.focus = 1;
+        app.config_panel = Some(state);
+
+        app.apply_event(super::AppEvent::ConfigModelsFetched {
+            generation: 4,
+            models: vec![],
+            error: Some("timeout".to_owned()),
+        });
+
+        let state = app.config_panel.as_ref().expect("panel remains open");
+        assert!(!state.loading);
+        assert!(state.error);
+        assert_eq!(state.model, "gpt-4o");
+        assert_eq!(state.focus, 1);
+        assert!(!state.model_dropdown);
+        assert!(state.message.contains("enter a model manually"));
+        assert!(state.message.contains("timeout"));
     }
 
     #[test]

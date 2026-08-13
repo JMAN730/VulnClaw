@@ -1,4 +1,9 @@
-"""Distill completed runs into evidence-backed, pending experience lessons."""
+"""Canonical distillation of completed runs into pending experience lessons.
+
+Writes through ``vulnclaw.kb.experience.ExperienceStore`` only.  Human review
+via ``vulnclaw experience`` gates approved lessons before
+``vulnclaw.agent.experience_context`` can inject them into prompts.
+"""
 
 from __future__ import annotations
 
