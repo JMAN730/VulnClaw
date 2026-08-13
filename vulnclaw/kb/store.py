@@ -112,6 +112,15 @@ class KnowledgeStore:
                 return text if len(text) <= _TITLE_MAX else text[:_TITLE_MAX]
         return entry_id
 
+    @staticmethod
+    def entry_search_text(data: dict[str, Any], entry_id: str) -> str:
+        """Untruncated text used for index-backed searches."""
+        for key in ("title", "lesson", "context"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return entry_id
+
     @classmethod
     def index_meta_for(cls, data: dict[str, Any], filepath: Path | str) -> dict[str, Any]:
         """Build one index row from on-disk entry data."""
@@ -120,6 +129,7 @@ class KnowledgeStore:
         meta: dict[str, Any] = {
             "id": entry_id,
             "title": cls.entry_title(data, entry_id),
+            "search_text": cls.entry_search_text(data, entry_id),
             "tags": cls.normalize_tags(data),
             "file": str(path),
         }
@@ -244,12 +254,14 @@ class KnowledgeStore:
                 # Check query
                 entry_id = entry_meta.get("id", "").lower()
                 entry_title = entry_meta.get("title", "").lower()
+                entry_search_text = entry_meta.get("search_text", entry_title).lower()
                 entry_tags = " ".join(str(t) for t in entry_meta.get("tags", [])).lower()
                 entry_status = str(entry_meta.get("status", "")).lower()
 
                 if (
                     query_lower in entry_id
                     or query_lower in entry_title
+                    or query_lower in entry_search_text
                     or query_lower in entry_tags
                     or (entry_status and query_lower in entry_status)
                 ):

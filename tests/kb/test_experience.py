@@ -235,6 +235,28 @@ def test_orphan_experience_files_are_indexed_on_reconcile(tmp_path):
     assert orphan.id in listed
 
 
+def test_injected_knowledge_store_defines_experience_root(tmp_path):
+    from vulnclaw.kb.store import KnowledgeStore
+
+    kb_root = tmp_path / "injected-kb"
+    kb = KnowledgeStore(store_dir=kb_root)
+    store = ExperienceStore(knowledge_store=kb)
+    lesson = store.add(make_lesson("injected-root"))
+
+    assert store.store_dir == kb_root
+    assert (kb_root / "experience" / f"{lesson.id}.json").exists()
+    assert any(row["id"] == lesson.id for row in kb.list_entries("experience"))
+
+
+def test_rejects_mismatched_explicit_and_injected_store_roots(tmp_path):
+    from vulnclaw.kb.store import KnowledgeStore
+
+    kb = KnowledgeStore(store_dir=tmp_path / "injected-kb")
+
+    with pytest.raises(ValueError, match="store_dir must match"):
+        ExperienceStore(store_dir=tmp_path / "other-kb", knowledge_store=kb)
+
+
 def test_approved_lesson_discoverable_via_kb_search(tmp_path):
     """Integration: approve a lesson → KnowledgeStore search/index consumers see it."""
     from vulnclaw.kb.store import KnowledgeStore

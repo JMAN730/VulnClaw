@@ -176,7 +176,14 @@ class ExperienceStore:
             confidence_half_life_days = default_confidence_half_life_days()
         elif confidence_half_life_days <= 0:
             raise ValueError("confidence_half_life_days must be positive")
-        self.store_dir = Path(store_dir) if store_dir else KB_DIR
+        requested_store_dir = Path(store_dir) if store_dir else None
+        if knowledge_store is not None:
+            knowledge_store_dir = Path(knowledge_store.store_dir)
+            if requested_store_dir is not None and requested_store_dir != knowledge_store_dir:
+                raise ValueError("store_dir must match knowledge_store.store_dir")
+            self.store_dir = knowledge_store_dir
+        else:
+            self.store_dir = requested_store_dir or KB_DIR
         self.experience_dir = self.store_dir / "experience"
         self.experience_dir.mkdir(parents=True, exist_ok=True)
         self.confidence_half_life_days = confidence_half_life_days

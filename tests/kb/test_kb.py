@@ -55,6 +55,17 @@ class TestKnowledgeStore:
         assert len(results) >= 1
         assert results[0]["title"] == "Nginx Buffer Overflow"
 
+    def test_search_by_text_beyond_display_title_limit(self, tmp_path):
+        from vulnclaw.kb.store import KnowledgeStore
+
+        store = KnowledgeStore(store_dir=tmp_path)
+        title = f"{'a' * 81} searchable-suffix"
+        store.add_entry("cve", "CVE-2026-LONG", {"title": title, "tags": []})
+
+        rows = store.list_entries("cve")
+        assert len(rows[0]["title"]) == 80
+        assert store.search("searchable-suffix", category="cve")[0]["title"] == title
+
     def test_search_by_tags(self, tmp_path):
         from vulnclaw.kb.store import KnowledgeStore
 
