@@ -363,12 +363,23 @@
           <h2 data-lang="zh">构建 React 前端（必做）</h2>
           <h2 data-lang="en">Build the React frontend (required)</h2>
           <p data-lang="zh">
+            PyPI wheel 不包含 React 源码或构建产物；请先克隆仓库并使用 <code>pip install -e '.[web]'</code> 安装。
+          </p>
+          <p data-lang="en">
+            The PyPI wheel does not include the React source or build. Clone the repository and install with <code>pip install -e '.[web]'</code> first.
+          </p>
+          <p data-lang="zh">
             需要 <strong>Node.js 18+</strong>（含 npm）。在<strong>仓库根目录</strong>执行：
           </p>
           <p data-lang="en">
             Requires <strong>Node.js 18+</strong> (with npm). From the <strong>repository root</strong>:
           </p>
-          <pre class="build-block" data-lang="zh"># 1. 安装依赖并构建
+          <pre class="build-block" data-lang="zh"># 0. 获取源码并安装 Web 依赖
+git clone https://github.com/Netw0rkNoob/VulnClaw.git
+cd VulnClaw
+pip install -e '.[web]'
+
+# 1. 安装依赖并构建
 cd frontend
 npm install
 npm run build
@@ -382,7 +393,12 @@ vulnclaw web
 # 或：python -m vulnclaw.cli.main web
 
 # 4. 用终端打印的地址打开浏览器（含 ?token= 时完整复制）</pre>
-          <pre class="build-block" data-lang="en"># 1. Install deps and build
+          <pre class="build-block" data-lang="en"># 0. Get the source and install Web dependencies
+git clone https://github.com/Netw0rkNoob/VulnClaw.git
+cd VulnClaw
+pip install -e '.[web]'
+
+# 1. Install deps and build
 cd frontend
 npm install
 npm run build
@@ -479,27 +495,6 @@ vulnclaw web
       </footer>
     </main>
   </div>
-  <script>
-    (function () {
-      var root = document.documentElement;
-      var buttons = document.querySelectorAll("[data-set-lang]");
-      function setLang(lang) {
-        root.lang = lang;
-        buttons.forEach(function (btn) {
-          btn.classList.toggle("active", btn.getAttribute("data-set-lang") === lang);
-        });
-        try { localStorage.setItem("vulnclaw-fallback-lang", lang); } catch (e) {}
-      }
-      buttons.forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          setLang(btn.getAttribute("data-set-lang") || "zh-CN");
-        });
-      });
-      var saved = null;
-      try { saved = localStorage.getItem("vulnclaw-fallback-lang"); } catch (e) {}
-      if (saved === "en" || saved === "zh-CN") setLang(saved);
-      else setLang("zh-CN");
-    })();
-  </script>
+  <script src="/fallback.js" defer></script>
 </body>
 </html>

@@ -337,7 +337,9 @@ vulnclaw tui --target 192.168.1.100 --mode continuous
 Operate the full pentest workflow through a browser.
 
 ```bash
-pip install 'vulnclaw[web]'  # install Web dependencies
+git clone https://github.com/Netw0rkNoob/VulnClaw.git
+cd VulnClaw
+pip install -e '.[web]'       # install from a source checkout
 
 # First run: build the React frontend (Node.js 18+)
 cd frontend
@@ -349,7 +351,9 @@ vulnclaw web                  # launch (default 127.0.0.1:7788)
 vulnclaw web --port 8080      # custom port
 ```
 
-If you open the browser and see the **Fallback Web Shell** (no full scan UI),
+The published wheel does not contain the React build or its source files. Use
+the source-checkout installation above for the full Web UI. If you see the
+**Fallback Web Shell** (no full scan UI),
 `frontend/dist/index.html` is missing. Build as above, restart `vulnclaw web`,
 and hard-refresh. API endpoints such as `/api/health` still work while the SPA is unbuilt.
 

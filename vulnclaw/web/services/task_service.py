@@ -17,6 +17,23 @@ from vulnclaw.web.schemas import TaskCreateRequest
 from vulnclaw.web.task_manager import WebTaskManager
 
 _INJECTION_RE = re.compile(r"[\n\r\t\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_BLOCKED_HOST_SEPARATOR_RE = re.compile(r"[,\r\n]+")
+
+
+def _parse_blocked_hosts(value: str | None) -> list[str]:
+    """Parse the Web blocklist into normalized, ordered host constraints."""
+    if not value:
+        return []
+    hosts: list[str] = []
+    for raw_host in _BLOCKED_HOST_SEPARATOR_RE.split(value):
+        host = raw_host.strip().lower()
+        if not host:
+            continue
+        if _INJECTION_RE.search(host):
+            raise ValueError("Field 'blocked_host' contains invalid control characters")
+        if host not in hosts:
+            hosts.append(host)
+    return hosts
 
 
 def _validate_request_inputs(request: TaskCreateRequest) -> None:
@@ -33,7 +50,6 @@ def _validate_request_inputs(request: TaskCreateRequest) -> None:
         "cmd": request.options.cmd,
         "only_host": request.options.only_host,
         "only_path": request.options.only_path,
-        "blocked_host": request.options.blocked_host,
         "blocked_path": request.options.blocked_path,
         "run_name": request.run_name,
     }
@@ -42,6 +58,7 @@ def _validate_request_inputs(request: TaskCreateRequest) -> None:
             raise ValueError(
                 f"Field '{name}' contains control characters (newlines/tabs/etc.) — rejected to prevent prompt injection"
             )
+    _parse_blocked_hosts(request.options.blocked_host)
     if request.additional_targets:
         for i, t in enumerate(request.additional_targets):
             if isinstance(t, str) and _INJECTION_RE.search(t):
@@ -244,8 +261,9 @@ def _build_task_constraints(request: TaskCreateRequest) -> TaskConstraints:
         constraints.allowed_hosts.append(options.only_host)
     if options.only_path and options.only_path not in constraints.allowed_paths:
         constraints.allowed_paths.append(options.only_path)
-    if options.blocked_host and options.blocked_host not in constraints.blocked_hosts:
-        constraints.blocked_hosts.append(options.blocked_host)
+    for blocked_host in _parse_blocked_hosts(options.blocked_host):
+        if blocked_host not in constraints.blocked_hosts:
+            constraints.blocked_hosts.append(blocked_host)
     if options.blocked_path and options.blocked_path not in constraints.blocked_paths:
         constraints.blocked_paths.append(options.blocked_path)
     if options.allow_actions:
@@ -297,8 +315,8 @@ def _build_prompt_v2(request: TaskCreateRequest) -> str:
         constraints.append(f"Only test host {request.options.only_host}")
     if request.options.only_path:
         constraints.append(f"Only test path {request.options.only_path}")
-    if request.options.blocked_host:
-        constraints.append(f"Blocked host {request.options.blocked_host}")
+    for blocked_host in _parse_blocked_hosts(request.options.blocked_host):
+        constraints.append(f"Blocked host {blocked_host}")
     if request.options.blocked_path:
         constraints.append(f"Blocked path {request.options.blocked_path}")
     if request.options.allow_actions:

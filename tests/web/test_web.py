@@ -1375,8 +1375,33 @@ class TestWebApp:
         assert "npm run build" in source
         assert "vulnclaw web" in source
         assert "Node.js 18+" in source
+        assert '<script src="/fallback.js" defer></script>' in source
+        assert "<script>" not in source
         assert "React 前端仍待后续阶段接入" not in source
         assert "Phase 1 的最小占位控制台" not in source
+
+    def test_multiple_blocked_hosts_become_individual_hard_constraints(self):
+        from vulnclaw.web.schemas import TaskCreateRequest, TaskOptions
+        from vulnclaw.web.services.task_service import (
+            _build_prompt_v2,
+            _build_task_constraints,
+        )
+
+        request = TaskCreateRequest(
+            command="run",
+            target="https://example.com",
+            options=TaskOptions(
+                blocked_host="A.example, b.example\r\na.example\n\n c.example"
+            ),
+        )
+
+        constraints = _build_task_constraints(request)
+        assert constraints.blocked_hosts == ["a.example", "b.example", "c.example"]
+        assert constraints.strict_mode is True
+        prompt = _build_prompt_v2(request)
+        assert "Blocked host a.example" in prompt
+        assert "Blocked host b.example" in prompt
+        assert "Blocked host c.example" in prompt
 
     def test_frontend_usability_issue_112_checklist(self):
         """Lightweight source checks for Web UI usability (issue #112)."""
