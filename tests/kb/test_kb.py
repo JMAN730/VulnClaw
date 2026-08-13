@@ -4,6 +4,14 @@
 # ── store.py ─────────────────────────────────────────────────────────
 
 
+import os
+import stat
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
+import pytest
+
+
 class TestKnowledgeStore:
     """Test KnowledgeStore."""
 
@@ -137,6 +145,21 @@ class TestKnowledgeStore:
         store.add_entry("cve", "CVE-2026-0001", {"title": "Test", "tags": []})
         assert (tmp_path / "index.json").exists()
 
+    def test_index_file_permissions_are_owner_only_after_every_write(self, tmp_path):
+        from vulnclaw.kb.store import KnowledgeStore
+
+        if os.name == "nt":
+            pytest.skip("Windows chmod does not expose POSIX owner/group mode bits")
+
+        store = KnowledgeStore(store_dir=tmp_path)
+        index_path = tmp_path / "index.json"
+        assert stat.S_IMODE(index_path.stat().st_mode) == 0o600
+
+        os.chmod(index_path, 0o666)
+        store.add_entry("tools", "permission-check", {"title": "Private", "tags": []})
+
+        assert stat.S_IMODE(index_path.stat().st_mode) == 0o600
+
     def test_add_entry_upserts_without_duplicate_index_rows(self, tmp_path):
         from vulnclaw.kb.store import KnowledgeStore
 
@@ -149,6 +172,31 @@ class TestKnowledgeStore:
         assert rows[0]["title"] == "Second"
         assert rows[0]["tags"] == ["b"]
         assert store.get_entry("cve", "CVE-2026-dup")["title"] == "Second"
+
+    def test_concurrent_store_instances_preserve_all_index_mutations(self, tmp_path):
+        import json
+
+        from vulnclaw.kb.store import KnowledgeStore
+
+        count = 8
+        stores = [KnowledgeStore(store_dir=tmp_path) for _ in range(count)]
+        barrier = threading.Barrier(count)
+
+        def add_entry(index: int) -> None:
+            barrier.wait()
+            stores[index].add_entry(
+                "tools",
+                f"concurrent-{index}",
+                {"title": f"Concurrent {index}", "tags": ["concurrency"]},
+            )
+
+        with ThreadPoolExecutor(max_workers=count) as executor:
+            list(executor.map(add_entry, range(count)))
+
+        persisted = json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))
+        ids = {row["id"] for row in persisted["tools"]}
+
+        assert ids == {f"concurrent-{index}" for index in range(count)}
 
     def test_upsert_index_entry_is_idempotent(self, tmp_path):
         from vulnclaw.kb.store import KnowledgeStore

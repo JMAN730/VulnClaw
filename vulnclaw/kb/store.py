@@ -3,12 +3,49 @@
 from __future__ import annotations
 
 import json
+import os
+import threading
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
+from uuid import uuid4
 
 from vulnclaw.config.settings import KB_DIR
 
 _TITLE_MAX = 80
+_INDEX_PROCESS_LOCK = threading.RLock()
+
+
+@contextmanager
+def _index_file_lock(path: Path) -> Iterator[None]:
+    """Serialize index read-modify-write transactions across processes."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with _INDEX_PROCESS_LOCK, open(path, "a+b") as handle:
+        try:
+            path.chmod(0o600)
+        except OSError:
+            pass
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"0")
+            handle.flush()
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            handle.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 class KnowledgeStore:
@@ -32,18 +69,27 @@ class KnowledgeStore:
 
     def _load_index(self) -> None:
         """Load or build the KB index."""
+        with _index_file_lock(self.store_dir / ".index.lock"):
+            if not self._read_index_unlocked():
+                self._build_index()
+                self._save_index_unlocked()
+
+    def _read_index_unlocked(self) -> bool:
         index_file = self.store_dir / "index.json"
-        if index_file.exists():
-            try:
-                with open(index_file, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-                self._index = raw if isinstance(raw, dict) else {}
-            except (json.JSONDecodeError, IOError):
-                self._index = {}
-        else:
+        if not index_file.exists():
             self._index = {}
-            self._build_index()
-            self._save_index()
+            return False
+        try:
+            with open(index_file, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+            if not isinstance(raw, dict):
+                self._index = {}
+                return False
+            self._index = raw
+            return True
+        except (json.JSONDecodeError, IOError):
+            self._index = {}
+            return False
 
     def _build_index(self) -> None:
         """Scan KB directory and build index."""
@@ -69,9 +115,26 @@ class KnowledgeStore:
 
     def _save_index(self) -> None:
         """Persist the index to disk."""
+        with _index_file_lock(self.store_dir / ".index.lock"):
+            self._save_index_unlocked()
+
+    def _save_index_unlocked(self) -> None:
+        """Atomically persist the index while the store-wide lock is held."""
         index_file = self.store_dir / "index.json"
-        with open(index_file, "w", encoding="utf-8") as f:
-            json.dump(self._index, f, ensure_ascii=False, indent=2)
+        temporary = self.store_dir / f".index.{os.getpid()}.{uuid4().hex}.tmp"
+        try:
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as f:
+                json.dump(self._index, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary, index_file)
+            try:
+                index_file.chmod(0o600)
+            except OSError:
+                pass
+        finally:
+            temporary.unlink(missing_ok=True)
 
     @staticmethod
     def normalize_tags(data: dict[str, Any]) -> list[str]:
@@ -153,23 +216,29 @@ class KnowledgeStore:
         payload = dict(data)
         payload["id"] = entry_id
         meta = self.index_meta_for(payload, filepath)
-        metas = self._index.setdefault(category, [])
-        metas[:] = [row for row in metas if row.get("id") != entry_id]
-        metas.append(meta)
-        self._save_index()
+        with _index_file_lock(self.store_dir / ".index.lock"):
+            if not self._read_index_unlocked():
+                self._build_index()
+            metas = self._index.setdefault(category, [])
+            metas[:] = [row for row in metas if row.get("id") != entry_id]
+            metas.append(meta)
+            self._save_index_unlocked()
         return meta
 
     def remove_index_entry(self, category: str, entry_id: str) -> bool:
         """Drop an entry from the in-memory + on-disk index. True if removed."""
-        metas = self._index.get(category)
-        if not metas:
-            return False
-        before = len(metas)
-        metas[:] = [row for row in metas if row.get("id") != entry_id]
-        if len(metas) == before:
-            return False
-        self._save_index()
-        return True
+        with _index_file_lock(self.store_dir / ".index.lock"):
+            if not self._read_index_unlocked():
+                self._build_index()
+            metas = self._index.get(category)
+            if not metas:
+                return False
+            before = len(metas)
+            metas[:] = [row for row in metas if row.get("id") != entry_id]
+            if len(metas) == before:
+                return False
+            self._save_index_unlocked()
+            return True
 
     def rebuild_index(self) -> dict[str, int]:
         """Rescan category directories and rewrite ``index.json`` from disk.
@@ -177,9 +246,10 @@ class KnowledgeStore:
         Safe migration path for experience (or other) files written without
         an index update. Returns category counts after rebuild.
         """
-        self._build_index()
-        self._save_index()
-        return self.get_stats()
+        with _index_file_lock(self.store_dir / ".index.lock"):
+            self._build_index()
+            self._save_index_unlocked()
+            return self.get_stats()
 
     def add_entry(self, category: str, entry_id: str, data: dict[str, Any]) -> Path:
         """Add or replace a knowledge entry.
@@ -270,6 +340,8 @@ class KnowledgeStore:
                     if filepath and Path(filepath).exists():
                         with open(filepath, "r", encoding="utf-8") as f:
                             data = json.load(f)
+                        if cat == "experience" and data.get("status") != "approved":
+                            continue
                         data["_category"] = cat
                         results.append(data)
 
@@ -292,6 +364,8 @@ class KnowledgeStore:
                     with open(filepath, "r", encoding="utf-8") as f:
                         data = json.load(f)
                 except (json.JSONDecodeError, IOError):
+                    continue
+                if cat == "experience" and data.get("status") != "approved":
                     continue
                 data["_category"] = cat
                 entries.append(data)

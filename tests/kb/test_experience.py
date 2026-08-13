@@ -235,6 +235,48 @@ def test_orphan_experience_files_are_indexed_on_reconcile(tmp_path):
     assert orphan.id in listed
 
 
+def test_reconcile_migrates_legacy_experience_index_metadata(tmp_path):
+    """Matching IDs do not hide legacy rows missing lifecycle/search metadata."""
+    import json
+
+    experience_dir = tmp_path / "experience"
+    experience_dir.mkdir(parents=True)
+    lesson = make_lesson("legacy-index-meta").model_copy(
+        update={"status": LessonStatus.APPROVED}
+    )
+    lesson_path = experience_dir / f"{lesson.id}.json"
+    lesson_path.write_text(
+        json.dumps(lesson.model_dump(mode="json"), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (tmp_path / "index.json").write_text(
+        json.dumps(
+            {
+                "experience": [
+                    {
+                        "id": lesson.id,
+                        "title": "legacy title",
+                        "tags": ["sqli"],
+                        "file": str(lesson_path),
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    ExperienceStore(tmp_path)
+    from vulnclaw.kb.store import KnowledgeStore
+
+    kb = KnowledgeStore(store_dir=tmp_path)
+    row = next(item for item in kb.list_entries("experience") if item["id"] == lesson.id)
+
+    assert row["status"] == "approved"
+    assert row["search_text"] == lesson.lesson
+    assert "status:approved" in row["tags"]
+    assert row["title"] != "legacy title"
+
+
 def test_injected_knowledge_store_defines_experience_root(tmp_path):
     from vulnclaw.kb.store import KnowledgeStore
 
@@ -283,3 +325,29 @@ def test_approved_lesson_discoverable_via_kb_search(tmp_path):
     meta = next(row for row in listed if row["id"] == lesson.id)
     assert meta["status"] == "approved"
     assert "sql-injection" in meta["tags"]
+
+
+def test_generic_kb_retrieval_only_exposes_approved_experience(tmp_path):
+    """Pending and rejected lessons never enter generic retrieval corpora."""
+    from vulnclaw.kb.store import KnowledgeStore
+
+    experience = ExperienceStore(tmp_path)
+    pending = experience.add(make_lesson("generic-pending"))
+    rejected = experience.add(make_lesson("generic-rejected"))
+    experience.reject(rejected.id)
+    approved = experience.add(make_lesson("generic-approved"))
+    experience.approve(approved.id)
+
+    kb = KnowledgeStore(store_dir=tmp_path)
+
+    search_ids = {entry["id"] for entry in kb.search("parameterized-query")}
+    corpus_ids = {
+        entry["id"]
+        for entry in kb.iter_all_entries()
+        if entry.get("_category") == "experience"
+    }
+
+    assert search_ids == {approved.id}
+    assert corpus_ids == {approved.id}
+    assert experience.get(pending.id) is not None
+    assert experience.get(rejected.id) is not None
