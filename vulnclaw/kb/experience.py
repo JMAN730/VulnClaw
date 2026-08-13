@@ -34,6 +34,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from vulnclaw.config.settings import KB_DIR
+from vulnclaw.kb.store import KnowledgeStore
 
 
 class LessonScope(str, Enum):
@@ -169,23 +170,38 @@ class ExperienceStore:
 
     Each lesson is stored as ``<kb>/experience/<lesson-id>.json``.  Writes
     use a lock plus atomic replacement, avoiding partially written JSON when
-    multiple completed runs are distilled at the same time.
+    multiple completed runs are distilled at the same time.  Every create,
+    update, status flip, merge, and delete also upserts or removes the
+    shared KB ``index.json`` row so index/search consumers see the same
+    set of files as disk.
     """
+
+    CATEGORY = "experience"
 
     def __init__(
         self,
         store_dir: Optional[Path] = None,
         *,
         confidence_half_life_days: Optional[float] = None,
+        knowledge_store: Optional[KnowledgeStore] = None,
     ) -> None:
         if confidence_half_life_days is None:
             confidence_half_life_days = default_confidence_half_life_days()
         elif confidence_half_life_days <= 0:
             raise ValueError("confidence_half_life_days must be positive")
-        self.store_dir = Path(store_dir) if store_dir else KB_DIR
+        requested_store_dir = Path(store_dir) if store_dir else None
+        if knowledge_store is not None:
+            knowledge_store_dir = Path(knowledge_store.store_dir)
+            if requested_store_dir is not None and requested_store_dir != knowledge_store_dir:
+                raise ValueError("store_dir must match knowledge_store.store_dir")
+            self.store_dir = knowledge_store_dir
+        else:
+            self.store_dir = requested_store_dir or KB_DIR
         self.experience_dir = self.store_dir / "experience"
         self.experience_dir.mkdir(parents=True, exist_ok=True)
         self.confidence_half_life_days = confidence_half_life_days
+        self._kb = knowledge_store or KnowledgeStore(store_dir=self.store_dir)
+        self.reconcile_index()
 
     def add(self, lesson: Lesson | Mapping[str, Any]) -> Lesson:
         """Persist a new lesson as pending, regardless of caller-supplied status."""
@@ -292,6 +308,51 @@ class ExperienceStore:
             self._write_lesson(merged)
         return merged
 
+    def delete(self, lesson_id: str) -> bool:
+        """Remove a lesson file and its shared KB index row.
+
+        Returns ``True`` when a lesson file was present and removed.
+        Missing lessons return ``False`` after a best-effort index cleanup.
+        """
+        with _file_lock(self.experience_dir / ".experience.lock"):
+            path = self._lesson_path(lesson_id)
+            removed = False
+            if path.exists():
+                path.unlink()
+                removed = True
+            self._remove_from_index(lesson_id)
+            return removed
+
+    def reconcile_index(self) -> dict[str, int]:
+        """Ensure every on-disk lesson JSON appears once in ``index.json``.
+
+        Used on store construction (migration for lessons written before
+        index maintenance) and can be called again after manual filesystem
+        changes. Returns category counts from the rebuilt index when a
+        rebuild was required, otherwise the current stats.
+        """
+        on_disk = {path.stem for path in self.experience_dir.glob("*.json")}
+        self._kb._load_index()
+        indexed = {
+            str(meta.get("id"))
+            for meta in self._kb.list_entries(self.CATEGORY)
+            if meta.get("id")
+        }
+        # Also rebuild when index rows point at missing files (stale delete).
+        stale = False
+        for meta in self._kb.list_entries(self.CATEGORY):
+            file_path = meta.get("file")
+            if not file_path or not Path(file_path).exists():
+                stale = True
+                break
+            stem = Path(file_path).stem
+            if stem not in on_disk and meta.get("id") not in on_disk:
+                stale = True
+                break
+        if on_disk != indexed or stale or not (self.store_dir / "index.json").exists():
+            return self._kb.rebuild_index()
+        return self._kb.get_stats()
+
     def combine_confidence(self, existing: float, incoming: float) -> float:
         """Combine confidence for reinforcement; subclasses may supply a policy."""
         return min(1.0, existing + incoming * (1.0 - existing))
@@ -325,9 +386,10 @@ class ExperienceStore:
     def _write_lesson(self, lesson: Lesson) -> None:
         path = self._lesson_path(lesson.id)
         temporary = self.experience_dir / f".{lesson.id}.{os.getpid()}.{uuid4().hex}.tmp"
+        payload = lesson.model_dump(mode="json")
         try:
             with open(temporary, "w", encoding="utf-8") as handle:
-                json.dump(lesson.model_dump(mode="json"), handle, ensure_ascii=False, indent=2)
+                json.dump(payload, handle, ensure_ascii=False, indent=2)
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, path)
@@ -337,6 +399,16 @@ class ExperienceStore:
                 pass
         finally:
             temporary.unlink(missing_ok=True)
+        self._upsert_index(lesson.id, path, payload)
+
+    def _upsert_index(self, lesson_id: str, path: Path, payload: Mapping[str, Any]) -> None:
+        """Upsert the shared KB index row for a lesson (no duplicate rows)."""
+        self._kb._load_index()
+        self._kb.upsert_index_entry(self.CATEGORY, lesson_id, path, dict(payload))
+
+    def _remove_from_index(self, lesson_id: str) -> None:
+        self._kb._load_index()
+        self._kb.remove_index_entry(self.CATEGORY, lesson_id)
 
     def _lesson_path(self, lesson_id: str) -> Path:
         if not isinstance(lesson_id, str) or not _SAFE_ID.fullmatch(lesson_id):
