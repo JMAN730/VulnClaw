@@ -11,6 +11,7 @@
 [![PyPI](https://img.shields.io/badge/PyPI-v0.3.8-blueviolet)](https://pypi.org/project/vulnclaw/)
 [![codecov](https://codecov.io/gh/Netw0rkNoob/VulnClaw/branch/main/graph/badge.svg)](https://codecov.io/gh/Netw0rkNoob/VulnClaw)
 [![Security](https://img.shields.io/badge/Scope-Authorized_Only-red)](#-security-notice)
+[![Discord](https://img.shields.io/badge/Discord-Join_Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/q5nrZpe6S)
 [![AtomGitStars](https://atomgit.com/Unclecheng-li/VulnClaw/star/badge.svg)](https://atomgit.com/Unclecheng-li/VulnClaw)
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://kimi-file.moonshot.cn/prod-chat-kimi/kfs/4/1/2026-06-05/1d8h69mt3v89kkekg24gg">
@@ -23,6 +24,8 @@
 **This project is a standalone AI penetration testing Agent.**
 <br>
 Official Website: https://unclecheng-li.github.io/vulnclaw.com/
+<br>
+💬 **Community**: [Join our Discord](https://discord.gg/q5nrZpe6S)
 <br>
 
 Built on LLM Agent + MCP Toolchain + optional Skill reference material,
@@ -131,22 +134,31 @@ docker run --rm -it \
 ### Four-Step Launch
 
 ```bash
-# 1. Select provider (auto-fills Base URL and model name)
-vulnclaw config provider minimax   # or openai / anthropic / deepseek / zhipu / moonshot / qwen / siliconflow / ollama
+# 1. Launch CLI 
+vulnclaw 
 
 # 1.2 (optional) custom Base URL or model name
 vulnclaw config set llm.base_url https://your-own-api.example.com/v1
 vulnclaw config set llm.model your-model-name
 
-# 2. Set API Key
-vulnclaw config set llm.api_key sk-your-key-here
-#    — or sign in with ChatGPT subscription (no API key needed):
+# 2. Select provider
+vulnclaw config provider <name>
+
+# 3. Perform Pentest / Bug-Bounty / Whatever you want
+vulnclaw run example.com
+vulnclaw recon example.com
+
+
+#    — or sign in with ChatGPT subscription (no API key needed):  ***YOUR ACCOUNT MAY GET FLAGGED FOR CYBER ABUSE
 #      vulnclaw login   (browser sign-in; see docs/keyless-auth.md, note ToS caveat)
 
 # 3. Default: open the original CLI / REPL
 vulnclaw
 
-# 4. Optional: open the TUI workbench
+# 3.1 Optional: open the web interface
+vulnclaw web 
+
+# 3.2 Optional: open the TUI workbench
 vulnclaw tui
 ```
 
@@ -205,6 +217,7 @@ $ vulnclaw --help
    plugins       🧩 Manage vulnerability detection plugins (list/info/run)
    init          🔧 Initialize configuration
    doctor        🏥  Check runtime environment
+   login         🔐 Sign in with a ChatGPT subscription
    tui           🖥️  Open the terminal UI workbench
    web           🌐 Launch local Web UI
 ```
@@ -221,6 +234,7 @@ $ vulnclaw --help
 | `vulnclaw scan <target>` | Vulnerability scanning | `vulnclaw scan target.com --ports 80,443` |
 | `vulnclaw exploit <target>` | Exploitation phase | `vulnclaw exploit target.com --cve CVE-2024-1234` |
 | `vulnclaw report <session>` | Generate report from session JSON | `vulnclaw report session_xxx.json` |
+| `vulnclaw login` | Sign in with a ChatGPT subscription | `vulnclaw login` |
 | `vulnclaw config set <key> <value>` | Set a config value | `vulnclaw config set llm.api_key sk-xxx` |
 | `vulnclaw config provider <name>` | Switch LLM provider | `vulnclaw config provider minimax` |
 | `vulnclaw plugins list` | List vulnerability detection plugins | `vulnclaw plugins list --stage discovery` |
