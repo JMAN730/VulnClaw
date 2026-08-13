@@ -11,6 +11,7 @@
 [![PyPI](https://img.shields.io/badge/PyPI-v0.3.8-blueviolet)](https://pypi.org/project/vulnclaw/)
 [![codecov](https://codecov.io/gh/Netw0rkNoob/VulnClaw/branch/main/graph/badge.svg)](https://codecov.io/gh/Netw0rkNoob/VulnClaw)
 [![Security](https://img.shields.io/badge/Scope-Authorized_Only-red)](#-security-notice)
+[![Discord](https://img.shields.io/badge/Discord-Join_Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/q5nrZpe6S)
 [![AtomGitStars](https://atomgit.com/Unclecheng-li/VulnClaw/star/badge.svg)](https://atomgit.com/Unclecheng-li/VulnClaw)
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://kimi-file.moonshot.cn/prod-chat-kimi/kfs/4/1/2026-06-05/1d8h69mt3v89kkekg24gg">
@@ -23,6 +24,8 @@
 **This project is a standalone AI penetration testing Agent.**
 <br>
 Official Website: https://unclecheng-li.github.io/vulnclaw.com/
+<br>
+💬 **Community**: [Join our Discord](https://discord.gg/q5nrZpe6S)
 <br>
 
 Built on LLM Agent + MCP Toolchain + optional Skill reference material,
@@ -68,7 +71,7 @@ Suitable for authorized pentests, CTF competitions, security training, and red t
 - **Lightweight Correction Layer** — Records repeated calls, degraded tools, timing, and new observations; repeated reads of the same evidence range are suppressed and evidence-only stalls trigger a stall guard without restoring the old stage planner
 - **Evidence-Level Anti-Hallucination Gate** — Claims about flags/conclusions must appear verbatim in real tool output to be accepted; prevents fabricated flags
 - **Natural Language Driven** — Describe your goal in plain English, auto-identifies phases and tools
-- **14 LLM Providers** — OpenAI / Anthropic / MiniMax / DeepSeek / Zhipu / Moonshot / Qwen / SiliconFlow / Doubao / Baichuan / StepFun / SenseTime / Yi / local Ollama, one-command switch
+- **15 LLM Provider Presets** — OpenAI / Anthropic / MiniMax / DeepSeek / Zhipu / Moonshot / Qwen / SiliconFlow / Doubao / Baichuan / StepFun / SenseTime / Yi / OpenRouter (model gateway) / local Ollama, one-command switch
 - **MCP Toolchain** — 4 MCP services: `fetch` / `memory` run locally out-of-the-box, `chrome-devtools` / `burp` connect to external MCP servers for browser automation and HTTP interception
 - **Enhanced fetch request tool** — Defaults to GET, returns the full response body, and supports HTTP/HTTPS, custom method/headers/params/cookies/body/data/form/json, timeout/redirect/TLS controls; TLS verification is off by default for CTF/lab HTTPS targets
 - **Native Traffic Evidence Store** — In-scope request/response pairs land in an append-only JSONL index under `evidence/traffic/`. Built-in `traffic_list` / `traffic_view` / `traffic_repeat` / `traffic_sitemap` tools read and replay the store
@@ -131,22 +134,31 @@ docker run --rm -it \
 ### Four-Step Launch
 
 ```bash
-# 1. Select provider (auto-fills Base URL and model name)
-vulnclaw config provider minimax   # or openai / anthropic / deepseek / zhipu / moonshot / qwen / siliconflow / ollama
+# 1. Launch CLI
+vulnclaw
 
 # 1.2 (optional) custom Base URL or model name
 vulnclaw config set llm.base_url https://your-own-api.example.com/v1
 vulnclaw config set llm.model your-model-name
 
-# 2. Set API Key
-vulnclaw config set llm.api_key sk-your-key-here
-#    — or sign in with ChatGPT subscription (no API key needed):
+# 2. Select provider
+vulnclaw config provider <name>
+
+# 3. Perform Pentest / Bug-Bounty / Whatever you want
+vulnclaw run example.com
+vulnclaw recon example.com
+
+
+#    — or sign in with ChatGPT subscription (no API key needed):  ***YOUR ACCOUNT MAY GET FLAGGED FOR CYBER ABUSE
 #      vulnclaw login   (browser sign-in; see docs/keyless-auth.md, note ToS caveat)
 
 # 3. Default: open the original CLI / REPL
 vulnclaw
 
-# 4. Optional: open the TUI workbench
+# 3.1 Optional: open the web interface
+vulnclaw web
+
+# 3.2 Optional: open the TUI workbench
 vulnclaw tui
 ```
 
@@ -205,6 +217,7 @@ $ vulnclaw --help
    plugins       🧩 Manage vulnerability detection plugins (list/info/run)
    init          🔧 Initialize configuration
    doctor        🏥  Check runtime environment
+   login         🔐 Sign in with a ChatGPT subscription
    tui           🖥️  Open the terminal UI workbench
    web           🌐 Launch local Web UI
 ```
@@ -221,6 +234,7 @@ $ vulnclaw --help
 | `vulnclaw scan <target>` | Vulnerability scanning | `vulnclaw scan target.com --ports 80,443` |
 | `vulnclaw exploit <target>` | Exploitation phase | `vulnclaw exploit target.com --cve CVE-2024-1234` |
 | `vulnclaw report <session>` | Generate report from session JSON | `vulnclaw report session_xxx.json` |
+| `vulnclaw login` | Sign in with a ChatGPT subscription | `vulnclaw login` |
 | `vulnclaw config set <key> <value>` | Set a config value | `vulnclaw config set llm.api_key sk-xxx` |
 | `vulnclaw config provider <name>` | Switch LLM provider | `vulnclaw config provider minimax` |
 | `vulnclaw plugins list` | List vulnerability detection plugins | `vulnclaw plugins list --stage discovery` |
@@ -410,7 +424,7 @@ FINAL passes evidence gate → accepted; otherwise the rejection is fed back and
 | **Plugin System** | `plugins/` | Low-coupling vulnerability detection plugin runtime |
 | **Skill reference index** | `skills/loader.py` + `resolver.py` | Task-aware optional references without forced workflow injection |
 | **MCP Orchestration** | `mcp/registry.py` + `lifecycle.py` + `router.py` | Service registry + lifecycle + tool routing |
-| **Config** | `config/schema.py` + `settings.py` | Pydantic + YAML + 14 provider presets + SubagentConfig |
+| **Config** | `config/schema.py` + `settings.py` | Pydantic + YAML + 15 provider presets + SubagentConfig |
 | **Report Generator** | `report/generator.py` + `poc_builder.py` | Markdown reports + PoC scripts |
 | **Security KB** | `kb/store.py` + `retriever.py` | JSON storage + CVE/technique/tool retrieval |
 
@@ -569,6 +583,7 @@ vulnclaw config provider minimax   # one-command switch
 | StepFun | `provider stepfun` | step-3.5-flash |
 | SenseTime | `provider sensetime` | SenseNova-6.7-Flash-Lite |
 | Yi | `provider yi` | yi-lightning |
+| OpenRouter | `provider openrouter` | anthropic/claude-sonnet-5 |
 | Ollama (local) | `provider ollama` | llama3.1 |
 | Custom | `provider custom` | manual |
 

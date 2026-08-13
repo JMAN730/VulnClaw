@@ -223,3 +223,34 @@ def test_target_scoped_lesson_matches_the_persisted_target_identifier(tmp_path):
     )
 
     assert "target-only" in context
+
+def test_create_approve_injects_via_agent_core_production_path(tmp_path):
+    """Regression: store write → approve → AgentCore prompt builder injection."""
+    from vulnclaw.agent.core import AgentCore
+    from vulnclaw.config.schema import VulnClawConfig
+
+    store = ExperienceStore(store_dir=tmp_path)
+    pending = store.add(
+        _lesson(
+            "core-path-lesson",
+            lesson="Favor parameter-stable probes on matching stacks.",
+        )
+    )
+    store.approve(pending.id)
+
+    config = VulnClawConfig()
+    config.session.output_dir = tmp_path / "session-out"
+    agent = AgentCore(config)
+    agent._experience_store = store
+    agent.context.state.target = "demo.example"
+    agent.context.state.recon_data = {
+        "services": ["nginx/1.24"],
+        "technologies": ["php"],
+    }
+    agent.context.state.findings = [SimpleNamespace(vuln_type="sqli")]
+
+    prompt = agent._build_system_prompt(user_input="sqli", target="demo.example")
+
+    assert "## Prior Experience / Lessons" in prompt
+    assert "Favor parameter-stable probes" in prompt
+
