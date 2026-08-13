@@ -93,3 +93,41 @@ def test_errors_render_inside_the_panel():
     output = _render(model)
 
     assert "API key" in output
+
+
+def test_collapsed_mcp_server_shows_transport_and_enabled_summary():
+    from vulnclaw.config.schema import MCPServerConfig, MCPTransportConfig
+
+    config = VulnClawConfig()
+    config.mcp.servers["demo"] = MCPServerConfig(
+        name="demo",
+        enabled=True,
+        priority=1,
+        transport=MCPTransportConfig(type="stdio", command="run-me"),
+    )
+    model = ConfigPanelModel(config)
+    model._expanded.add("mcp")
+
+    output = _render(model)
+
+    assert "demo" in output
+    assert "stdio" in output
+    assert "enabled" in output
+    # Nested fields stay hidden while the server group is collapsed.
+    assert "Priority" not in output
+
+
+def test_viewport_render_omits_rows_outside_the_window():
+    model = ConfigPanelModel(VulnClawConfig())
+    model.toggle_expand()  # expand llm
+    model.set_viewport_height(4)
+    # Leave focus near the top so only the first four logical rows are painted.
+    model._focus_key = "llm"
+
+    output = _render(model)
+
+    assert "LLM" in output
+    assert "Provider" in output
+    # "Save" is the last logical row and should be scrolled out of view.
+    assert "Save" not in output
+    assert "Session" not in output

@@ -521,6 +521,87 @@ def test_llm_summary_flags_that_the_key_pool_wins(model):
     assert "pool" in model.summary("llm").lower()
 
 
+def test_nested_mcp_summary_shows_transport_and_enabled_state():
+    model = _with_server(name="demo", enabled=True)
+    summary = model.summary("mcp.demo")
+
+    assert "stdio" in summary
+    assert "enabled" in summary
+
+    model.draft.mcp.servers["demo"].enabled = False
+    model.draft.mcp.servers["demo"].transport.type = "sse"
+    summary = model.summary("mcp.demo")
+
+    assert "sse" in summary
+    assert "disabled" in summary
+
+
+def test_viewport_only_returns_the_visible_slice(model):
+    model.toggle_expand()  # expand llm — many fields
+    model.set_viewport_height(5)
+
+    visible = model.visible_rows()
+    all_rows = model.rows()
+
+    assert len(visible) == 5
+    assert len(all_rows) > 5
+    assert [row.key for row in visible] == [row.key for row in all_rows[:5]]
+    assert model.scroll_offset == 0
+
+
+def test_viewport_scrolls_to_keep_focus_in_view(model):
+    model.toggle_expand()
+    model.set_viewport_height(4)
+    total = len(model.rows())
+
+    # Walk focus to the end of the list.
+    for _ in range(total + 5):
+        model.focus_next()
+
+    focus_idx = model._focus_index()
+    assert model.focused.key == "action.save"
+    assert model.scroll_offset == focus_idx - 3  # height 4 → last visible is offset+3
+    visible_keys = [row.key for row in model.visible_rows()]
+    assert model.focused.key in visible_keys
+    assert len(visible_keys) == 4
+
+
+def test_viewport_scrolls_up_when_focus_moves_above_window(model):
+    model.toggle_expand()
+    model.set_viewport_height(4)
+    for _ in range(len(model.rows()) + 5):
+        model.focus_next()
+    assert model.scroll_offset > 0
+
+    for _ in range(len(model.rows()) + 5):
+        model.focus_prev()
+
+    assert model.focused.key == "llm"
+    assert model.scroll_offset == 0
+    assert model.focused.key in [row.key for row in model.visible_rows()]
+
+
+def test_focus_navigation_still_traverses_the_full_list_with_a_viewport(model):
+    """Keybindings move focus across every logical row, not just the window."""
+    model.toggle_expand()
+    model.set_viewport_height(3)
+    seen: list[str] = [model.focused.key]
+    while True:
+        model.focus_next()
+        key = model.focused.key
+        if key == seen[-1]:
+            break
+        seen.append(key)
+
+    assert "llm.provider" in seen
+    assert "session" in seen
+    assert "action.save" in seen
+    # Window never grew beyond the height.
+    assert all(len(model.visible_rows()) <= 3 for _ in [0])
+    model.focus_prev()  # leave focus somewhere mid-list after walking to end
+    assert len(model.visible_rows()) <= 3
+
+
 def test_every_panel_label_key_exists_in_both_catalogs():
     import json
     from pathlib import Path

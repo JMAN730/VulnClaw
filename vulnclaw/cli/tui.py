@@ -2611,8 +2611,15 @@ def _run_config_panel() -> None:
     screen = Console()
     model = ConfigPanelModel(load_config())
     outcome: dict[str, str] = {}
+    # Rows reserved for panel border, title, footer hint, and optional status lines.
+    _VIEWPORT_CHROME = 6
 
     def _body() -> ANSI:
+        try:
+            term_rows = shutil.get_terminal_size().lines
+        except OSError:
+            term_rows = 24
+        model.set_viewport_height(max(3, term_rows - _VIEWPORT_CHROME))
         buf = io.StringIO()
         console = Console(file=buf, force_terminal=True, width=None, color_system="truecolor")
         console.print(render_panel(model))

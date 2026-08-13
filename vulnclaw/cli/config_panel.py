@@ -319,6 +319,9 @@ class ConfigPanelModel:
         self.fetch_message = ""
         self.save_error = ""
         self._url_warning_acknowledged = False
+        # Viewport: None means "show every row" (tests / unlimited height).
+        self.viewport_height: int | None = None
+        self._scroll_offset = 0
 
     STALE_PATHS = ("llm.provider", "llm.base_url", "llm.api_key", "llm.api_keys")
 
@@ -417,7 +420,7 @@ class ConfigPanelModel:
         )
         return rows
 
-    # -- focus ------------------------------------------------------------
+    # -- focus / viewport -------------------------------------------------
 
     @property
     def focused(self) -> Row:
@@ -444,13 +447,54 @@ class ConfigPanelModel:
                 return index
         return 0
 
+    @property
+    def scroll_offset(self) -> int:
+        return self._scroll_offset
+
+    def set_viewport_height(self, height: int | None) -> None:
+        """Limit how many logical rows are drawn; keeps the focused row in view."""
+        if height is None or height < 1:
+            self.viewport_height = None
+            self._scroll_offset = 0
+            return
+        self.viewport_height = height
+        self._ensure_focus_in_view()
+
+    def _ensure_focus_in_view(self) -> None:
+        height = self.viewport_height
+        if height is None:
+            return
+        rows = self.rows()
+        n = len(rows)
+        if n == 0:
+            self._scroll_offset = 0
+            return
+        focus_idx = self._focus_index()
+        if focus_idx < self._scroll_offset:
+            self._scroll_offset = focus_idx
+        elif focus_idx >= self._scroll_offset + height:
+            self._scroll_offset = focus_idx - height + 1
+        max_offset = max(0, n - height)
+        self._scroll_offset = max(0, min(self._scroll_offset, max_offset))
+
+    def visible_rows(self) -> list[Row]:
+        """Rows to paint for the current viewport (full list when unbounded)."""
+        rows = self.rows()
+        self._ensure_focus_in_view()
+        height = self.viewport_height
+        if height is None:
+            return rows
+        return rows[self._scroll_offset : self._scroll_offset + height]
+
     def focus_next(self) -> None:
         rows = self.rows()
         self._focus_key = rows[min(self._focus_index() + 1, len(rows) - 1)].key
+        self._ensure_focus_in_view()
 
     def focus_prev(self) -> None:
         rows = self.rows()
         self._focus_key = rows[max(self._focus_index() - 1, 0)].key
+        self._ensure_focus_in_view()
 
     # -- expansion --------------------------------------------------------
 
@@ -462,21 +506,25 @@ class ConfigPanelModel:
             self._expanded.discard(row.key)
         else:
             self._expanded.add(row.key)
+        self._ensure_focus_in_view()
 
     def expand(self) -> None:
         row = self.focused
         if row.kind == "group":
             self._expanded.add(row.key)
+            self._ensure_focus_in_view()
 
     def collapse(self) -> None:
         row = self.focused
         if row.kind == "group":
             self._expanded.discard(row.key)
+            self._ensure_focus_in_view()
             return
         parent = self._parent_key(row)
         if parent is not None:
             self._expanded.discard(parent)
             self._focus_key = parent
+            self._ensure_focus_in_view()
 
     def _parent_key(self, row: Row) -> str | None:
         if row.key == "action.fetch_models":
@@ -737,6 +785,7 @@ class ConfigPanelModel:
         self.row_error = ""
         self._expanded.update({"mcp", f"mcp.{name}"})
         self._focus_key = f"mcp.{name}"
+        self._ensure_focus_in_view()
 
     def delete_server(self) -> None:
         row = self.focused
@@ -751,6 +800,7 @@ class ConfigPanelModel:
         self._expanded.discard(f"mcp.{name}")
         self._focus_key = "mcp"
         self.row_error = ""
+        self._ensure_focus_in_view()
 
     # -- validation / save / summary --------------------------------------
 
@@ -823,4 +873,12 @@ class ConfigPanelModel:
         if section_name == "mcp":
             count = len(self.draft.mcp.servers)
             return f"{count} server{'s' if count != 1 else ''}"
+        # Nested MCP server group: "mcp.<name>"
+        if section_name.startswith("mcp."):
+            name = section_name.split(".", 1)[1]
+            server = self.draft.mcp.servers.get(name)
+            if server is None:
+                return ""
+            state = "enabled" if server.enabled else "disabled"
+            return f"{server.transport.type} · {state}"
         return ""
