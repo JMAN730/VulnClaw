@@ -331,25 +331,33 @@ class ExperienceStore:
         changes. Returns category counts from the rebuilt index when a
         rebuild was required, otherwise the current stats.
         """
-        on_disk = {path.stem for path in self.experience_dir.glob("*.json")}
         self._kb._load_index()
+        expected: dict[str, dict[str, Any]] = {}
+        for path in self.experience_dir.glob("*.json"):
+            try:
+                with open(path, "r", encoding="utf-8") as handle:
+                    payload = json.load(handle)
+                if not isinstance(payload, dict):
+                    continue
+                meta = self._kb.index_meta_for(payload, path)
+                expected[str(meta["id"])] = meta
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                continue
+
+        rows = self._kb.list_entries(self.CATEGORY)
         indexed = {
-            str(meta.get("id"))
-            for meta in self._kb.list_entries(self.CATEGORY)
+            str(meta.get("id")): meta
+            for meta in rows
             if meta.get("id")
         }
-        # Also rebuild when index rows point at missing files (stale delete).
-        stale = False
-        for meta in self._kb.list_entries(self.CATEGORY):
-            file_path = meta.get("file")
-            if not file_path or not Path(file_path).exists():
-                stale = True
-                break
-            stem = Path(file_path).stem
-            if stem not in on_disk and meta.get("id") not in on_disk:
-                stale = True
-                break
-        if on_disk != indexed or stale or not (self.store_dir / "index.json").exists():
+        duplicate_rows = len(indexed) != len(rows)
+        stale_metadata = any(indexed.get(entry_id) != meta for entry_id, meta in expected.items())
+        if (
+            set(expected) != set(indexed)
+            or duplicate_rows
+            or stale_metadata
+            or not (self.store_dir / "index.json").exists()
+        ):
             return self._kb.rebuild_index()
         return self._kb.get_stats()
 
@@ -403,11 +411,9 @@ class ExperienceStore:
 
     def _upsert_index(self, lesson_id: str, path: Path, payload: Mapping[str, Any]) -> None:
         """Upsert the shared KB index row for a lesson (no duplicate rows)."""
-        self._kb._load_index()
         self._kb.upsert_index_entry(self.CATEGORY, lesson_id, path, dict(payload))
 
     def _remove_from_index(self, lesson_id: str) -> None:
-        self._kb._load_index()
         self._kb.remove_index_entry(self.CATEGORY, lesson_id)
 
     def _lesson_path(self, lesson_id: str) -> Path:

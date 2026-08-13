@@ -2246,7 +2246,8 @@ body {
   filter: brightness(0) invert(1);
 }
 
-.rail-tooltip {
+.quick-rail button .rail-tooltip,
+.sidebar-footer button .rail-tooltip {
   position: absolute;
   right: calc(100% + 10px);
   z-index: 300;
