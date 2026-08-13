@@ -1,8 +1,21 @@
-"""Durable, human-gated lessons from completed pentest runs.
+"""Canonical durable experience lessons for the self-learning loop.
 
-Lessons are deliberately kept separate from the general KB entries.  They
-remain ``pending`` until a human approves them, so an automated distillation
-step cannot teach later runs an unreviewed tactic.
+This module is the single production schema and store for cross-run lessons:
+
+* ``Lesson`` / ``EvidenceRefs`` / status enums — lesson documents on disk
+* ``ExperienceStore`` — add / get / approve / reject / merge / list_by_status
+
+Companion production surfaces (do not add a second store or CLI):
+
+* Distillation: ``vulnclaw.agent.distiller`` (``distill_run``, ``persist_distilled_lessons``)
+* Prompt injection: ``vulnclaw.agent.experience_context.build_experience_context``
+  (wired from ``AgentCore``; not language-gated with the legacy KB corpus)
+* CLI: ``vulnclaw experience`` / ``vulnclaw learn`` / ``vulnclaw feedback`` in
+  ``vulnclaw.cli.main``
+
+Lessons remain ``pending`` until a human approves them, so automated
+distillation cannot teach later runs an unreviewed tactic.  Files live at
+``<KB_DIR>/experience/<lesson-id>.json``.
 """
 
 from __future__ import annotations

@@ -428,6 +428,15 @@ class ConfigPanelModel:
         self._focus_key = rows[0].key
         return rows[0]
 
+    def _editing_row(self) -> Row | None:
+        """The row an in-progress edit began on, located by its stored key."""
+        if self._edit is None:
+            return None
+        for row in self.rows():
+            if row.key == self._edit["key"]:
+                return row
+        return None
+
     def _focus_index(self) -> int:
         rows = self.rows()
         for index, row in enumerate(rows):
@@ -568,7 +577,12 @@ class ConfigPanelModel:
     def commit_edit(self) -> None:
         if self._edit is None:
             return
-        row = self.focused
+        row = self._editing_row()
+        if row is None or row.kind != "field":
+            # Focus moved off the edited field before commit; drop the edit.
+            self._edit = None
+            self.row_error = ""
+            return
         raw = self._edit["text"].strip()
         try:
             value = self._parse(row, raw)

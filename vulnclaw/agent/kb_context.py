@@ -37,8 +37,6 @@ if TYPE_CHECKING:
     from vulnclaw.agent.agent_context import AgentContext
 
 
-from vulnclaw.agent.experience.retrieval import build_experience_context, target_context_from_agent
-from vulnclaw.agent.experience.store import ExperienceStore
 from vulnclaw.i18n import current_lang
 from vulnclaw.kb.retriever import KnowledgeRetriever, RetrieverStatus
 
@@ -161,28 +159,3 @@ def _collect_kb_context(
         "以下信息来自本地安全知识库，供参考使用：\n\n"
         f"{formatted}\n"
     )
-
-
-def _experience_store_for(agent: AgentContext) -> Optional[ExperienceStore]:
-    """Lazily create the experience store; never break prompt assembly."""
-    if getattr(agent, "_experience_store", None) is None:
-        try:
-            setattr(agent, "_experience_store", ExperienceStore())
-        except Exception as exc:
-            logger.warning("Experience store initialization failed: %s", exc)
-            setattr(agent, "_experience_store", None)
-    return getattr(agent, "_experience_store", None)
-
-
-def build_prompt_kb_and_experience_context(
-    agent: AgentContext, user_input: Optional[str] = None
-) -> str:
-    """Combine legacy KB and independently gated approved experience context."""
-    parts = [build_kb_context(agent, user_input)]
-    try:
-        store = _experience_store_for(agent)
-        if store is not None:
-            parts.append(build_experience_context(target_context_from_agent(agent, user_input), store))
-    except Exception as exc:
-        logger.warning("Experience context build failed: %s", exc)
-    return "\n\n".join(part for part in parts if part)
