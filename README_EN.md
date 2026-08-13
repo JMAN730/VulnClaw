@@ -140,12 +140,12 @@ vulnclaw
 vulnclaw config set llm.base_url https://your-own-api.example.com/v1
 vulnclaw config set llm.model your-model-name
 
-# 2. Select provider 
-vulnclaw /config 
+# 2. Select provider
+vulnclaw config provider <name>
 
 # 3. Perform Pentest / Bug-Bounty / Whatever you want
-vulnclaw perform a pentest on example.com 
-vulnclaw recon on example.com
+vulnclaw run example.com
+vulnclaw recon example.com
 
 
 #    — or sign in with ChatGPT subscription (no API key needed):  ***YOUR ACCOUNT MAY GET FLAGGED FOR CYBER ABUSE
@@ -216,6 +216,7 @@ $ vulnclaw --help
    plugins       🧩 Manage vulnerability detection plugins (list/info/run)
    init          🔧 Initialize configuration
    doctor        🏥  Check runtime environment
+   login         🔐 Sign in with a ChatGPT subscription
    tui           🖥️  Open the terminal UI workbench
    web           🌐 Launch local Web UI
 ```
@@ -232,6 +233,7 @@ $ vulnclaw --help
 | `vulnclaw scan <target>` | Vulnerability scanning | `vulnclaw scan target.com --ports 80,443` |
 | `vulnclaw exploit <target>` | Exploitation phase | `vulnclaw exploit target.com --cve CVE-2024-1234` |
 | `vulnclaw report <session>` | Generate report from session JSON | `vulnclaw report session_xxx.json` |
+| `vulnclaw login` | Sign in with a ChatGPT subscription | `vulnclaw login` |
 | `vulnclaw config set <key> <value>` | Set a config value | `vulnclaw config set llm.api_key sk-xxx` |
 | `vulnclaw config provider <name>` | Switch LLM provider | `vulnclaw config provider minimax` |
 | `vulnclaw plugins list` | List vulnerability detection plugins | `vulnclaw plugins list --stage discovery` |
