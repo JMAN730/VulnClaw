@@ -5,6 +5,7 @@ use std::time::Instant;
 use serde::{Deserialize, Serialize};
 
 use crate::exec::{self, WorkerHandle};
+use crate::i18n::{self, t, t_args};
 use crate::prompts::text;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crate::protocol::{AppEvent, Finding, StreamEvent};
@@ -539,10 +540,10 @@ impl ConfigPanelState {
         self.model_dropdown = false;
         self.loading = false;
         if self.can_fetch() {
-            self.message = "Press Fetch to load models.".to_owned();
+            self.message = t("tui.native_config.fetch_idle");
             self.error = false;
         } else {
-            self.message = "Fetch requires a provider, URL, and API key.".to_owned();
+            self.message = t("tui.native_config.fetch_requires");
             self.error = false;
         }
     }
@@ -568,10 +569,19 @@ impl ConfigPanelState {
         } else {
             self.base_url.as_str()
         };
-        let model = if self.model.is_empty() { "(none)" } else { &self.model };
-        format!(
-            "provider {}  url {}  key {}  model {}",
-            self.provider, base_url, key, model
+        let model = if self.model.is_empty() {
+            t("tui.native_config.none")
+        } else {
+            self.model.clone()
+        };
+        t_args(
+            "tui.native_config.summary",
+            &[
+                ("provider", self.provider.as_str()),
+                ("url", base_url),
+                ("key", key.as_str()),
+                ("model", model.as_str()),
+            ],
         )
     }
 
@@ -1015,21 +1025,24 @@ impl App {
     }
 
     pub fn open_config_panel(&mut self) {
-        let panel = exec::run_vulnclaw_sync(&["config", "panel-data"])
+        let payload = exec::run_vulnclaw_sync(&["config", "panel-data"])
             .ok()
             .filter(|output| output.status.success())
-            .and_then(|output| serde_json::from_slice::<serde_json::Value>(&output.stdout).ok())
-            .and_then(|value| ConfigPanelState::from_json(&value));
+            .and_then(|output| serde_json::from_slice::<serde_json::Value>(&output.stdout).ok());
+        if let Some(ref value) = payload {
+            i18n::init(value.get("language").and_then(|v| v.as_str()));
+        }
+        let panel = payload.and_then(|value| ConfigPanelState::from_json(&value));
         match panel {
             Some(mut panel) => {
                 panel.message = if panel.can_fetch() {
-                    "Press Fetch to load models.".to_owned()
+                    t("tui.native_config.fetch_idle")
                 } else {
-                    "Fetch requires a provider, URL, and API key.".to_owned()
+                    t("tui.native_config.fetch_requires")
                 };
                 self.config_panel = Some(panel);
             }
-            None => self.error("Could not load LLM configuration."),
+            None => self.error(t("tui.native_config.load_failed")),
         }
     }
 
@@ -1041,7 +1054,7 @@ impl App {
             return;
         }
         if !panel.can_fetch() {
-            panel.message = "Enter a provider, URL, and API key before fetching.".to_owned();
+            panel.message = t("tui.native_config.fetch_need_fields");
             panel.error = true;
             return;
         }
@@ -1049,7 +1062,7 @@ impl App {
         let generation = panel.generation;
         panel.loading = true;
         panel.models.clear();
-        panel.message = "Loading models…".to_owned();
+        panel.message = t("tui.native_config.loading_models");
         panel.error = false;
         let base_url = panel.base_url.clone();
         let api_key = panel.api_key.clone();
@@ -1074,7 +1087,12 @@ impl App {
                         .collect::<Vec<_>>();
                     Some((models, None))
                 })
-                .unwrap_or_else(|| (Vec::new(), Some("Model fetch returned invalid data.".to_owned()))),
+                .unwrap_or_else(|| {
+                    (
+                        Vec::new(),
+                        Some(t("tui.native_config.fetch_invalid")),
+                    )
+                }),
                 Ok(output) => (
                     Vec::new(),
                     Some(String::from_utf8_lossy(&output.stderr).trim().to_owned()),
@@ -1095,12 +1113,12 @@ impl App {
         };
         if !panel.can_save() {
             let message = if panel.api_key.trim().is_empty() {
-                "API key cannot be empty."
+                t("tui.native_config.api_key_empty")
             } else {
-                "Custom providers require a base URL."
+                t("tui.native_config.custom_need_url")
             };
             if let Some(panel) = self.config_panel.as_mut() {
-                panel.message = message.to_owned();
+                panel.message = message;
                 panel.error = true;
             }
             return;
@@ -1116,8 +1134,7 @@ impl App {
             && !panel.base_url.starts_with("https://");
         if url_warning && !panel.url_warning_acknowledged {
             if let Some(panel) = self.config_panel.as_mut() {
-                panel.message =
-                    "Base URL may be malformed; press Save again to continue.".to_owned();
+                panel.message = t("tui.native_config.url_warning");
                 panel.error = true;
                 panel.url_warning_acknowledged = true;
             }
@@ -1133,18 +1150,22 @@ impl App {
                     .unwrap_or(false);
                 self.config_panel = None;
                 if cleared_key_pool {
-                    self.status(format!(
-                        "Configuration saved: {provider}/{model} (cleared failover key pool so the new key is used)"
+                    self.status(t_args(
+                        "tui.native_config.saved_cleared_pool",
+                        &[("provider", &provider), ("model", &model)],
                     ));
                 } else {
-                    self.status(format!("Configuration saved: {provider}/{model}"));
+                    self.status(t_args(
+                        "tui.native_config.saved",
+                        &[("provider", &provider), ("model", &model)],
+                    ));
                 }
             }
             Ok(output) => {
                 let message = String::from_utf8_lossy(&output.stderr).trim().to_owned();
                 if let Some(panel) = self.config_panel.as_mut() {
                     panel.message = if message.is_empty() {
-                        "Could not save configuration.".to_owned()
+                        t("tui.native_config.save_failed")
                     } else {
                         message
                     };
@@ -1153,7 +1174,10 @@ impl App {
             }
             Err(error) => {
                 if let Some(panel) = self.config_panel.as_mut() {
-                    panel.message = format!("Could not save configuration: {error}");
+                    panel.message = t_args(
+                        "tui.native_config.save_failed_with_error",
+                        &[("error", &error.to_string())],
+                    );
                     panel.error = true;
                 }
             }
@@ -1174,7 +1198,7 @@ impl App {
                 panel.cancel_dropdown();
             } else {
                 self.config_panel = None;
-                self.status("Configuration changes discarded.");
+                self.status(t("tui.native_config.discarded"));
             }
             return;
         }
@@ -1616,15 +1640,18 @@ impl App {
                 panel.loading = false;
                 if let Some(error) = error {
                     panel.message = if error.is_empty() {
-                        "Could not fetch models; enter a model manually.".to_owned()
+                        t("tui.native_config.fetch_failed")
                     } else {
-                        format!("Could not fetch models; enter a model manually. {error}")
+                        t_args(
+                            "tui.native_config.fetch_failed_with_error",
+                            &[("error", &error)],
+                        )
                     };
                     panel.error = true;
                     return;
                 }
                 if models.is_empty() {
-                    panel.message = "No models returned; enter a model manually.".to_owned();
+                    panel.message = t("tui.native_config.no_models");
                     panel.error = true;
                     return;
                 }
@@ -1633,9 +1660,10 @@ impl App {
                 // If the previous model is absent from results, leave the typed value
                 // and surface the loaded status so they can re-enter or open the list.
                 panel.models = models;
-                panel.message = format!(
-                    "Loaded {} model(s). Select a model or type one manually.",
-                    panel.models.len()
+                let count = panel.models.len().to_string();
+                panel.message = t_args(
+                    "tui.native_config.models_loaded",
+                    &[("count", &count)],
                 );
                 panel.error = false;
             }
@@ -1891,8 +1919,10 @@ mod tests {
         strip_prompt_prefix, ActivePane, App, ConfigPanelState, ExecutionMode, PermissionMode,
         SetupState, PROVIDERS,
     };
+    use crate::i18n::{self, Lang, t};
 
     fn panel() -> ConfigPanelState {
+        i18n::set_lang(Lang::En);
         ConfigPanelState::from_json(&serde_json::json!({
             "provider": "openai",
             "base_url": "https://api.openai.com/v1",
@@ -1923,9 +1953,37 @@ mod tests {
         let masked = state.summary();
         assert!(masked.contains("••••••••"));
         assert!(!masked.contains("sk-secret-value"));
+        assert!(
+            masked.contains("provider") || masked.contains("提供商"),
+            "summary={masked}"
+        );
 
         state.reveal_key = true;
         assert!(state.summary().contains("sk-secret-value"));
+    }
+
+    #[test]
+    fn config_panel_summary_localizes_under_chinese() {
+        let state = panel();
+        i18n::set_lang(Lang::Zh);
+        let summary = state.summary();
+        assert!(summary.contains("提供商"), "summary={summary}");
+        assert!(summary.contains("模型"), "summary={summary}");
+        i18n::set_lang(Lang::En);
+    }
+
+    #[test]
+    fn config_panel_status_messages_use_active_locale() {
+        i18n::set_lang(Lang::En);
+        let mut state = panel();
+        state.invalidate_fetch();
+        assert_eq!(state.message, t("tui.native_config.fetch_idle"));
+
+        i18n::set_lang(Lang::Zh);
+        state.api_key.clear();
+        state.invalidate_fetch();
+        assert_eq!(state.message, t("tui.native_config.fetch_requires"));
+        i18n::set_lang(Lang::En);
     }
 
     #[test]
