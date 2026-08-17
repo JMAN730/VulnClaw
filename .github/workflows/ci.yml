@@ -32,7 +32,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # >= 22.18 for native TypeScript type stripping, which oxlint needs to
+          # load the anti-slop JS plugin from its .ts entrypoint.
+          node-version: "24"
 
       - name: Install backend deps
         run: python -m pip install --upgrade pip
