@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Shared pre-commit hook. Enable with: git config core.hooksPath .githooks
+# (run automatically by `make install`).
+#
+# When a commit touches TypeScript/TSX under frontend/, run the frontend
+# typecheck and oxlint (anti-slop) so broken types or lint findings never land.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+staged_frontend="$(git diff --cached --name-only --diff-filter=ACMR -- frontend/src \
+  | grep -E '\.(ts|tsx)$' || true)"
+
+if [ -z "$staged_frontend" ]; then
+  exit 0
+fi
+
+echo "pre-commit: frontend TypeScript changed — running typecheck + oxlint"
+cd "$repo_root/frontend"
+
+npx tsc -b --noEmit
+npx oxlint --deny-warnings

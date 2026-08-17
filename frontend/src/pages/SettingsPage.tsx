@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ConfigView } from "../types/api";
+import { z } from "zod";
+import { reportLanguageSchema, type ConfigView } from "../types/api";
 import { fetchProviderModels, updateConfig } from "../api/web";
 import { SectionCard } from "../components/SectionCard";
 import { useConfigQuery, useMcpDiagnosticsQuery, useProvidersQuery } from "../hooks/queries";
@@ -9,6 +10,14 @@ import { loadUiPreferences, saveUiPreferences, type UiPreferences } from "../uti
 import { parseOptionalPort } from "../utils/validation";
 
 type SettingsSection = "basic" | "ai" | "checks" | "boundary" | "data" | "python" | "diagnostics";
+
+// Mirrors UiPreferences["language"] from ../utils/preferences; kept as a local
+// schema since that module exports only the composite preferences schema.
+const uiLanguageSchema = z.enum(["zh-CN", "en-US"]);
+// Mirrors UiPreferences["defaultCheckMode"] from ../utils/preferences.
+const uiCheckModeSchema = z.enum(["quick", "standard", "deep", "continuous"]);
+// Mirrors UiPreferences["reportFormat"] from ../utils/preferences.
+const uiReportFormatSchema = z.enum(["markdown", "html"]);
 
 function buildSections(t: TFunction): Array<{ key: SettingsSection; title: string; copy: string }> {
   return [
@@ -285,14 +294,26 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
             <div className="form-grid">
               <label className="field">
                 <span>{t("settings.language")}</span>
-                <select value={language} onChange={(event) => setLanguage(event.target.value as UiPreferences["language"])}>
+                <select
+                  value={language}
+                  onChange={(event) => {
+                    const parsed = uiLanguageSchema.safeParse(event.target.value);
+                    if (parsed.success) setLanguage(parsed.data);
+                  }}
+                >
                   <option value="en-US">{t("settings.english")}</option>
                   <option value="zh-CN">{t("settings.chinese")}</option>
                 </select>
               </label>
               <label className="field">
                 <span>{t("settings.default_scan_mode")}</span>
-                <select value={defaultCheckMode} onChange={(event) => setDefaultCheckMode(event.target.value as UiPreferences["defaultCheckMode"])}>
+                <select
+                  value={defaultCheckMode}
+                  onChange={(event) => {
+                    const parsed = uiCheckModeSchema.safeParse(event.target.value);
+                    if (parsed.success) setDefaultCheckMode(parsed.data);
+                  }}
+                >
                   <option value="quick">{t("settings.quick_recon")}</option>
                   <option value="standard">{t("settings.standard_scan")}</option>
                   <option value="deep">{t("settings.deep_scan")}</option>
@@ -301,7 +322,13 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
               </label>
               <label className="field">
                 <span>{t("settings.default_report_format")}</span>
-                <select value={reportFormat} onChange={(event) => setReportFormat(event.target.value as UiPreferences["reportFormat"])}>
+                <select
+                  value={reportFormat}
+                  onChange={(event) => {
+                    const parsed = uiReportFormatSchema.safeParse(event.target.value);
+                    if (parsed.success) setReportFormat(parsed.data);
+                  }}
+                >
                   <option value="markdown">Markdown</option>
                   <option value="html">HTML</option>
                 </select>
@@ -387,7 +414,10 @@ export function SettingsPage({ initialSection = "basic", onOpenAdvanced }: Setti
                 <span>{t("settings.report_language")}</span>
                 <select
                   value={reportLanguage}
-                  onChange={(event) => setReportLanguage(event.target.value as ConfigView["language"])}
+                  onChange={(event) => {
+                    const parsed = reportLanguageSchema.safeParse(event.target.value);
+                    if (parsed.success) setReportLanguage(parsed.data);
+                  }}
                 >
                   <option value="auto">{t("settings.report_language_auto")}</option>
                   <option value="zh">中文</option>

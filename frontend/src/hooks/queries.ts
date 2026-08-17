@@ -55,7 +55,7 @@ export function useTasksQuery() {
 export function useTargetQuery(target: string | null) {
   return useQuery({
     queryKey: ["target", target],
-    queryFn: () => getTarget(target as string),
+    queryFn: () => getTarget(requireValue(target)),
     enabled: Boolean(target),
     staleTime: 10_000,
   });
@@ -64,7 +64,7 @@ export function useTargetQuery(target: string | null) {
 export function useTargetSnapshotsQuery(target: string | null) {
   return useQuery({
     queryKey: ["target-snapshots", target],
-    queryFn: () => getTargetSnapshots(target as string),
+    queryFn: () => getTargetSnapshots(requireValue(target)),
     enabled: Boolean(target),
     staleTime: 10_000,
   });
@@ -73,7 +73,7 @@ export function useTargetSnapshotsQuery(target: string | null) {
 export function useTargetPreviewQuery(target: string | null) {
   return useQuery({
     queryKey: ["target-preview", target],
-    queryFn: () => getTargetPreview(target as string),
+    queryFn: () => getTargetPreview(requireValue(target)),
     enabled: Boolean(target),
     staleTime: 10_000,
   });
@@ -82,7 +82,7 @@ export function useTargetPreviewQuery(target: string | null) {
 export function useTargetDiffQuery(target: string | null, fromSnapshotId: string | null, toSnapshotId?: string | null) {
   return useQuery({
     queryKey: ["target-diff", target, fromSnapshotId, toSnapshotId ?? null],
-    queryFn: () => getTargetDiff(target as string, fromSnapshotId as string, toSnapshotId ?? undefined),
+    queryFn: () => getTargetDiff(requireValue(target), requireValue(fromSnapshotId), toSnapshotId ?? undefined),
     enabled: Boolean(target && fromSnapshotId),
     staleTime: 10_000,
   });
@@ -99,8 +99,20 @@ export function useReportsQuery() {
 export function useReportContentQuery(path: string | null) {
   return useQuery({
     queryKey: ["report-content", path],
-    queryFn: () => getReportContent(path as string),
+    queryFn: () => getReportContent(requireValue(path)),
     enabled: Boolean(path),
     staleTime: 30_000,
   });
+}
+
+/**
+ * Unwrap a query key value that is guaranteed present by the query's `enabled`
+ * guard. React Query never runs `queryFn` while the value is null, so reaching
+ * here with null is a programming error rather than a runtime input.
+ */
+function requireValue(value: string | null): string {
+  if (value === null) {
+    throw new Error("Query ran without its required key; check the enabled guard.");
+  }
+  return value;
 }

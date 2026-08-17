@@ -1190,8 +1190,9 @@ class TestWebApp:
         assert 'activeNavView={activeView === "advanced" ? "settings" : activeView}' in app_source
         assert "onOpenAdvanced" in app_source
         assert "interface ReportFocus" in app_source
-        assert "HASH_TO_VIEW" in app_source
-        assert 'advanced: "advanced"' in app_source
+        assert "const APP_VIEWS: readonly AppView[]" in app_source
+        assert "function isAppView(" in app_source
+        assert '"advanced",' in app_source
         assert "viewFromHash" in app_source
         assert "navigateToView" in app_source
         assert "window.location.hash = nextHash" in app_source

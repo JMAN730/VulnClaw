@@ -26,7 +26,13 @@ interface ReportFocus {
   openPreview?: boolean;
 }
 
-function buildViewMeta(t: TFunction): Record<AppView, { eyebrow: string; title: string; copy: string }> {
+interface ViewMeta {
+  eyebrow: string;
+  title: string;
+  copy: string;
+}
+
+function buildViewMeta(t: TFunction) {
   return {
     home: {
       eyebrow: t("view.scan.eyebrow"),
@@ -63,22 +69,26 @@ function buildViewMeta(t: TFunction): Record<AppView, { eyebrow: string; title: 
       title: t("view.console.title"),
       copy: t("view.console.copy"),
     },
-  };
+  } satisfies Record<AppView, ViewMeta>;
 }
 
-const HASH_TO_VIEW: Record<string, AppView> = {
-  home: "home",
-  risk: "risk",
-  reports: "reports",
-  boundary: "boundary",
-  history: "history",
-  settings: "settings",
-  advanced: "advanced",
-};
+const APP_VIEWS: readonly AppView[] = [
+  "home",
+  "risk",
+  "reports",
+  "boundary",
+  "history",
+  "settings",
+  "advanced",
+];
+
+function isAppView(value: string): value is AppView {
+  return APP_VIEWS.some((view) => view === value);
+}
 
 function viewFromHash(): AppView {
   const key = window.location.hash.replace(/^#/, "");
-  return HASH_TO_VIEW[key] ?? "home";
+  return isAppView(key) ? key : "home";
 }
 
 function viewHash(view: AppView): string {
@@ -131,8 +141,7 @@ export function App() {
   }
 
   function eventSummary(event: TaskEvent): TaskSummary | null {
-    const summary = event.payload.summary;
-    return summary && typeof summary === "object" ? (summary as TaskSummary) : null;
+    return event.payload.summary ?? null;
   }
 
   function pushToast(

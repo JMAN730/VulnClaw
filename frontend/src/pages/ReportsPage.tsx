@@ -66,9 +66,6 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
   const selectedReport = filteredReports.find((report) => report.path === selectedPath) ?? filteredReports[0] ?? null;
   const previewPath = selectedReport?.path ?? null;
   const contentQuery = useReportContentQuery(previewPath);
-  const markdownCount = reports.filter((report) => report.kind === "markdown").length;
-  const htmlCount = reports.filter((report) => report.kind === "html").length;
-  const totalSize = reports.reduce((sum, report) => sum + (report.size_bytes ?? 0), 0);
   const canGenerate = Boolean(reportTarget.trim()) && !generating;
   const previewContent = selectedReport ? contentQuery.data?.content : undefined;
   const previewKind = selectedReport ? contentQuery.data?.kind : undefined;
@@ -163,7 +160,13 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
             </label>
             <label className="field report-format-field">
               <span>{t("reports.format")}</span>
-              <select value={generateFormat} onChange={(event) => setGenerateFormat(event.target.value as "markdown" | "html")}>
+              <select
+                value={generateFormat}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (isReportFormat(value)) setGenerateFormat(value);
+                }}
+              >
                 <option value="markdown">{t("reports.markdown")}</option>
                 <option value="html">{t("reports.html")}</option>
               </select>
@@ -197,7 +200,13 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
             </label>
             <label className="field">
               <span>{t("reports.format_filter")}</span>
-              <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as "all" | "markdown" | "html")}>
+              <select
+                value={kindFilter}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (isKindFilter(value)) setKindFilter(value);
+                }}
+              >
                 <option value="all">{t("reports.all")}</option>
                 <option value="markdown">{t("reports.markdown")}</option>
                 <option value="html">{t("reports.html")}</option>
@@ -205,7 +214,13 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
             </label>
             <label className="field">
               <span>{t("reports.time_filter")}</span>
-              <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value as "all" | "today" | "week")}>
+              <select
+                value={dateFilter}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (isDateFilter(value)) setDateFilter(value);
+                }}
+              >
                 <option value="all">{t("reports.all_time")}</option>
                 <option value="today">{t("reports.today")}</option>
                 <option value="week">{t("reports.last_7_days")}</option>
@@ -282,6 +297,22 @@ export function ReportsPage({ selectedTarget, focus }: ReportsPageProps) {
   );
 }
 
+const REPORT_FORMATS = ["markdown", "html"] as const;
+const KIND_FILTERS = ["all", "markdown", "html"] as const;
+const DATE_FILTERS = ["all", "today", "week"] as const;
+
+function isReportFormat(value: string): value is "markdown" | "html" {
+  return REPORT_FORMATS.some((format) => format === value);
+}
+
+function isKindFilter(value: string): value is "all" | "markdown" | "html" {
+  return KIND_FILTERS.some((kind) => kind === value);
+}
+
+function isDateFilter(value: string): value is "all" | "today" | "week" {
+  return DATE_FILTERS.some((filter) => filter === value);
+}
+
 function reportMatchesFilters(
   report: ReportListItem,
   search: string,
@@ -295,7 +326,7 @@ function reportMatchesFilters(
   return matchesDateFilter(report.modified_at, dateFilter);
 }
 
-function matchesDateFilter(value: string | undefined, filter: "all" | "today" | "week"): boolean {
+function matchesDateFilter(value: string | null | undefined, filter: "all" | "today" | "week"): boolean {
   if (filter === "all") return true;
   if (!value) return false;
   const date = new Date(value);
@@ -308,7 +339,7 @@ function matchesDateFilter(value: string | undefined, filter: "all" | "today" | 
   return date.getTime() >= weekAgo;
 }
 
-function formatDate(value: string | undefined, t: TFunction): string {
+function formatDate(value: string | null | undefined, t: TFunction): string {
   if (!value) return t("reports.unknown_date");
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
