@@ -3,13 +3,10 @@
   "version": "0.3.8",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=22.18"
-  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "lint": "node -e \"const [maj,min]=process.versions.node.split('.').map(Number);if(maj<22||(maj===22&&min<18)){console.error('lint requires Node >=22.18 (oxlint needs native TS type stripping to load the anti-slop plugin); found '+process.versions.node);process.exit(1);}\" && oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
