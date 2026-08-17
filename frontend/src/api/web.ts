@@ -1,31 +1,62 @@
-import type {
-  ConfigView,
-  ConstraintAuditView,
-  ConfigUpdateRequest,
-  MCPDiagnosticsView,
-  ProviderModelsRequest,
-  ProviderModelsResponse,
-  ProvidersView,
-  ReportListItem,
-  ReportContentView,
-  TargetPreviewView,
-  TargetSnapshotView,
-  TargetStateDiffView,
-  TargetView,
-  TaskCommand,
-  TaskEvent,
-  TaskOptions,
-  TaskRecord,
+import { z } from "zod";
+import { jsonValueSchema, type JsonValue } from "../types/json";
+import {
+  configViewSchema,
+  constraintAuditViewSchema,
+  mcpDiagnosticsViewSchema,
+  providerModelsResponseSchema,
+  providersViewSchema,
+  reportContentViewSchema,
+  reportGeneratedAckSchema,
+  reportListItemSchema,
+  rollbackAckSchema,
+  targetClearedAckSchema,
+  targetPreviewViewSchema,
+  targetSnapshotViewSchema,
+  targetStateDiffViewSchema,
+  targetViewSchema,
+  taskEventSchema,
+  taskRecordSchema,
+  taskStoppedAckSchema,
+  type ConfigUpdateRequest,
+  type ConfigView,
+  type ConstraintAuditView,
+  type MCPDiagnosticsView,
+  type ProviderModelsRequest,
+  type ProviderModelsResponse,
+  type ProvidersView,
+  type ReportContentView,
+  type ReportGeneratedAck,
+  type ReportListItem,
+  type RollbackAck,
+  type TargetClearedAck,
+  type TargetPreviewView,
+  type TargetSnapshotView,
+  type TargetStateDiffView,
+  type TargetView,
+  type TaskCommand,
+  type TaskEvent,
+  type TaskOptions,
+  type TaskRecord,
+  type TaskStoppedAck,
 } from "../types/api";
 
-async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
+/**
+ * Fetch JSON and decode it through `schema` at the network boundary, so callers
+ * receive a validated domain value instead of an unparsed response body.
+ */
+async function requestJson<Output>(
+  input: string,
+  schema: z.ZodType<Output>,
+  init?: RequestInit,
+): Promise<Output> {
   let response: Response;
   try {
     response = await fetch(input, {
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
+        ...init?.headers,
       },
       ...init,
     });
@@ -42,23 +73,40 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
     );
   }
 
+  let body: unknown;
   try {
-    return await response.json() as T;
+    body = await response.json();
   } catch {
     throw new Error("The backend API returned non-JSON content. Confirm the backend was started with `vulnclaw web`.");
   }
+
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    throw new Error(`The backend API returned an unexpected shape for ${input}.`);
+  }
+  return parsed.data;
 }
+
+const errorDetailSchema = z.object({
+  detail: jsonValueSchema.optional(),
+  message: jsonValueSchema.optional(),
+  error: jsonValueSchema.optional(),
+  code: jsonValueSchema.optional(),
+});
 
 async function readErrorDetail(response: Response): Promise<string> {
   try {
     const contentType = response.headers.get("content-type") ?? "";
     if (contentType.includes("application/json")) {
-      const payload = await response.json() as { detail?: unknown; message?: unknown; error?: unknown; code?: unknown };
+      const parsed = errorDetailSchema.safeParse(await response.json());
+      if (!parsed.success) {
+        return `Request failed with status ${response.status}`;
+      }
+      const payload = parsed.data;
       const rawDetail = payload.detail ?? payload.message ?? payload.error;
-      const code = payload.code;
       const detailStr = stringifyErrorValue(rawDetail);
-      if (code) {
-        return `[${stringifyErrorValue(code)}] ${detailStr}`;
+      if (payload.code !== undefined && payload.code !== null && payload.code !== "") {
+        return `[${stringifyErrorValue(payload.code)}] ${detailStr}`;
       }
       return summarizeErrorDetail(detailStr);
     }
@@ -82,64 +130,66 @@ function summarizeErrorDetail(value: string): string {
   return `${normalized.slice(0, 240)}...`;
 }
 
-function stringifyErrorValue(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value == null) return "";
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
+const errorStringSchema = z.string();
+
+function stringifyErrorValue(value: JsonValue | undefined): string {
+  const asString = errorStringSchema.safeParse(value);
+  if (asString.success) return asString.data;
+  if (value === null || value === undefined) return "";
+  return JSON.stringify(value);
 }
 
 export function getConfig(): Promise<ConfigView> {
-  return requestJson<ConfigView>("/api/config");
+  return requestJson("/api/config", configViewSchema);
 }
 
 export function getMcpDiagnostics(): Promise<MCPDiagnosticsView> {
-  return requestJson<MCPDiagnosticsView>("/api/mcp");
+  return requestJson("/api/mcp", mcpDiagnosticsViewSchema);
 }
 
 export function getConstraintAudit(): Promise<ConstraintAuditView> {
-  return requestJson<ConstraintAuditView>("/api/constraint-audit");
+  return requestJson("/api/constraint-audit", constraintAuditViewSchema);
 }
 
 export function updateConfig(payload: ConfigUpdateRequest): Promise<ConfigView> {
-  return requestJson<ConfigView>("/api/config", {
+  return requestJson("/api/config", configViewSchema, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export function getProviders(): Promise<ProvidersView> {
-  return requestJson<ProvidersView>("/api/providers");
+  return requestJson("/api/providers", providersViewSchema);
 }
 
 export function fetchProviderModels(payload: ProviderModelsRequest): Promise<ProviderModelsResponse> {
-  return requestJson<ProviderModelsResponse>("/api/provider-models", {
+  return requestJson("/api/provider-models", providerModelsResponseSchema, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export function getTasks(): Promise<TaskRecord[]> {
-  return requestJson<TaskRecord[]>("/api/tasks");
+  return requestJson("/api/tasks", z.array(taskRecordSchema));
 }
 
 export function getTargets(): Promise<TargetView[]> {
-  return requestJson<TargetView[]>("/api/targets");
+  return requestJson("/api/targets", z.array(targetViewSchema));
 }
 
 export function getTarget(target: string): Promise<TargetView> {
-  return requestJson<TargetView>(`/api/targets/${encodeURIComponent(target)}`);
+  return requestJson(`/api/targets/${encodeURIComponent(target)}`, targetViewSchema);
 }
 
 export function getTargetSnapshots(target: string): Promise<TargetSnapshotView[]> {
-  return requestJson<TargetSnapshotView[]>(`/api/targets/${encodeURIComponent(target)}/snapshots`);
+  return requestJson(
+    `/api/targets/${encodeURIComponent(target)}/snapshots`,
+    z.array(targetSnapshotViewSchema),
+  );
 }
 
 export function getTargetPreview(target: string): Promise<TargetPreviewView> {
-  return requestJson<TargetPreviewView>(`/api/target-preview/${encodeURIComponent(target)}`);
+  return requestJson(`/api/target-preview/${encodeURIComponent(target)}`, targetPreviewViewSchema);
 }
 
 export function getTargetDiff(target: string, fromSnapshotId: string, toSnapshotId?: string): Promise<TargetStateDiffView> {
@@ -147,30 +197,33 @@ export function getTargetDiff(target: string, fromSnapshotId: string, toSnapshot
   if (toSnapshotId) {
     params.set("to_snapshot_id", toSnapshotId);
   }
-  return requestJson<TargetStateDiffView>(`/api/target-diff/${encodeURIComponent(target)}?${params.toString()}`);
+  return requestJson(
+    `/api/target-diff/${encodeURIComponent(target)}?${params.toString()}`,
+    targetStateDiffViewSchema,
+  );
 }
 
 export function getReports(): Promise<ReportListItem[]> {
-  return requestJson<ReportListItem[]>("/api/reports");
+  return requestJson("/api/reports", z.array(reportListItemSchema));
 }
 
 export function getReportContent(path: string): Promise<ReportContentView> {
-  return requestJson<ReportContentView>(`/api/reports/content?path=${encodeURIComponent(path)}`);
+  return requestJson(`/api/reports/content?path=${encodeURIComponent(path)}`, reportContentViewSchema);
 }
 
 export function getReportDownloadUrl(path: string): string {
   return `/api/reports/download?path=${encodeURIComponent(path)}`;
 }
 
-export function rollbackTarget(target: string, snapshotId: string): Promise<{ status: string; target: string; snapshot_id: string }> {
-  return requestJson(`/api/targets/${encodeURIComponent(target)}/rollback`, {
+export function rollbackTarget(target: string, snapshotId: string): Promise<RollbackAck> {
+  return requestJson(`/api/targets/${encodeURIComponent(target)}/rollback`, rollbackAckSchema, {
     method: "POST",
     body: JSON.stringify({ snapshot_id: snapshotId }),
   });
 }
 
-export function clearTargetState(target: string): Promise<{ status: string; target: string }> {
-  return requestJson(`/api/targets/${encodeURIComponent(target)}`, {
+export function clearTargetState(target: string): Promise<TargetClearedAck> {
+  return requestJson(`/api/targets/${encodeURIComponent(target)}`, targetClearedAckSchema, {
     method: "DELETE",
   });
 }
@@ -178,15 +231,15 @@ export function clearTargetState(target: string): Promise<{ status: string; targ
 export function generateTargetReport(
   target: string,
   reportFormat: "markdown" | "html" = "markdown",
-): Promise<{ status: string; path: string }> {
-  return requestJson("/api/reports/target", {
+): Promise<ReportGeneratedAck> {
+  return requestJson("/api/reports/target", reportGeneratedAckSchema, {
     method: "POST",
     body: JSON.stringify({ target, report_format: reportFormat }),
   });
 }
 
 export function createTask(command: TaskCommand, target: string, resume: boolean, options: TaskOptions = {}): Promise<TaskRecord> {
-  return requestJson<TaskRecord>("/api/tasks/run", {
+  return requestJson("/api/tasks/run", taskRecordSchema, {
     method: "POST",
     body: JSON.stringify({
       command,
@@ -197,31 +250,46 @@ export function createTask(command: TaskCommand, target: string, resume: boolean
   });
 }
 
-export function stopTask(taskId: string): Promise<{ status: string; task_id: string }> {
-  return requestJson(`/api/tasks/${taskId}/stop`, {
+export function stopTask(taskId: string): Promise<TaskStoppedAck> {
+  return requestJson(`/api/tasks/${taskId}/stop`, taskStoppedAckSchema, {
     method: "POST",
   });
 }
 
+const messageDataSchema = z.string();
+
 export function openTaskStream(taskId: string, onEvent: (event: TaskEvent) => void): EventSource {
   const source = new EventSource(`/api/tasks/${taskId}/stream`);
-  const handler = (message: MessageEvent<string>) => {
+  const handler = (event: Event) => {
+    if (!(event instanceof MessageEvent)) return;
+    const data = messageDataSchema.safeParse(event.data);
+    if (!data.success) return;
+    let body: unknown;
     try {
-      const parsed = JSON.parse(message.data) as TaskEvent;
-      onEvent(parsed);
+      body = JSON.parse(data.data);
     } catch {
       // Ignore malformed events.
+      return;
+    }
+    const parsed = taskEventSchema.safeParse(body);
+    if (parsed.success) {
+      onEvent(parsed.data);
     }
   };
 
-  source.addEventListener("task_created", handler as EventListener);
-  source.addEventListener("task_started", handler as EventListener);
-  source.addEventListener("task_state_changed", handler as EventListener);
-  source.addEventListener("round_output", handler as EventListener);
-  source.addEventListener("cycle_completed", handler as EventListener);
-  source.addEventListener("task_completed", handler as EventListener);
-  source.addEventListener("task_failed", handler as EventListener);
-  source.addEventListener("task_stopped", handler as EventListener);
+  const eventNames = [
+    "task_created",
+    "task_started",
+    "task_state_changed",
+    "round_output",
+    "cycle_completed",
+    "task_completed",
+    "task_failed",
+    "task_stopped",
+  ];
+  for (const name of eventNames) {
+    source.addEventListener(name, handler);
+  }
   source.onmessage = handler;
   return source;
 }

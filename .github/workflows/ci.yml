@@ -51,6 +51,10 @@ jobs:
         working-directory: frontend
         run: npx tsc -b
 
+      - name: Frontend lint (oxlint + anti-slop)
+        working-directory: frontend
+        run: npx oxlint --deny-warnings
+
       - name: Pytest
         if: matrix.os != 'ubuntu-latest' || matrix.python-version != '3.12'
         run: pytest -q

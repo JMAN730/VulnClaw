@@ -1,16 +1,21 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { loadUiPreferences, subscribeUiPreferences, type UiPreferences } from "../utils/preferences";
-import en from "./en.json";
-import zh from "./zh.json";
+import enJson from "./en.json";
+import zhJson from "./zh.json";
 
 type Lang = "zh-CN" | "en-US";
 type Translations = Record<string, string>;
 export type TFunction = (key: string, params?: Record<string, string>, fallback?: string) => string;
 
-const TRANSLATIONS: Record<Lang, Translations> = {
-  "en-US": en as Translations,
-  "zh-CN": zh as Translations,
-};
+// Typing the imports as Translations here (identifier, not a literal) keeps the
+// per-key evidence intact while giving lookups a `string` value contract.
+const en: Translations = enJson;
+const zh: Translations = zhJson;
+
+const TRANSLATIONS = {
+  "en-US": en,
+  "zh-CN": zh,
+} satisfies Record<Lang, Translations>;
 
 /* ── 全局单例（供 taskLabels 等非 React 代码使用）── */
 

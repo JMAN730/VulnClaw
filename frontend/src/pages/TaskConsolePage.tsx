@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { createTask, stopTask } from "../api/web";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useTasksQuery } from "../hooks/queries";
@@ -83,11 +83,11 @@ export function TaskConsolePage({
   function renderEventText(item: TaskEvent): string {
     const payload = item.payload;
     const parts: string[] = [];
-    if (typeof payload.cycle === "number") parts.push(`cycle ${payload.cycle}`);
-    if (typeof payload.round === "number") parts.push(`round ${payload.round}`);
-    if (typeof payload.phase === "string") parts.push(formatPhaseLabel(payload.phase));
-    const text = typeof payload.text === "string" ? payload.text : "";
-    const message = typeof payload.message === "string" ? payload.message : "";
+    if (payload.cycle != null) parts.push(`cycle ${payload.cycle}`);
+    if (payload.round != null) parts.push(`round ${payload.round}`);
+    if (payload.phase != null) parts.push(formatPhaseLabel(payload.phase));
+    const text = payload.text ?? "";
+    const message = payload.message ?? "";
     parts.push(text || message || formatEventLabel(item.event));
     return parts.join(" - ");
   }
@@ -160,6 +160,12 @@ export function TaskConsolePage({
     }
   }
 
+  function handleCommandChange(event: ChangeEvent<HTMLSelectElement>) {
+    // SAFETY: value is constrained to the <option value="..."> list below, which only
+    // contains valid TaskCommand literals.
+    setCommand(event.target.value as TaskCommand);
+  }
+
   async function handleStop() {
     if (!activeTask) return;
     try {
@@ -183,7 +189,7 @@ export function TaskConsolePage({
       <div className="form-grid">
         <label className="field">
           <span>{t("console.command")}</span>
-          <select value={command} onChange={(event) => setCommand(event.target.value as TaskCommand)}>
+          <select value={command} onChange={handleCommandChange}>
             <option value="run">{t("command.run")}</option>
             <option value="recon">{t("command.recon")}</option>
             <option value="scan">{t("command.scan")}</option>

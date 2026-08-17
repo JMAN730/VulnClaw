@@ -10,7 +10,6 @@ import {
   formatActionList,
   formatEventLabel,
   formatPhaseLabel,
-  formatTaskCommand,
   formatTaskStatus,
 } from "../utils/taskLabels";
 import { parseOptionalPort } from "../utils/validation";
@@ -59,8 +58,8 @@ function buildActionOptions(t: TFunction) {
 function latestEventText(event: TaskEvent | null, t: TFunction): string {
   if (!event) return t("home.waiting_events");
   const message = event.payload.message ?? event.payload.text;
-  if (typeof message === "string" && message.trim()) return message;
-  if (typeof event.payload.phase === "string" && event.payload.phase.trim()) {
+  if (message?.trim()) return message;
+  if (event.payload.phase?.trim()) {
     return formatPhaseLabel(event.payload.phase);
   }
   return formatEventLabel(event.event);
@@ -85,8 +84,7 @@ function taskResultTitle(task: TaskRecord, t: TFunction): string {
 }
 
 function eventSummary(event: TaskEvent | null): TaskSummary | null {
-  const summary = event?.payload.summary;
-  return summary && typeof summary === "object" ? (summary as TaskSummary) : null;
+  return event?.payload.summary ?? null;
 }
 
 function taskSummary(task: TaskRecord, event: TaskEvent | null): TaskSummary | null {
@@ -101,18 +99,24 @@ function joinScopeItems(items: string[], t: TFunction): string {
   return items.length ? items.join(" - ") : t("home.auto_scope");
 }
 
-function inferScopeFromTarget(value: string): { host: string; port: string; path: string } {
+interface InferredScope {
+  host: string;
+  port: string;
+  path: string;
+}
+
+function inferScopeFromTarget(value: string) {
   const target = value.trim();
-  if (!target) return { host: "", port: "", path: "" };
+  if (!target) return { host: "", port: "", path: "" } satisfies InferredScope;
   try {
     const parsed = new URL(target.includes("://") ? target : `https://${target}`);
     const inferredPath = parsed.pathname && parsed.pathname !== "/" ? parsed.pathname : "";
-    return { host: parsed.hostname, port: parsed.port, path: inferredPath };
+    return { host: parsed.hostname, port: parsed.port, path: inferredPath } satisfies InferredScope;
   } catch {
     const withoutScheme = target.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
     const match = withoutScheme.match(/^([^/:?#]+)(?::([^/?#]+))?(\/[^?#]*)?/);
     const inferredPath = match?.[3] && match[3] !== "/" ? match[3] : "";
-    return { host: match?.[1] ?? "", port: match?.[2] ?? "", path: inferredPath };
+    return { host: match?.[1] ?? "", port: match?.[2] ?? "", path: inferredPath } satisfies InferredScope;
   }
 }
 

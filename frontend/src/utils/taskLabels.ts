@@ -1,5 +1,7 @@
-import type { TaskCommand } from "../types/api";
+import type { ConstraintViolationEvent, TaskConstraints } from "../types/api";
 import { t } from "../i18n";
+
+type ConstraintValue = string | number | readonly string[] | readonly number[] | null | undefined;
 
 export function formatTaskCommand(command: string | null | undefined): string {
   if (!command) return t("command.default");
@@ -100,7 +102,7 @@ export function formatResumeStrategy(strategy: string | null | undefined): strin
   return strategy;
 }
 
-export function formatConstraintSummary(constraints: Record<string, unknown> | undefined): string {
+export function formatConstraintSummary(constraints: TaskConstraints | undefined): string {
   if (!constraints || !Object.keys(constraints).length) return t("boundary.no_extra");
   const labels: string[] = [];
   const onlyHost = constraints.allowed_hosts ?? constraints.only_host;
@@ -110,19 +112,19 @@ export function formatConstraintSummary(constraints: Record<string, unknown> | u
   const blockedPath = constraints.blocked_paths ?? constraints.blocked_path;
   const allowActions = constraints.allowed_actions ?? constraints.allow_actions;
   const blockActions = constraints.blocked_actions ?? constraints.block_actions;
-  if (onlyHost) labels.push(`host ${formatConstraintValue(onlyHost)}`);
-  if (onlyPath) labels.push(`path ${formatConstraintValue(onlyPath)}`);
-  if (onlyPort) labels.push(`port ${formatConstraintValue(onlyPort)}`);
-  if (blockedHost) labels.push(`block host ${formatConstraintValue(blockedHost)}`);
-  if (blockedPath) labels.push(`block path ${formatConstraintValue(blockedPath)}`);
-  if (Array.isArray(allowActions)) labels.push(`allow ${formatActionList(allowActions.map(String))}`);
-  if (Array.isArray(blockActions)) labels.push(`block ${formatActionList(blockActions.map(String))}`);
+  if (hasConstraintValue(onlyHost)) labels.push(`host ${formatConstraintValue(onlyHost)}`);
+  if (hasConstraintValue(onlyPath)) labels.push(`path ${formatConstraintValue(onlyPath)}`);
+  if (hasConstraintValue(onlyPort)) labels.push(`port ${formatConstraintValue(onlyPort)}`);
+  if (hasConstraintValue(blockedHost)) labels.push(`block host ${formatConstraintValue(blockedHost)}`);
+  if (hasConstraintValue(blockedPath)) labels.push(`block path ${formatConstraintValue(blockedPath)}`);
+  if (Array.isArray(allowActions)) labels.push(`allow ${formatActionList([...allowActions])}`);
+  if (Array.isArray(blockActions)) labels.push(`block ${formatActionList([...blockActions])}`);
   return labels.length ? labels.join(", ") : t("boundary.custom");
 }
 
 export function countConstraintViolations(
-  events: unknown[] | undefined,
-  violations: unknown[] | undefined,
+  events: readonly ConstraintViolationEvent[] | undefined,
+  violations: readonly string[] | undefined,
   fallback = 0,
 ): number {
   if (events?.length) return events.length;
@@ -130,7 +132,12 @@ export function countConstraintViolations(
   return fallback;
 }
 
-function formatConstraintValue(value: unknown): string {
+function hasConstraintValue(value: ConstraintValue): boolean {
+  if (Array.isArray(value)) return value.length > 0;
+  return value !== undefined && value !== null && value !== "" && value !== 0;
+}
+
+function formatConstraintValue(value: ConstraintValue): string {
   if (Array.isArray(value)) return value.map(String).filter(Boolean).join(", ");
   return String(value);
 }

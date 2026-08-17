@@ -14,12 +14,10 @@ interface ActiveTaskBannerProps {
 
 function eventText(event: TaskEvent | null, t: TFunction): string {
   if (!event) return t("banner.waiting");
-  const text = event.payload.text;
-  const message = event.payload.message;
-  const phase = event.payload.phase;
-  if (typeof text === "string" && text.trim()) return text;
-  if (typeof message === "string" && message.trim()) return message;
-  if (typeof phase === "string" && phase.trim()) return `${t("phase.none")}: ${formatPhaseLabel(phase)}`;
+  const { text, message, phase } = event.payload;
+  if (text?.trim()) return text;
+  if (message?.trim()) return message;
+  if (phase?.trim()) return `${t("phase.none")}: ${formatPhaseLabel(phase)}`;
   return formatEventLabel(event.event);
 }
 
@@ -37,16 +35,7 @@ function estimateProgress(task: TaskRecord, latestEvent: TaskEvent | null): numb
 
 function eventBlockedAttempts(event: TaskEvent | null): number {
   if (!event) return 0;
-  const payload = event.payload as {
-    constraint_violation_events?: unknown[];
-    constraint_violations?: unknown[];
-    message?: unknown;
-    error?: unknown;
-    summary?: {
-      constraint_violation_events?: unknown[];
-      constraint_violations?: unknown[];
-    };
-  };
+  const { payload } = event;
   const directCount = countConstraintViolations(payload.constraint_violation_events, payload.constraint_violations);
   const summaryCount = countConstraintViolations(payload.summary?.constraint_violation_events, payload.summary?.constraint_violations);
   if (directCount) return directCount;

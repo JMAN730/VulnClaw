@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import { generateTargetReport } from "../api/web";
 import { SectionCard } from "../components/SectionCard";
 import { useTargetPreviewQuery, useTargetQuery, useTargetsQuery } from "../hooks/queries";
 import { useT, type TFunction } from "../i18n";
+import type { FindingRecord } from "../types/api";
+import type { JsonValue } from "../types/json";
 import { loadUiPreferences, subscribeUiPreferences, type UiPreferences } from "../utils/preferences";
 import {
-  countConstraintViolations,
   formatConstraintSummary,
   formatFindingStatus,
   formatPhaseLabel,
@@ -44,12 +46,18 @@ interface GeneratedReportState {
   path: string;
 }
 
-function asText(value: unknown, fallback = ""): string {
-  return typeof value === "string" && value.trim() ? value : fallback;
+function textField(value: string | null | undefined, fallback = ""): string {
+  return value?.trim() ? value : fallback;
 }
 
-function normalizeSeverity(value: unknown): string {
-  const text = asText(value, "Info");
+/** Narrows a genuinely-open (catchall) FindingRecord field to a non-blank string via zod, never `typeof`. */
+function jsonText(value: JsonValue | undefined, fallback = ""): string {
+  const parsed = z.string().safeParse(value);
+  return parsed.success && parsed.data.trim() ? parsed.data : fallback;
+}
+
+function normalizeSeverity(value: string | null | undefined): string {
+  const text = textField(value, "Info");
   const lower = text.toLowerCase();
   if (lower.includes("critical")) return "Critical";
   if (lower.includes("high")) return "High";
@@ -66,27 +74,32 @@ function severityTone(severity: string): "danger" | "warn" | "ok" | "info" {
   return "info";
 }
 
-function extractEvidence(raw: Record<string, unknown>, t: TFunction): string {
+function extractEvidence(raw: FindingRecord, t: TFunction): string {
   const evidence = raw.evidence;
-  if (typeof evidence === "string" && evidence.trim()) return evidence;
-  if (Array.isArray(evidence) && evidence.length) return evidence.map(String).slice(0, 3).join(" / ");
-  return asText(raw.description, t("risk.not_summarized"));
+  const asString = z.string().safeParse(evidence);
+  if (asString.success && asString.data.trim()) return asString.data;
+  const asArray = z.array(z.string()).safeParse(evidence);
+  if (asArray.success && asArray.data.length) return asArray.data.slice(0, 3).join(" / ");
+  return textField(raw.description, t("risk.not_summarized"));
 }
 
-function extractFindingCards(rawFindings: unknown, t: TFunction): FindingCard[] {
-  if (!Array.isArray(rawFindings)) return [];
-  return rawFindings.slice(0, 24).map((item, index) => {
-    const raw = item && typeof item === "object" ? item as Record<string, unknown> : {};
-    const title = asText(raw.title, t("risk.default_finding", { index: String(index + 1) }));
+function extractFindingCards(rawFindings: FindingRecord[] | undefined, t: TFunction): FindingCard[] {
+  if (!rawFindings) return [];
+  return rawFindings.slice(0, 24).map((raw, index) => {
+    const title = textField(raw.title, t("risk.default_finding", { index: String(index + 1) }));
+    const verified = z.boolean().safeParse(raw.verified);
     return {
-      id: asText(raw.finding_id, `${title}-${index}`),
+      id: jsonText(raw.finding_id, `${title}-${index}`),
       title,
       severity: normalizeSeverity(raw.severity),
-      status: asText(raw.verification_status, asText(raw.lifecycle_status, raw.verified ? "verified" : "pending")),
+      status: jsonText(
+        raw.verification_status,
+        textField(raw.lifecycle_status, verified.success && verified.data ? "verified" : "pending"),
+      ),
       evidence: extractEvidence(raw, t),
-      impact: asText(raw.impact, asText(raw.risk, t("risk.impact_needs_review"))),
-      recommendation: asText(raw.recommendation, asText(raw.remediation, t("risk.validate_patch"))),
-      type: asText(raw.vuln_type, asText(raw.category, t("risk.uncategorized"))),
+      impact: jsonText(raw.impact, textField(raw.risk, t("risk.impact_needs_review"))),
+      recommendation: jsonText(raw.recommendation, jsonText(raw.remediation, t("risk.validate_patch"))),
+      type: textField(raw.vuln_type, textField(raw.category, t("risk.uncategorized"))),
     };
   });
 }
@@ -160,16 +173,11 @@ export function RiskResultsPage({ selectedTarget, onSelectTarget, onOpenHome, on
   const preview = previewQuery.data;
 
   const findings = useMemo(() => extractFindingCards(target?.raw?.findings, t), [target, t]);
-  const criticalOrHigh = findings.filter((item) => severityTone(item.severity) === "danger").length;
   const uniqueTypes = Array.from(new Set(findings.map((item) => item.type).filter(Boolean))).slice(0, 4);
   const portSignals = Array.from(new Set(findings.map((item) => {
     const match = item.evidence.match(/\b(?:port|:)\s*(\d{2,5})\b/i);
     return match?.[1];
   }).filter((item): item is string => Boolean(item)))).slice(0, 5);
-  const boundaryBlocks = countConstraintViolations(
-    target?.constraint_violation_events,
-    target?.constraint_violations,
-  );
   const nextActions = preview?.next_actions ?? [];
   const actionCards = useMemo(
     () => buildActionCards(nextActions, target?.pending_count ?? 0, target?.manual_review_count ?? 0, t),

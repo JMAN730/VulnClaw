@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SectionCard } from "../components/SectionCard";
 import { useConstraintAuditQuery, useTargetQuery, useTargetsQuery } from "../hooks/queries";
 import { useT, type TFunction } from "../i18n";
-import type { ConstraintAuditEventView, TaskOptions, TaskRecord } from "../types/api";
+import type { ConstraintAuditEventView, TaskConstraints, TaskOptions, TaskRecord } from "../types/api";
 import { loadUiPreferences, subscribeUiPreferences, type BoundaryDefaults } from "../utils/preferences";
 import { countConstraintViolations, formatActionList, formatPhaseLabel, formatSeverityLabel } from "../utils/taskLabels";
 
@@ -26,35 +26,50 @@ interface BoundaryReadiness {
   copy: string;
 }
 
-function stringifyValue(key: string, value: unknown): string {
+/**
+ * A constraint pair (e.g. `allowed_hosts` + its legacy `only_host` alias)
+ * collapsed onto a single field. Each field keeps the scalar/array shape of
+ * whichever source it was drawn from.
+ */
+interface NormalizedBoundary {
+  allowed_hosts: string[] | string | undefined;
+  allowed_ports: number[] | string | number | undefined;
+  allowed_paths: string[] | string | undefined;
+  blocked_hosts: string[] | string | undefined;
+  blocked_paths: string[] | string | undefined;
+  allowed_actions: string[] | undefined;
+  blocked_actions: string[] | undefined;
+}
+
+type BoundaryFieldValue = NormalizedBoundary[keyof NormalizedBoundary];
+
+function stringifyValue(key: string, value: BoundaryFieldValue): string {
+  if (value === undefined) return "";
   if (Array.isArray(value)) {
     const values = value.map(String).filter(Boolean);
     return key.includes("actions") ? formatActionList(values) : values.join(", ");
   }
-  if (typeof value === "string") return key.includes("actions") ? formatActionList([value]) : value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  if (value && typeof value === "object") return JSON.stringify(value);
-  return "";
+  return String(value);
 }
 
 function boundaryLabel(key: string, t: TFunction): string {
-  const labels: Record<string, string> = {
-    only_host: t("boundary.host_only"),
-    only_path: t("boundary.path_only"),
-    only_port: t("boundary.port_only"),
-    allowed_hosts: t("boundary.host_only"),
-    allowed_paths: t("boundary.path_only"),
-    allowed_ports: t("boundary.port_only"),
-    blocked_host: t("boundary.block_host"),
-    blocked_path: t("boundary.block_path"),
-    blocked_hosts: t("boundary.block_host"),
-    blocked_paths: t("boundary.block_path"),
-    allow_actions: t("boundary.allow_actions"),
-    allowed_actions: t("boundary.allow_actions"),
-    block_actions: t("boundary.block_actions"),
-    blocked_actions: t("boundary.block_actions"),
-  };
-  return labels[key] ?? key;
+  const labels = new Map<string, string>([
+    ["only_host", t("boundary.host_only")],
+    ["only_path", t("boundary.path_only")],
+    ["only_port", t("boundary.port_only")],
+    ["allowed_hosts", t("boundary.host_only")],
+    ["allowed_paths", t("boundary.path_only")],
+    ["allowed_ports", t("boundary.port_only")],
+    ["blocked_host", t("boundary.block_host")],
+    ["blocked_path", t("boundary.block_path")],
+    ["blocked_hosts", t("boundary.block_host")],
+    ["blocked_paths", t("boundary.block_path")],
+    ["allow_actions", t("boundary.allow_actions")],
+    ["allowed_actions", t("boundary.allow_actions")],
+    ["block_actions", t("boundary.block_actions")],
+    ["blocked_actions", t("boundary.block_actions")],
+  ]);
+  return labels.get(key) ?? key;
 }
 
 function boundaryTone(key: string): BoundaryChip["tone"] {
@@ -63,20 +78,30 @@ function boundaryTone(key: string): BoundaryChip["tone"] {
   return "neutral";
 }
 
-function normalizeConstraints(constraints: Record<string, unknown> | undefined): Record<string, unknown> {
-  if (!constraints) return {};
+function normalizeConstraints(constraints: TaskConstraints | undefined): NormalizedBoundary {
+  if (!constraints) {
+    return {
+      allowed_hosts: undefined,
+      allowed_ports: undefined,
+      allowed_paths: undefined,
+      blocked_hosts: undefined,
+      blocked_paths: undefined,
+      allowed_actions: undefined,
+      blocked_actions: undefined,
+    };
+  }
   return {
-    allowed_hosts: constraints.allowed_hosts ?? constraints.only_host,
-    allowed_ports: constraints.allowed_ports ?? constraints.only_port,
-    allowed_paths: constraints.allowed_paths ?? constraints.only_path,
-    blocked_hosts: constraints.blocked_hosts ?? constraints.blocked_host,
-    blocked_paths: constraints.blocked_paths ?? constraints.blocked_path,
+    allowed_hosts: constraints.allowed_hosts ?? constraints.only_host ?? undefined,
+    allowed_ports: constraints.allowed_ports ?? constraints.only_port ?? undefined,
+    allowed_paths: constraints.allowed_paths ?? constraints.only_path ?? undefined,
+    blocked_hosts: constraints.blocked_hosts ?? constraints.blocked_host ?? undefined,
+    blocked_paths: constraints.blocked_paths ?? constraints.blocked_path ?? undefined,
     allowed_actions: constraints.allowed_actions ?? constraints.allow_actions,
     blocked_actions: constraints.blocked_actions ?? constraints.block_actions,
   };
 }
 
-function buildBoundaryChips(constraints: Record<string, unknown> | undefined, t: TFunction): BoundaryChip[] {
+function buildBoundaryChips(constraints: TaskConstraints | undefined, t: TFunction): BoundaryChip[] {
   if (!constraints) return [];
   return Object.entries(normalizeConstraints(constraints))
     .map(([key, value]) => ({
@@ -87,7 +112,7 @@ function buildBoundaryChips(constraints: Record<string, unknown> | undefined, t:
     .filter((item) => item.value && item.value !== "[]" && item.value !== "{}");
 }
 
-function boundaryDefaultsToConstraints(defaults: BoundaryDefaults): Record<string, unknown> {
+function boundaryDefaultsToConstraints(defaults: BoundaryDefaults): TaskConstraints {
   return {
     only_port: defaults.onlyPort,
     only_host: defaults.onlyHost,
@@ -99,7 +124,7 @@ function boundaryDefaultsToConstraints(defaults: BoundaryDefaults): Record<strin
   };
 }
 
-function taskOptionsToConstraints(options: TaskOptions | undefined): Record<string, unknown> {
+function taskOptionsToConstraints(options: TaskOptions | undefined): TaskConstraints {
   if (!options) return {};
   return {
     only_port: options.only_port,
@@ -107,18 +132,18 @@ function taskOptionsToConstraints(options: TaskOptions | undefined): Record<stri
     only_path: options.only_path,
     blocked_host: options.blocked_host,
     blocked_path: options.blocked_path,
-    allow_actions: options.allow_actions,
-    block_actions: options.block_actions,
+    allow_actions: options.allow_actions ?? undefined,
+    block_actions: options.block_actions ?? undefined,
   };
 }
 
-function hasConstraintValue(value: unknown): boolean {
+function hasConstraintValue(value: BoundaryFieldValue): boolean {
   if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === "string") return value.trim().length > 0;
-  return value !== undefined && value !== null && value !== false;
+  if (value === undefined) return false;
+  return String(value).trim().length > 0;
 }
 
-function boundaryReadiness(constraints: Record<string, unknown> | undefined, t: TFunction): BoundaryReadiness {
+function boundaryReadiness(constraints: TaskConstraints | undefined, t: TFunction): BoundaryReadiness {
   const normalized = normalizeConstraints(constraints);
   if (!Object.values(normalized).some(hasConstraintValue)) {
     return {
@@ -128,8 +153,10 @@ function boundaryReadiness(constraints: Record<string, unknown> | undefined, t: 
     };
   }
 
-  const hasPreciseScope = ["allowed_hosts", "allowed_ports", "allowed_paths"].some((key) => hasConstraintValue(normalized[key]));
-  const hasActionBoundary = ["allowed_actions", "blocked_actions"].some((key) => hasConstraintValue(normalized[key]));
+  const preciseScopeKeys: (keyof NormalizedBoundary)[] = ["allowed_hosts", "allowed_ports", "allowed_paths"];
+  const actionBoundaryKeys: (keyof NormalizedBoundary)[] = ["allowed_actions", "blocked_actions"];
+  const hasPreciseScope = preciseScopeKeys.some((key) => hasConstraintValue(normalized[key]));
+  const hasActionBoundary = actionBoundaryKeys.some((key) => hasConstraintValue(normalized[key]));
 
   if (hasPreciseScope && hasActionBoundary) {
     return {
@@ -187,11 +214,15 @@ export function SafetyBoundaryPage({ selectedTarget, activeTask, onOpenHome, onO
   const audit = auditQuery.data;
   const defaultConstraints = useMemo(() => boundaryDefaultsToConstraints(defaultBoundary), [defaultBoundary]);
   const activeTaskConstraints = useMemo(() => taskOptionsToConstraints(activeTask?.options), [activeTask?.options]);
+  const activeTaskHasConstraints = useMemo(
+    () => Object.values(normalizeConstraints(activeTaskConstraints)).some(hasConstraintValue),
+    [activeTaskConstraints],
+  );
   const activeTaskMatchesTarget = Boolean(activeTask?.target && activeTask.target === targetValue);
-  const displayedConstraints = activeTaskMatchesTarget && Object.values(activeTaskConstraints).some(hasConstraintValue)
+  const displayedConstraints = activeTaskMatchesTarget && activeTaskHasConstraints
     ? activeTaskConstraints
     : target?.constraints;
-  const displayedConstraintsSource = activeTaskMatchesTarget && Object.values(activeTaskConstraints).some(hasConstraintValue)
+  const displayedConstraintsSource = activeTaskMatchesTarget && activeTaskHasConstraints
     ? t("boundary.active_task_source")
     : t("boundary.saved_target_source");
   const chips = useMemo(() => buildBoundaryChips(displayedConstraints, t), [displayedConstraints, t]);
