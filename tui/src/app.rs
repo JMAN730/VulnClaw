@@ -110,6 +110,62 @@ fn copy_to_clipboard(text: &str) -> bool {
     }
 }
 
+/// Read the system clipboard without pulling in a third-party crate.
+/// Windows: `Get-Clipboard` writes to a temp UTF-8 file, which we then read —
+/// going through a file keeps the console codepage from mangling non-ASCII.
+/// Unix: try the usual helpers in turn; the first one that works wins.
+fn read_clipboard() -> Option<String> {
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        let tmp = std::env::temp_dir().join(format!("vulnclaw-paste-{}.txt", std::process::id()));
+        let path = tmp.to_string_lossy().replace('\'', "''");
+        let ps = format!(
+            "$text = Get-Clipboard -Raw; if ($null -eq $text) {{ $text = '' }};              Set-Content -LiteralPath '{}' -Value $text -Encoding utf8 -NoNewline",
+            path
+        );
+        let status = Command::new("powershell.exe")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                &ps,
+            ])
+            .status();
+        let contents = match status {
+            Ok(code) if code.success() => std::fs::read(&tmp).ok(),
+            _ => None,
+        };
+        let _ = std::fs::remove_file(&tmp);
+        let bytes = contents?;
+        // Windows PowerShell writes a BOM for `-Encoding utf8`; strip it.
+        let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(&bytes);
+        String::from_utf8(bytes.to_vec()).ok()
+    }
+    #[cfg(not(windows))]
+    {
+        use std::process::Command;
+        const CANDIDATES: [(&str, &[&str]); 4] = [
+            ("pbpaste", &[]),
+            ("wl-paste", &["--no-newline"]),
+            ("xclip", &["-selection", "clipboard", "-o"]),
+            ("xsel", &["--clipboard", "--output"]),
+        ];
+        for (program, args) in CANDIDATES {
+            let Ok(output) = Command::new(program).args(args).output() else {
+                continue;
+            };
+            if output.status.success() {
+                if let Ok(text) = String::from_utf8(output.stdout) {
+                    return Some(text);
+                }
+            }
+        }
+        None
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExecutionMode {
@@ -996,6 +1052,27 @@ impl App {
             );
         } else {
             self.toast = "Copy failed: clipboard unavailable".into();
+        }
+    }
+
+    /// Insert the system clipboard at the cursor.
+    ///
+    /// Bracketed paste — and therefore `Event::Paste` — only reaches us on
+    /// Unix, so on Windows Ctrl+V arrives as an ordinary key event and pasting
+    /// silently did nothing. Reading the clipboard ourselves makes Ctrl+V work
+    /// everywhere, including inside the setup wizard and the config panel.
+    pub fn paste_from_clipboard(&mut self) {
+        self.apply_clipboard(read_clipboard());
+    }
+
+    /// Route a clipboard read into the composer. Split out from
+    /// `paste_from_clipboard` so the outcomes stay testable without a real
+    /// clipboard.
+    pub fn apply_clipboard(&mut self, clipboard: Option<String>) {
+        match clipboard {
+            Some(text) if !text.is_empty() => self.insert_text(&text),
+            Some(_) => self.toast = "Nothing to paste: clipboard is empty".into(),
+            None => self.toast = "Paste failed: clipboard unavailable".into(),
         }
     }
 
@@ -2256,6 +2333,54 @@ mod tests {
 
         assert_eq!(app.setup.as_ref().unwrap().api_key, "sk-pasted-key");
         assert!(app.input.is_empty(), "main input must stay untouched");
+    }
+
+    #[test]
+    fn ctrl_v_paste_routes_into_setup_wizard_field() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+        // App::new opens the config panel when the environment has no key
+        // configured; this test is about the wizard.
+        app.config_panel = None;
+        let mut setup = SetupState::new();
+        setup.step = 1; // API key step
+        app.setup = Some(setup);
+
+        // Windows never delivers Event::Paste, so this is the only path that
+        // gets a clipboard into the wizard.
+        app.apply_clipboard(Some("sk-clipboard-key\r\n".into()));
+
+        assert_eq!(app.setup.as_ref().unwrap().api_key, "sk-clipboard-key");
+    }
+
+    #[test]
+    fn ctrl_v_paste_reports_an_unavailable_clipboard() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+
+        app.apply_clipboard(None);
+
+        assert!(app.input.is_empty());
+        assert!(
+            app.toast.contains("clipboard unavailable"),
+            "toast: {}",
+            app.toast
+        );
+    }
+
+    #[test]
+    fn ctrl_v_paste_reports_an_empty_clipboard() {
+        let (sender, _) = mpsc::channel();
+        let mut app = App::new(sender);
+
+        app.apply_clipboard(Some(String::new()));
+
+        assert!(app.input.is_empty());
+        assert!(
+            app.toast.contains("clipboard is empty"),
+            "toast: {}",
+            app.toast
+        );
     }
 
     #[test]

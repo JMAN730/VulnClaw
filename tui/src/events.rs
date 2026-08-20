@@ -13,6 +13,18 @@ pub fn handle_key(app: &mut App, key: KeyEvent) {
     // A transient toast (e.g. "Copied …") lives until the next key press.
     app.toast.clear();
 
+    // Ctrl+V is handled before the config panel and setup wizard claim the key,
+    // so pasting works inside them too. crossterm parses bracketed paste on
+    // Unix only, so on Windows no Event::Paste ever arrives and Ctrl+V is just
+    // a key event — read the clipboard ourselves. Ctrl+Shift+V counts too,
+    // since some terminals send the shifted form.
+    if matches!(key.code, KeyCode::Char('v') | KeyCode::Char('V'))
+        && key.modifiers.contains(KeyModifiers::CONTROL)
+    {
+        app.paste_from_clipboard();
+        return;
+    }
+
     if app.config_panel.is_some() {
         // The panel owns all navigation and text editing while open; no
         // dashboard shortcut may leak through to the live composer.
