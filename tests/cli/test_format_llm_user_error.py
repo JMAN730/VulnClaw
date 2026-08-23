@@ -26,7 +26,7 @@ def test_format_llm_user_error_prefers_openrouter_metadata_raw():
     msg = format_llm_user_error(_E())
     assert "rate-limited upstream" in msg
     assert "Retry shortly" in msg
-    assert "Provider returned error" not in msg or "rate-limited" in msg
+    assert "Provider returned error" not in msg
 
 
 def test_format_llm_user_error_falls_back_to_str():

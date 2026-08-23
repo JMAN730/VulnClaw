@@ -300,8 +300,9 @@ def test_long_dropdown_only_exposes_a_window_around_the_selection(model):
     model.activate()
     model.set_viewport_height(10)
 
+    _, dropdown_rows = model._table_row_budget()
     visible = model.visible_dropdown_options()
-    assert len(visible) <= 10
+    assert len(visible) <= dropdown_rows
     assert visible[0][0] == 0  # (absolute_index, name)
     assert all(visible[i][0] == i for i in range(len(visible)))
 
@@ -310,8 +311,20 @@ def test_long_dropdown_only_exposes_a_window_around_the_selection(model):
     visible = model.visible_dropdown_options()
     indices = [index for index, _ in visible]
     assert model.dropdown_index in indices
-    assert len(visible) <= 10
+    assert len(visible) <= dropdown_rows
     assert indices[0] > 0
+
+
+def test_dropdown_table_rows_fit_within_viewport(model):
+    model.models = [f"m-{i}" for i in range(40)]
+    _focus(model, "llm.model")
+    model.activate()
+    model.set_viewport_height(8)
+
+    panel_rows, dropdown_rows = model._table_row_budget()
+    assert panel_rows + dropdown_rows <= model.viewport_height
+    assert len(model.visible_rows()) <= panel_rows
+    assert len(model.visible_dropdown_options()) <= dropdown_rows
 
 
 def test_dropdown_window_scrolls_up_when_selection_moves_above_it(model):
@@ -346,9 +359,19 @@ def test_render_omits_dropdown_options_outside_the_window():
     Console(file=buf, force_terminal=True, width=120).print(render_panel(model))
     output = buf.getvalue()
 
+    _, dropdown_rows = model._table_row_budget()
     # Labels may be ellipsis-truncated; count option rows via the stable prefix.
-    assert output.count("model-") == 6
+    assert output.count("model-") == dropdown_rows
     assert "model-49" not in output
+
+
+def test_paste_into_list_field_preserves_item_separators(model):
+    _focus(model, "llm.api_keys")
+    model.activate()
+
+    model.paste_text("sk-one\nsk-two")
+
+    assert model.edit_text == "sk-one,sk-two"
 
 
 def test_changing_provider_applies_the_preset_and_bumps_the_generation(model):
