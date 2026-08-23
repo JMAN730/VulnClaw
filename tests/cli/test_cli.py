@@ -1625,6 +1625,50 @@ class TestClassicReplSlashPalette:
         assert result.kind == "command"
         assert result.value == "language"
 
+    def test_experience_command_dispatches_without_args(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/experience")
+
+        assert result.kind == "command"
+        assert result.value == "experience"
+        assert result.text == ""
+
+    def test_experience_alias_and_subcommand_carry_args(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/exp show L1")
+
+        assert result.kind == "command"
+        assert result.value == "experience"
+        assert result.text == "show L1"
+
+    def test_learn_command_carries_run_name(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/learn my-run")
+
+        assert result.kind == "command"
+        assert result.value == "learn"
+        assert result.text == "my-run"
+
+    def test_feedback_command_carries_full_argument(self):
+        from vulnclaw.cli.tui import dispatch_repl_slash
+
+        result = dispatch_repl_slash("/feedback my-run 4 solid recon coverage")
+
+        assert result.kind == "command"
+        assert result.value == "feedback"
+        assert result.text == "my-run 4 solid recon coverage"
+
+    def test_experience_and_learn_and_feedback_in_palette(self):
+        import vulnclaw.cli.tui as tui_mod
+
+        names = [name for name, _ in tui_mod.list_repl_palette_entries()]
+
+        for expected in ("experience", "learn", "feedback"):
+            assert expected in names
+
     def test_repl_palette_lists_commands_before_skills(self):
         import vulnclaw.cli.tui as tui_mod
 
@@ -1633,6 +1677,44 @@ class TestClassicReplSlashPalette:
 
         assert names[:2] == ["config", "language"]
         assert "recon" in names  # skills still follow the commands
+
+    def test_run_repl_command_routes_experience_to_handler(self, monkeypatch):
+        import vulnclaw.cli.main as main_mod
+
+        seen = {}
+        monkeypatch.setattr(main_mod, "_repl_experience", lambda args: seen.setdefault("args", args))
+
+        out = main_mod._run_repl_command("experience", "approve L1", object(), "cfg")
+
+        assert seen["args"] == "approve L1"
+        assert out == "cfg"  # experience is read/side-effecting; config passes through
+
+    def test_run_repl_command_routes_learn_and_feedback(self, monkeypatch):
+        import vulnclaw.cli.main as main_mod
+
+        calls = {}
+        monkeypatch.setattr(
+            main_mod, "_repl_learn", lambda args, cfg: calls.setdefault("learn", (args, cfg))
+        )
+        monkeypatch.setattr(
+            main_mod, "_repl_feedback", lambda args, cfg: calls.setdefault("feedback", (args, cfg))
+        )
+
+        main_mod._run_repl_command("learn", "my-run", object(), "cfg")
+        main_mod._run_repl_command("feedback", "my-run 5 great", object(), "cfg")
+
+        assert calls["learn"] == ("my-run", "cfg")
+        assert calls["feedback"] == ("my-run 5 great", "cfg")
+
+    def test_parse_edit_flags_extracts_both_values(self):
+        import vulnclaw.cli.main as main_mod
+
+        context_val, lesson_val = main_mod._parse_edit_flags(
+            ["--context", "new ctx", "--lesson", "new lesson"]
+        )
+
+        assert context_val == "new ctx"
+        assert lesson_val == "new lesson"
 
     def test_repl_palette_filters_commands_by_prefix(self):
         import vulnclaw.cli.tui as tui_mod
