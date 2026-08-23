@@ -313,6 +313,7 @@ class ConfigPanelModel:
         self.row_error = ""
         self._dropdown: dict[str, Any] | None = None
         self.dropdown_index = 0
+        self._dropdown_scroll = 0
         self.generation = 0
         self.models: list[str] = []
         self.fetch_state = "idle"
@@ -596,6 +597,30 @@ class ConfigPanelModel:
         if self._edit is not None:
             self._edit["text"] = text
 
+    def paste_text(self, text: str) -> None:
+        """Append pasted text into the active editor, dropping CR/LF.
+
+        Config fields are single-line; newlines must not advance or split input.
+        No-op when not editing so accidental paste outside an editor is ignored.
+        """
+        if self._edit is None:
+            return
+        cleaned = "".join(ch for ch in text if ch not in "\r\n")
+        self._edit["text"] += cleaned
+        self.row_error = ""
+
+    def apply_clipboard(self, clipboard: str | None) -> None:
+        """Route a clipboard read into the editor (testable without a real clipboard)."""
+        if self._edit is None:
+            return
+        if clipboard is None:
+            self.row_error = "Paste failed: clipboard unavailable"
+            return
+        if clipboard == "":
+            self.row_error = "Nothing to paste: clipboard is empty"
+            return
+        self.paste_text(clipboard)
+
     def cancel_edit(self) -> None:
         self._edit = None
         self.row_error = ""
@@ -619,6 +644,8 @@ class ConfigPanelModel:
             self._dropdown = {"options": options}
             current = self.raw_value(row)
             self.dropdown_index = options.index(current) if current in options else 0
+            self._dropdown_scroll = 0
+            self._sync_dropdown_scroll()
             return
         self._edit = {"key": row.key, "text": self._edit_seed(row)}
 
@@ -696,15 +723,48 @@ class ConfigPanelModel:
     def dropdown_options(self) -> list[str]:
         return self._dropdown["options"] if self._dropdown else []
 
+    def _dropdown_window_height(self) -> int:
+        """How many option rows to paint. Unbounded when no panel viewport is set."""
+        options = self.dropdown_options
+        if self.viewport_height is None:
+            return len(options)
+        return max(1, min(self.viewport_height, len(options) or 1))
+
+    def _sync_dropdown_scroll(self) -> None:
+        options = self.dropdown_options
+        if not options:
+            self._dropdown_scroll = 0
+            return
+        height = self._dropdown_window_height()
+        max_offset = max(0, len(options) - height)
+        if self.dropdown_index < self._dropdown_scroll:
+            self._dropdown_scroll = self.dropdown_index
+        elif self.dropdown_index >= self._dropdown_scroll + height:
+            self._dropdown_scroll = self.dropdown_index - height + 1
+        self._dropdown_scroll = max(0, min(self._dropdown_scroll, max_offset))
+
+    def visible_dropdown_options(self) -> list[tuple[int, str]]:
+        """Windowed (absolute_index, option) pairs so long model lists can scroll."""
+        options = self.dropdown_options
+        if not options:
+            return []
+        self._sync_dropdown_scroll()
+        height = self._dropdown_window_height()
+        start = self._dropdown_scroll
+        end = min(len(options), start + height)
+        return [(index, options[index]) for index in range(start, end)]
+
     def select_option(self, delta: int) -> None:
         if self._dropdown is None:
             return
         limit = len(self._dropdown["options"]) - 1
         self.dropdown_index = max(0, min(self.dropdown_index + delta, limit))
+        self._sync_dropdown_scroll()
 
     def cancel_option(self) -> None:
         self._dropdown = None
         self.dropdown_index = 0
+        self._dropdown_scroll = 0
 
     def commit_option(self) -> None:
         if self._dropdown is None:
@@ -713,6 +773,7 @@ class ConfigPanelModel:
         choice = self._dropdown["options"][self.dropdown_index]
         self._dropdown = None
         self.dropdown_index = 0
+        self._dropdown_scroll = 0
         if row.path == "llm.provider":
             if choice != self.draft.llm.provider:
                 self.draft = apply_provider_preset(self.draft, choice)

@@ -934,6 +934,10 @@ async def call_llm_stream(
     except Exception as e:
         # Fallback to non-streaming on streaming-related errors or general failures
         error_text = str(e).lower()
+        try:
+            stream_sink.on_stream_end()
+        except Exception:
+            pass
         if last_tool_results is not None:
             return _format_tool_results_fallback(
                 last_tool_results,
@@ -1037,6 +1041,10 @@ async def call_llm_auto_stream(
         return "[tool loop paused] Internal tool follow-up cap reached; continue from the recorded tool evidence."
     except (NotImplementedError, ValueError, Exception) as e:
         error_text = str(e).lower()
+        try:
+            stream_sink.on_stream_end()
+        except Exception:
+            pass
         if last_tool_results is not None:
             return _format_tool_results_fallback(
                 last_tool_results,
