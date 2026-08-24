@@ -883,6 +883,7 @@ async def call_llm_stream(
     last_tool_results: list[dict[str, Any]] | None = None
     last_skipped_info: list[str] = []
     last_assistant_text = ""
+    stream_active = False
     try:
         for _tool_round in range(_resolve_auto_tool_rounds(agent) + 1):
             messages = _fit_context_window(
@@ -891,7 +892,9 @@ async def call_llm_stream(
                 tools,
                 purpose="single_turn_stream_tool_follow_up",
             )
+            stream_active = True
             message = await _stream_chat_completion_message(agent, messages, tools, stream_sink)
+            stream_active = False
             tool_calls = list(getattr(message, "tool_calls", None) or [])
             if not tool_calls:
                 return extract_response(message)
@@ -934,6 +937,11 @@ async def call_llm_stream(
     except Exception as e:
         # Fallback to non-streaming on streaming-related errors or general failures
         error_text = str(e).lower()
+        if stream_active:
+            try:
+                stream_sink.on_stream_end()
+            except Exception:
+                pass
         if last_tool_results is not None:
             return _format_tool_results_fallback(
                 last_tool_results,
@@ -988,6 +996,7 @@ async def call_llm_auto_stream(
     last_tool_results: list[dict[str, Any]] | None = None
     last_skipped_info: list[str] = []
     last_assistant_text = ""
+    stream_active = False
     try:
         for _tool_round in range(_resolve_auto_tool_rounds(agent, max_tool_rounds) + 1):
             messages = _fit_context_window(
@@ -996,7 +1005,9 @@ async def call_llm_auto_stream(
                 tools,
                 purpose="autonomous_stream_tool_follow_up",
             )
+            stream_active = True
             message = await _stream_chat_completion_message(agent, messages, tools, stream_sink)
+            stream_active = False
             tool_calls = list(getattr(message, "tool_calls", None) or [])
             if not tool_calls:
                 return extract_response(message)
@@ -1037,6 +1048,11 @@ async def call_llm_auto_stream(
         return "[tool loop paused] Internal tool follow-up cap reached; continue from the recorded tool evidence."
     except (NotImplementedError, ValueError, Exception) as e:
         error_text = str(e).lower()
+        if stream_active:
+            try:
+                stream_sink.on_stream_end()
+            except Exception:
+                pass
         if last_tool_results is not None:
             return _format_tool_results_fallback(
                 last_tool_results,
