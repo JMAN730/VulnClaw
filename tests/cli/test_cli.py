@@ -1750,6 +1750,65 @@ class TestClassicReplSlashPalette:
         assert result.ok is False
         assert "Lesson not found" in str(result.renderable)
 
+    def test_experience_status_survives_unwritable_store(self, monkeypatch):
+        from vulnclaw.cli import experience_ops
+
+        class _Boom:
+            def approve(self, lesson_id):
+                raise OSError("read-only file system")
+
+            def reject(self, lesson_id):
+                raise OSError("read-only file system")
+
+        monkeypatch.setattr(experience_ops, "_experience_store", lambda: _Boom())
+
+        result = experience_ops.set_lesson_status("L1", "approved")
+
+        assert result.ok is False
+        assert "Could not write the experience store" in str(result.renderable)
+
+    def test_experience_edit_survives_unwritable_store(self, monkeypatch):
+        from vulnclaw.cli import experience_ops
+
+        class _Boom:
+            def update(self, lesson_id, *, context=None, lesson=None):
+                raise OSError("no space left on device")
+
+        monkeypatch.setattr(experience_ops, "_experience_store", lambda: _Boom())
+
+        result = experience_ops.edit_lesson("L1", lesson="new")
+
+        assert result.ok is False
+        assert "Could not write the experience store" in str(result.renderable)
+
+    def test_feedback_survives_unwritable_run_dir(self, monkeypatch, tmp_path):
+        from vulnclaw.cli import experience_ops
+        from vulnclaw.config.schema import VulnClawConfig
+
+        class _RunContext:
+            manifest = {"status": "completed"}
+            run_dir = tmp_path
+
+            def append_event(self, *args, **kwargs):
+                raise AssertionError("should not be reached")
+
+        monkeypatch.setattr(
+            "vulnclaw.run_context.load_run_context",
+            lambda *args, **kwargs: _RunContext(),
+        )
+
+        def _boom(run_dir, *, rating, notes):
+            raise OSError("permission denied")
+
+        monkeypatch.setattr("vulnclaw.feedback.save_feedback", _boom)
+
+        result = experience_ops.save_run_feedback(
+            "run-1", rating=4, notes="solid", config=VulnClawConfig()
+        )
+
+        assert result.ok is False
+        assert "Could not save feedback" in str(result.renderable)
+
     def test_tui_palette_excludes_repl_only_learning_commands(self):
         import vulnclaw.cli.tui as tui_mod
 

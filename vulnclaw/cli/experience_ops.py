@@ -45,7 +45,10 @@ def render_pending_lessons() -> OpResult:
     """List lessons awaiting human review as a table (or a friendly note)."""
     from vulnclaw.kb.experience import LessonStatus
 
-    lessons = _experience_store().list_by_status(LessonStatus.PENDING)
+    try:
+        lessons = _experience_store().list_by_status(LessonStatus.PENDING)
+    except OSError as exc:
+        return OpResult(False, f"[!] Could not read the experience store: {exc}")
     if not lessons:
         return OpResult(True, "No pending experience lessons.")
 
@@ -73,6 +76,8 @@ def render_lesson(lesson_id: str) -> OpResult:
     except ValueError:
         # A malformed id (path separators, empty string) must stay REPL-safe.
         return OpResult(False, f"[!] Lesson not found: {lesson_id}")
+    except OSError as exc:
+        return OpResult(False, f"[!] Could not read the experience store: {exc}")
     if item is None:
         return OpResult(False, f"[!] Lesson not found: {lesson_id}")
 
@@ -115,11 +120,14 @@ def render_lesson(lesson_id: str) -> OpResult:
 
 def set_lesson_status(lesson_id: str, status: str) -> OpResult:
     """Apply one human review decision (``approved`` or ``rejected``)."""
-    store = _experience_store()
     try:
+        store = _experience_store()
         item = store.approve(lesson_id) if status == "approved" else store.reject(lesson_id)
     except ValueError:
         return OpResult(False, f"[!] Lesson not found: {lesson_id}")
+    except OSError as exc:
+        # An unwritable or full KB must not unwind the interactive REPL.
+        return OpResult(False, f"[!] Could not write the experience store: {exc}")
     if item is None:
         return OpResult(False, f"[!] Lesson not found: {lesson_id}")
     return OpResult(True, f"[+] Lesson {item.id} marked {item.status.value}.")
@@ -138,6 +146,8 @@ def edit_lesson(
         item = _experience_store().update(lesson_id, context=context, lesson=lesson)
     except ValueError as exc:
         return OpResult(False, f"[!] Invalid lesson update: {exc}")
+    except OSError as exc:
+        return OpResult(False, f"[!] Could not write the experience store: {exc}")
     if item is None:
         return OpResult(False, f"[!] Lesson not found: {lesson_id}")
     return OpResult(True, f"[+] Lesson {item.id} updated.")
@@ -217,7 +227,7 @@ def save_run_feedback(
 
     try:
         run_context = load_run_context(run, runs_dir=runs_dir, config=config)
-    except (RunContextError, ValueError) as exc:
+    except (RunContextError, ValueError, OSError) as exc:
         return OpResult(False, f"[!] Unable to load run '{run}': {exc}")
 
     status = str(run_context.manifest.get("status") or "")
@@ -234,5 +244,8 @@ def save_run_feedback(
         run_context.append_event("feedback_updated", {"rating": saved.rating})
     except FeedbackError as exc:
         return OpResult(False, f"[!] Invalid feedback: {exc}")
+    except OSError as exc:
+        # feedback.json or events.jsonl unwritable: stay REPL-safe.
+        return OpResult(False, f"[!] Could not save feedback for '{run}': {exc}")
 
     return OpResult(True, f"[+] Feedback saved for {run}: rating={saved.rating}/5")
