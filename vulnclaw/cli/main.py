@@ -48,6 +48,7 @@ from rich.text import Text
 from vulnclaw import __version__, headless
 from vulnclaw.agent.constraint_policy import validate_action_constraints
 from vulnclaw.agent.input_analysis import extract_task_constraints
+from vulnclaw.cli import experience_ops
 
 # === Stream Output Renderer ===
 # 修改者: Nyaecho
@@ -65,7 +66,6 @@ from vulnclaw.cli._helpers import (
     console,
     err_console,
 )
-from vulnclaw.cli import experience_ops
 from vulnclaw.cli.manual import available_topics, render_manual
 from vulnclaw.config.schema import ENGINE_CHOICES, resolve_engine
 from vulnclaw.config.settings import (
