@@ -1709,12 +1709,56 @@ class TestClassicReplSlashPalette:
     def test_parse_edit_flags_extracts_both_values(self):
         import vulnclaw.cli.main as main_mod
 
-        context_val, lesson_val = main_mod._parse_edit_flags(
+        context_val, lesson_val, error = main_mod._parse_edit_flags(
             ["--context", "new ctx", "--lesson", "new lesson"]
         )
 
         assert context_val == "new ctx"
         assert lesson_val == "new lesson"
+        assert error is None
+
+    def test_parse_edit_flags_rejects_flag_as_value(self):
+        import vulnclaw.cli.main as main_mod
+
+        context_val, lesson_val, error = main_mod._parse_edit_flags(
+            ["--lesson", "--context", "foo"]
+        )
+
+        assert context_val is None
+        assert lesson_val is None
+        assert "--lesson needs a value" in error
+
+    def test_parse_edit_flags_rejects_missing_trailing_value(self):
+        import vulnclaw.cli.main as main_mod
+
+        _, _, error = main_mod._parse_edit_flags(["--context"])
+
+        assert "--context needs a value" in error
+
+    def test_parse_edit_flags_rejects_unquoted_extra_token(self):
+        import vulnclaw.cli.main as main_mod
+
+        _, _, error = main_mod._parse_edit_flags(["--lesson", "prefer", "double"])
+
+        assert "Unexpected argument: double" in error
+
+    def test_experience_show_rejects_unsafe_lesson_id(self):
+        from vulnclaw.cli import experience_ops
+
+        result = experience_ops.render_lesson("../../foo")
+
+        assert result.ok is False
+        assert "Lesson not found" in str(result.renderable)
+
+    def test_tui_palette_excludes_repl_only_learning_commands(self):
+        import vulnclaw.cli.tui as tui_mod
+
+        entries = dict(tui_mod.build_slash_palette_entries())
+        repl_entries = dict(tui_mod.list_repl_palette_entries())
+
+        for cmd in ("experience", "learn", "feedback"):
+            assert cmd not in entries
+            assert cmd in repl_entries
 
     def test_repl_palette_filters_commands_by_prefix(self):
         import vulnclaw.cli.tui as tui_mod

@@ -334,7 +334,10 @@ def _repl_experience(args: str) -> None:
             )
             return
         lesson_id = tokens[0]
-        context_val, lesson_val = _parse_edit_flags(tokens[1:])
+        context_val, lesson_val, flag_error = _parse_edit_flags(tokens[1:])
+        if flag_error:
+            err_console.print(f"[!] {flag_error}")
+            return
         if context_val is None and lesson_val is None:
             err_console.print(
                 "[!] Provide --context and/or --lesson, "
@@ -352,22 +355,37 @@ def _repl_experience(args: str) -> None:
     )
 
 
-def _parse_edit_flags(tokens: list[str]) -> tuple[Optional[str], Optional[str]]:
-    """Extract ``--context`` / ``--lesson`` values from tokenized edit args."""
+_EDIT_FLAGS = ("--context", "--lesson")
+
+
+def _parse_edit_flags(
+    tokens: list[str],
+) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Extract ``--context`` / ``--lesson`` values from tokenized edit args.
+
+    Returns ``(context, lesson, error)``. A flag whose value is missing or is
+    itself another flag is an error rather than a silently swallowed typo:
+    ``edit L1 --lesson --context foo`` must not persist the literal lesson
+    text ``--context``, since an approved lesson is injected into later runs.
+    """
     context_val: Optional[str] = None
     lesson_val: Optional[str] = None
     i = 0
     while i < len(tokens):
         flag = tokens[i]
-        if flag in ("--context", "--lesson") and i + 1 < len(tokens):
-            if flag == "--context":
-                context_val = tokens[i + 1]
-            else:
-                lesson_val = tokens[i + 1]
-            i += 2
+        if flag not in _EDIT_FLAGS:
+            return None, None, (
+                f"Unexpected argument: {flag} "
+                '(quote multi-word values, e.g. --lesson "two words")'
+            )
+        if i + 1 >= len(tokens) or tokens[i + 1] in _EDIT_FLAGS:
+            return None, None, f"{flag} needs a value."
+        if flag == "--context":
+            context_val = tokens[i + 1]
         else:
-            i += 1
-    return context_val, lesson_val
+            lesson_val = tokens[i + 1]
+        i += 2
+    return context_val, lesson_val, None
 
 
 def _repl_learn(args: str, config: Any) -> None:

@@ -68,7 +68,11 @@ def render_pending_lessons() -> OpResult:
 
 def render_lesson(lesson_id: str) -> OpResult:
     """Show full lesson text and evidence provenance for one lesson."""
-    item = _experience_store().get(lesson_id)
+    try:
+        item = _experience_store().get(lesson_id)
+    except ValueError:
+        # A malformed id (path separators, empty string) must stay REPL-safe.
+        return OpResult(False, f"[!] Lesson not found: {lesson_id}")
     if item is None:
         return OpResult(False, f"[!] Lesson not found: {lesson_id}")
 
