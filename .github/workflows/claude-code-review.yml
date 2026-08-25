@@ -12,9 +12,12 @@ on:
 
 jobs:
   claude-review:
-    # Fork PRs don't get repository secrets, so CLAUDE_CODE_OAUTH_TOKEN would be
-    # empty and the action could not authenticate. Skip them.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Fork PRs and Dependabot PRs run without repository secrets, so
+    # CLAUDE_CODE_OAUTH_TOKEN would be empty and the action could not
+    # authenticate. Skip them.
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
 
     # Optional: Filter by PR author
     # if: |
