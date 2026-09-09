@@ -74,7 +74,15 @@ export function loadUiPreferences(): UiPreferences {
 }
 
 export function saveUiPreferences(preferences: UiPreferences): void {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+  // Storage can be disabled (for example, in a privacy-restricted browser) or
+  // full. Preferences are an optional convenience, so a persistence failure
+  // must not prevent the active page from receiving the update.
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+  } catch {
+    // Keep the update in memory for current subscribers even if it cannot be
+    // restored in a later browser session.
+  }
   window.dispatchEvent(new CustomEvent<UiPreferences>(UI_PREFERENCES_EVENT, { detail: preferences }));
 }
 
