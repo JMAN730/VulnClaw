@@ -1024,7 +1024,7 @@ https://llmtop10.com/llm05/
 ## 二十、容器与沙箱逃逸实战测试方法论
 
 > 针对AI应用部署环境（Docker/Sysbox/Daytona/Kubernetes）的系统化逃逸与隔离测试
-> **通用容器部署安全**: Web应用容器部署安全检查 → [web-deployment-security.md §二](web-deployment-security.md)
+> **通用容器部署安全**: Web应用容器部署安全检查 → [web-deployment-security.md §二](../../web-security-advanced/references/web-deployment-security.md)
 
 ### 一、测试流程总览
 
