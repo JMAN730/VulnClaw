@@ -716,6 +716,10 @@ def test_persistent_stdio_shutdown_has_no_cross_task_error():
     finally:
         asyncio_logger.removeHandler(handler)
 
+    state = m.registry.get_all_servers()["echo"]
+    assert state.running is True
+    assert state.health_status == HealthStatus.HEALTHY.value
+
     blob = "\n".join(
         r.getMessage() + "\n" + (r.exc_text or "")
         + ("" if r.exc_info is None else str(r.exc_info[1]))

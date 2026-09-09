@@ -553,6 +553,8 @@ class MCPLifecycleManager(ProbeMixin):
             "session": session,
             "context_manager": cm,
         }
+        self.registry.set_server_running(server_name, running=True)
+        self.registry.set_server_health(server_name, HealthStatus.HEALTHY.value)
         return session
 
     async def _get_or_create_persistent_http_session(self, server_name: str) -> Any:
