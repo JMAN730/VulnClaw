@@ -94,6 +94,9 @@ def extract_program_handle(seed: str) -> str:
     candidate = raw
     if "://" in raw or raw.startswith("//") or "hackerone.com" in raw.lower():
         parsed = urlparse(raw if "://" in raw else f"https://{raw.lstrip('/')}")
+        host = (parsed.hostname or "").lower().rstrip(".")
+        if host not in {"hackerone.com", "www.hackerone.com"}:
+            raise ValueError(f"program URL must use hackerone.com: {seed!r}")
         path = (parsed.path or "").strip("/")
         if not path:
             raise ValueError(f"no program handle in URL path: {seed!r}")

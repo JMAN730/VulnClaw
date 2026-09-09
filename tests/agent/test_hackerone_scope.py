@@ -74,6 +74,17 @@ class TestExtractHandle:
         with pytest.raises(ValueError):
             extract_program_handle("https://hackerone.com/directory")
 
+    @pytest.mark.parametrize(
+        "seed",
+        [
+            "https://example.com/crypto/policy_scopes",
+            "https://evil-hackerone.com/crypto/policy_scopes",
+        ],
+    )
+    def test_rejects_non_hackerone_program_urls(self, seed):
+        with pytest.raises(ValueError, match="must use hackerone.com"):
+            extract_program_handle(seed)
+
 
 class TestFetchProgramScope:
     def test_splits_in_and_out_of_scope(self):
