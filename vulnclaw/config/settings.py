@@ -129,8 +129,10 @@ def load_config() -> VulnClawConfig:
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 raw = yaml.safe_load(f) or {}
+            if not isinstance(raw, dict):
+                raise TypeError("configuration root must be a mapping")
             config = _merge_config(config, raw)
-        except (yaml.YAMLError, ValidationError) as e:
+        except (OSError, TypeError, ValueError, yaml.YAMLError, ValidationError) as e:
             # Log warning but don't crash
             logger.warning("Failed to parse config file %s: %s", CONFIG_FILE, e)
 

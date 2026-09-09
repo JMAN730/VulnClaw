@@ -533,3 +533,16 @@ class TestSettingsLoad:
 
         assert config_path.read_text(encoding="utf-8") == "llm:\n  model: preserved\n"
         assert list(tmp_path.glob(".config-*.yaml")) == []
+
+    @pytest.mark.parametrize("contents", ["a scalar value\n", "- not\n- a mapping\n"])
+    def test_load_config_recovers_from_non_mapping_root(self, monkeypatch, tmp_path, contents):
+        import vulnclaw.config.settings as settings_mod
+
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(contents, encoding="utf-8")
+        monkeypatch.setattr(settings_mod, "CONFIG_FILE", config_path)
+        monkeypatch.setattr(settings_mod, "CONFIG_DIR", tmp_path)
+
+        config = settings_mod.load_config()
+
+        assert config.llm.model == "gpt-4o"
