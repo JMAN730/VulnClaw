@@ -9,7 +9,7 @@
 [![OpenAI Compatible](https://img.shields.io/badge/API-OpenAI_Compatible-green)](https://platform.openai.com/)
 [![MCP](https://img.shields.io/badge/Toolchain-MCP-orange)](https://modelcontextprotocol.io/)
 [![PyPI](https://img.shields.io/badge/PyPI-v0.3.8-blueviolet)](https://pypi.org/project/vulnclaw/)
-[![codecov](https://codecov.io/gh/Netw0rkNoob/VulnClaw/branch/main/graph/badge.svg)](https://codecov.io/gh/Netw0rkNoob/VulnClaw)
+[![codecov](https://codecov.io/gh/Unclecheng-li/VulnClaw/branch/main/graph/badge.svg)](https://codecov.io/gh/Unclecheng-li/VulnClaw)
 [![Security](https://img.shields.io/badge/Scope-Authorized_Only-red)](#-security-notice)
 [![Discord](https://img.shields.io/badge/Discord-Join_Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/q5nrZpe6S)
 [![AtomGitStars](https://atomgit.com/Unclecheng-li/VulnClaw/star/badge.svg)](https://atomgit.com/Unclecheng-li/VulnClaw)
@@ -105,7 +105,7 @@ Suitable for authorized pentests, CTF competitions, security training, and red t
 pip install vulnclaw
 
 # Install from source
-git clone https://github.com/Netw0rkNoob/VulnClaw.git
+git clone https://github.com/Unclecheng-li/VulnClaw.git
 cd VulnClaw
 pip install -e .
 ```
@@ -350,7 +350,7 @@ vulnclaw tui --target 192.168.1.100 --mode continuous
 Operate the full pentest workflow through a browser.
 
 ```bash
-git clone https://github.com/Netw0rkNoob/VulnClaw.git
+git clone https://github.com/Unclecheng-li/VulnClaw.git
 cd VulnClaw
 pip install -e '.[web]'       # install from a source checkout
 
