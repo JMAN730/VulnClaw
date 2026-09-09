@@ -508,7 +508,7 @@ mcp:
 
 </details>
 
-> See [docs/mcp-deployment.md](docs/mcp-deployment.md) for detailed setup instructions.
+> The setup instructions and example configurations above are the current MCP deployment guide.
 
 ---
 

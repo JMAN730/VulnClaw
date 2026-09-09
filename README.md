@@ -486,7 +486,7 @@ mcp:
 
 </details>
 
-> 详细部署说明参见 [docs/mcp-deployment.md](docs/mcp-deployment.md)
+> 上述步骤和示例配置即为当前 MCP 部署说明。
 
 ---
 
