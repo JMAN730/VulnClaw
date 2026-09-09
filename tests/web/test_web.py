@@ -644,6 +644,7 @@ class TestWebServices:
             ({"target_type": "web\rforged"}, {}),
             ({}, {"allow_actions": ["scan\nexploit"]}),
             ({}, {"block_actions": ["scan\texploit"]}),
+            ({}, {"blocked_host": "safe.example\tignored.example"}),
         ],
     )
     def test_web_task_request_rejects_control_characters_in_all_agent_inputs(

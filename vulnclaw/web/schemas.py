@@ -19,11 +19,19 @@ ReportLanguage = Literal["auto", "zh", "en"]
 _CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
-def _reject_control_chars(value: str | None) -> str | None:
+def _reject_control_chars(value: str | None, *, allow_newlines: bool = False) -> str | None:
     """Reject strings containing control characters (prompt injection guard)."""
     if value is None:
         return None
-    if value != value.replace("\n", "").replace("\r", "").replace("\t", "") or _CONTROL_CHARS_RE.search(value):
+    if allow_newlines:
+        value_without_allowed_newlines = value.replace("\n", "").replace("\r", "")
+        has_disallowed_controls = "\t" in value or _CONTROL_CHARS_RE.search(value_without_allowed_newlines)
+    else:
+        has_disallowed_controls = (
+            value != value.replace("\n", "").replace("\r", "").replace("\t", "")
+            or _CONTROL_CHARS_RE.search(value)
+        )
+    if has_disallowed_controls:
         raise ValueError(
             "input must not contain control characters (newlines, tabs, or other non-printable chars)"
         )
@@ -94,6 +102,13 @@ class TaskOptions(BaseModel):
     @classmethod
     def validate_injection_fields(cls, value: str | None) -> str | None:
         return _reject_control_chars(value)
+
+    @field_validator("blocked_host")
+    @classmethod
+    def validate_blocked_host(cls, value: str | None) -> str | None:
+        # Newlines delimit multiple blocked hosts, but no other control
+        # characters are safe to pass into task constraints or prompts.
+        return _reject_control_chars(value, allow_newlines=True)
 
     @field_validator("allow_actions", "block_actions")
     @classmethod
