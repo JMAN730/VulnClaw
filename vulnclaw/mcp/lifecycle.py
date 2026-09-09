@@ -1187,7 +1187,11 @@ class MCPLifecycleManager(ProbeMixin):
 
     def stop_all(self) -> None:
         """Stop all running MCP servers (synchronous)."""
-        names = set(self._processes.keys()) | set(self.registry.get_running_servers())
+        names = (
+            set(self._processes.keys())
+            | set(self._mcp_clients.keys())
+            | set(self.registry.get_running_servers())
+        )
         for name in names:
             self.stop_server(name)
 
@@ -1196,7 +1200,11 @@ class MCPLifecycleManager(ProbeMixin):
 
     async def astop_all(self) -> None:
         """Stop all running MCP servers from within an event loop."""
-        names = set(self._processes.keys()) | set(self.registry.get_running_servers())
+        names = (
+            set(self._processes.keys())
+            | set(self._mcp_clients.keys())
+            | set(self.registry.get_running_servers())
+        )
         for name in names:
             try:
                 await self.astop_server(name)

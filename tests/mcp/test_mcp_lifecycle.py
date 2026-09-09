@@ -112,6 +112,16 @@ class TestStartStop:
         assert m.registry.get_running_servers() == []
 
     @pytest.mark.asyncio
+    async def test_astop_all_closes_cached_sessions_not_marked_running(self):
+        m = _manager()
+        m.registry.register_server("orphan")
+        m._mcp_clients["orphan"] = {"kind": "unknown"}
+
+        await m.astop_all()
+
+        assert m._mcp_clients == {}
+
+    @pytest.mark.asyncio
     async def test_context_manager_starts_and_stops(self):
         config = VulnClawConfig()
         config.mcp.servers["fetch"] = MCPServerConfig(**BUILTIN_MCP_SERVERS["fetch"])

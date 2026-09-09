@@ -839,7 +839,7 @@ class TestWebServices:
             def start_enabled_servers(self):
                 return 0
 
-            def stop_all(self):
+            async def astop_all(self):
                 return None
 
         class DummyAgent:
@@ -996,7 +996,7 @@ class TestWebServices:
             def start_enabled_servers(self):
                 raise RuntimeError("MCP bootstrap failed")
 
-            def stop_all(self):
+            async def astop_all(self):
                 stopped.append(True)
 
         monkeypatch.setattr(task_service, "MCPLifecycleManager", FailingLifecycle)
@@ -1068,7 +1068,7 @@ class TestWebServices:
             def start_enabled_servers(self):
                 return 0
 
-            def stop_all(self):
+            async def astop_all(self):
                 return None
 
         observed_lang: dict[str, str] = {}

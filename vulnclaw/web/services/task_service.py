@@ -170,7 +170,7 @@ async def _run_task(manager: WebTaskManager, task_id: str, request: TaskCreateRe
         manager.set_failed(task_id, str(exc))
     finally:
         if mcp_manager is not None:
-            mcp_manager.stop_all()
+            await mcp_manager.astop_all()
         manager.release_runtime_task(task_id)
 
 
