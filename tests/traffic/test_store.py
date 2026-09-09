@@ -67,6 +67,33 @@ def test_malformed_url_is_out_of_scope_without_raising(tmp_path):
     assert capture.store.entries() == []
 
 
+def test_invalid_request_ids_cannot_escape_blob_directory(tmp_path):
+    store = TrafficStore(tmp_path / "evidence" / "traffic")
+    outside = tmp_path / "evidence" / "outside"
+    outside.mkdir(parents=True)
+    (outside / "request").write_bytes(b"must not be read")
+    store.base_dir.mkdir(parents=True)
+    store.index_path.write_text(
+        '{"request_id":"../outside","method":"GET","url":"http://app.test/"}\n',
+        encoding="utf-8",
+    )
+
+    assert store.request_blob("../outside") is None
+    assert store.response_blob("../outside") is None
+    assert store.view("../outside") is None
+    assert store.entries() == [
+        {"request_id": "../outside", "method": "GET", "url": "http://app.test/"}
+    ]
+
+
+def test_entries_skip_non_object_json_records(tmp_path):
+    store = TrafficStore(tmp_path / "evidence" / "traffic")
+    store.base_dir.mkdir(parents=True)
+    store.index_path.write_text('"not-a-record"\n{"request_id":"also-not-valid"}\n', encoding="utf-8")
+
+    assert store.entries() == [{"request_id": "also-not-valid"}]
+
+
 def test_request_id_stable_across_resume(tmp_path):
     capture = _capture(tmp_path)
     first = capture.capture(_exchange("http://app.test/a"), source="proxy")

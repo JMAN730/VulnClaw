@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -31,6 +32,7 @@ from vulnclaw.traffic.serialization import (
 INDEX_FILENAME = "requests.jsonl"
 REQUEST_BLOB = "request"
 RESPONSE_BLOB = "response"
+_REQUEST_ID_RE = re.compile(r"[0-9a-f]{16}\Z")
 
 
 def compute_request_id(seq: int, request: CapturedRequest) -> str:
@@ -113,26 +115,38 @@ class TrafficStore:
                 if not line:
                     continue
                 try:
-                    rows.append(json.loads(line))
+                    row = json.loads(line)
                 except json.JSONDecodeError:
                     continue
+                if isinstance(row, dict):
+                    rows.append(row)
         return rows
 
     def find(self, request_id: str) -> dict | None:
+        if not _REQUEST_ID_RE.fullmatch(request_id):
+            return None
         for row in self.entries():
             if row.get("request_id") == request_id:
                 return row
         return None
 
-    def _blob_dir(self, request_id: str) -> Path:
+    def _blob_dir(self, request_id: str) -> Path | None:
+        if not _REQUEST_ID_RE.fullmatch(request_id):
+            return None
         return self.base_dir / request_id
 
     def request_blob(self, request_id: str) -> bytes | None:
-        path = self._blob_dir(request_id) / REQUEST_BLOB
+        blob_dir = self._blob_dir(request_id)
+        if blob_dir is None:
+            return None
+        path = blob_dir / REQUEST_BLOB
         return path.read_bytes() if path.exists() else None
 
     def response_blob(self, request_id: str) -> bytes | None:
-        path = self._blob_dir(request_id) / RESPONSE_BLOB
+        blob_dir = self._blob_dir(request_id)
+        if blob_dir is None:
+            return None
+        path = blob_dir / RESPONSE_BLOB
         return path.read_bytes() if path.exists() else None
 
     def view(self, request_id: str) -> dict | None:
