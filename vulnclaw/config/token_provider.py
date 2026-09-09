@@ -24,6 +24,7 @@ import hashlib
 import json
 import os
 import secrets
+import tempfile
 import threading
 import time
 import urllib.error
@@ -76,13 +77,37 @@ def load_oauth_tokens() -> dict[str, Any]:
 
 
 def save_oauth_tokens(bundle: dict[str, Any]) -> None:
+    """Atomically persist OAuth tokens without widening secret access."""
     path = _oauth_store_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(bundle, f, indent=2)
-    # Best-effort tighten permissions on POSIX (no-op on Windows).
+    # The directory can contain API credentials; make it private before the
+    # token file is created. Windows applies its own ACL model.
     with suppress(OSError):
-        os.chmod(path, 0o600)
+        os.chmod(path.parent, 0o700)
+
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=".oauth-",
+            suffix=".json",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            json.dump(bundle, temporary, indent=2)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        with suppress(OSError):
+            os.chmod(temporary_path, 0o600)
+        os.replace(temporary_path, path)
+        with suppress(OSError):
+            os.chmod(path, 0o600)
+    finally:
+        if temporary_path is not None:
+            with suppress(FileNotFoundError, OSError):
+                temporary_path.unlink()
 
 
 def logout_oauth() -> bool:

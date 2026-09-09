@@ -69,6 +69,21 @@ def test_logout_removes_store(_config_dir):
     assert tp.load_oauth_tokens() == {}
 
 
+def test_oauth_save_failure_preserves_prior_token_bundle(_config_dir, monkeypatch):
+    tp.save_oauth_tokens({"access_token": "old"})
+
+    def fail_replace(source, destination):
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr(tp.os, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="simulated replace failure"):
+        tp.save_oauth_tokens({"access_token": "new"})
+
+    assert tp.load_oauth_tokens() == {"access_token": "old"}
+    assert not list(_config_dir.glob(".oauth-*.json"))
+
+
 def test_decode_jwt_claims_and_account_id():
     header = base64.urlsafe_b64encode(b'{"alg":"none"}').rstrip(b"=").decode()
     claims = {"https://api.openai.com/auth": {"chatgpt_account_id": "acct-123"}}
