@@ -60,15 +60,16 @@ def generate_target_report(
     if not raw:
         raise FileNotFoundError(f"Target state not found: {target}")
     normalized_format = "html" if report_format.lower() == "html" else "markdown"
+    destination = (
+        resolve_report_output_path(output_path, normalized_format)
+        if output_path
+        else _default_report_path(target, normalized_format)
+    )
     path = generate_report_from_target_state(
         raw,
         report_format=normalized_format,
-        output_path=str(_default_report_path(target, normalized_format)),
+        output_path=str(destination),
     )
-    if output_path:
-        destination = resolve_report_output_path(output_path, normalized_format)
-        destination.write_text(Path(path).read_text(encoding="utf-8"), encoding="utf-8")
-        return str(destination)
     return str(Path(path).resolve())
 
 

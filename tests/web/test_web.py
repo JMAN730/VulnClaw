@@ -410,7 +410,9 @@ class TestWebServices:
 
         out = sessions_dir / "report.md"
         path = report_service.generate_target_report("https://example.com", str(out))
-        assert Path(path).exists()
+        assert Path(path) == out.resolve()
+        assert out.exists()
+        assert list(sessions_dir.glob("report_*.md")) == []
 
     def test_web_report_service_generates_html_target_report(self, monkeypatch, tmp_path):
         import vulnclaw.target_state.store as store_mod
