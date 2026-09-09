@@ -213,7 +213,11 @@ async def _run_persistent_task(
     rounds_per_cycle = (
         request.options.rounds_per_cycle or agent.config.session.persistent_rounds_per_cycle
     )
-    max_cycles = request.options.max_cycles or agent.config.session.persistent_max_cycles
+    max_cycles = (
+        request.options.max_cycles
+        if request.options.max_cycles is not None
+        else agent.config.session.persistent_max_cycles
+    )
     prompt = _build_prompt_v2(request)
 
     def on_cycle_step(round_num: int, cycle_num: int, result) -> None:

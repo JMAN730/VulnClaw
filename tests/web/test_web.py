@@ -635,6 +635,44 @@ class TestWebServices:
             TaskOptions(only_port=65536)
         assert TaskOptions(only_port=443).only_port == 443
 
+    @pytest.mark.asyncio
+    async def test_web_persistent_task_preserves_explicit_unlimited_cycles(
+        self, monkeypatch, tmp_path
+    ):
+        from types import SimpleNamespace
+
+        import vulnclaw.web.task_manager as task_manager_mod
+        from vulnclaw.web.schemas import TaskCreateRequest, TaskOptions
+        from vulnclaw.web.services.task_service import _run_persistent_task
+
+        monkeypatch.setattr(task_manager_mod, "WEB_TASKS_FILE", tmp_path / "web_tasks.json")
+        monkeypatch.setattr(task_manager_mod, "ensure_dirs", lambda: None)
+
+        observed: dict[str, int] = {}
+
+        class DummyAgent:
+            config = SimpleNamespace(
+                session=SimpleNamespace(
+                    persistent_rounds_per_cycle=10,
+                    persistent_max_cycles=5,
+                )
+            )
+
+            async def persistent_pentest(self, **kwargs):
+                observed["max_cycles"] = kwargs["max_cycles"]
+
+        request = TaskCreateRequest(
+            command="persistent",
+            target="https://example.com",
+            options=TaskOptions(max_cycles=0),
+        )
+        manager = task_manager_mod.WebTaskManager()
+        record = manager.create_task(request)
+
+        await _run_persistent_task(manager, record.task_id, DummyAgent(), request)
+
+        assert observed["max_cycles"] == 0
+
     @pytest.mark.parametrize(
         ("request_kwargs", "options_kwargs"),
         [
