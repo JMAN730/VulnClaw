@@ -125,8 +125,11 @@ def create_app():
         )
 
     app = FastAPI(title="VulnClaw Web UI", version="0.3.8")
-    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(AuthMiddleware)
+    # Starlette applies middleware in reverse registration order. Keeping the
+    # header middleware outermost means even AuthMiddleware's early 401/403
+    # responses receive the browser hardening headers below.
+    app.add_middleware(SecurityHeadersMiddleware)
 
     @app.get("/api/health")
     async def health():

@@ -11,7 +11,16 @@ cp .env.example .env          # add your VULNCLAW_LLM_API_KEY
 docker compose up --build      # builds the image and starts the Web UI
 ```
 
-Then open <http://127.0.0.1:7788>.
+Docker's port forwarding makes the browser a non-loopback client, so the Web
+UI requires its one-time sign-in link. Retrieve it after startup and open that
+exact URL once:
+
+```bash
+docker compose logs vulnclaw
+```
+
+The URL is printed as `http://127.0.0.1:7788/?token=...`; it immediately
+removes the token from the address bar and stores an HttpOnly session cookie.
 
 State persists in the `vulnclaw-data` named volume across restarts.
 
@@ -189,7 +198,9 @@ docker compose exec vulnclaw \
 - The container binds the Web UI to `0.0.0.0` internally (required for the
   published port to be reachable); the host-side `127.0.0.1:7788` mapping keeps
   it private to your machine. Change the mapping to expose it elsewhere — only
-  do so on networks you trust, as the UI has no authentication.
+  do so only when you can safely distribute the one-time sign-in URL. Remote
+  clients must authenticate with the printed token (or the resulting session
+  cookie); keep that token private.
 - The `chrome-devtools` MCP server is disabled by default; enabling it requires
   a Chrome/Chromium browser which is not installed in this image to keep it
   lean.

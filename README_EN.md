@@ -371,6 +371,9 @@ the source-checkout installation above for the full Web UI. If you see the
 and hard-refresh. API endpoints such as `/api/health` still work while the SPA is unbuilt.
 
 > ⚠️ By default binds to localhost only. For remote access pass `--host 0.0.0.0 --allow-remote`.
+> This prints a one-time `/?token=...` sign-in URL. Open that exact URL once;
+> it removes the token from the address bar and creates an HttpOnly browser
+> session. Keep the token private.
 
 ---
 

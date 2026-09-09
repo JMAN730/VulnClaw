@@ -136,7 +136,7 @@ vulnclaw config set llm.model your-model-name
 # 2. 设置 API Key
 vulnclaw config set llm.api_key sk-your-key-here
 #    — 或改用 ChatGPT 订阅登录（无需 API Key）：
-#      vulnclaw login   （浏览器登录；详见 docs/keyless-auth.md，注意 ToS 风险）
+#      vulnclaw login   （浏览器登录；注意 ToS 风险）
 
 # 3. 默认：打开原 CLI / REPL
 vulnclaw
@@ -344,6 +344,10 @@ cd ..
 vulnclaw web                  # 启动（默认 127.0.0.1:7788）
 vulnclaw web --port 8080      # 自定义端口
 ```
+
+远程访问时使用 `--host 0.0.0.0 --allow-remote`；命令会打印一次性
+`/?token=...` 登录 URL。仅打开该 URL 一次：系统会从地址栏移除 token 并创建
+HttpOnly 浏览器会话。请妥善保管 token。
 
 PyPI wheel 不包含 React 构建产物或前端源码；完整 Web UI 需要按上面的源码方式安装。
 若浏览器显示 **Fallback Web Shell**（无完整扫描界面），说明缺少

@@ -148,3 +148,27 @@ class TestSessionCookie:
         auth.attach_session_cookie(response, auth.generate_token())
 
         assert "secure" in response.headers["set-cookie"].lower()
+
+    def test_rejected_api_request_has_security_headers(self, monkeypatch, tmp_path):
+        """Auth failures must not bypass the app-wide browser protections."""
+        import vulnclaw.web.app as web_app
+
+        if not web_app.FASTAPI_AVAILABLE:
+            import pytest
+
+            pytest.skip("FastAPI is not installed in this environment")
+
+        from fastapi.testclient import TestClient
+
+        _redirect_token_dir(monkeypatch, tmp_path)
+        auth.generate_token()
+        client = TestClient(web_app.create_app())
+
+        response = client.get("/api/config")
+
+        # TestClient connects as "testclient", a non-loopback peer, so this
+        # exercises the remote-client authentication failure path.
+        assert response.status_code == 401
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["x-frame-options"] == "DENY"
+        assert "default-src 'self'" in response.headers["content-security-policy"]
