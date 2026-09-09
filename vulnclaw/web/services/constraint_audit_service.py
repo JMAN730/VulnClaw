@@ -26,7 +26,12 @@ def get_constraint_audit(limit: int = 30) -> ConstraintAuditView:
         for item in raw.get("constraint_violation_events", []):
             if not isinstance(item, dict):
                 continue
-            event = ConstraintAuditEventView(target=target, **item)
+            try:
+                event = ConstraintAuditEventView(target=target, **item)
+            except (TypeError, ValueError):
+                # Preserve audit availability when an older/corrupt target
+                # state contains an event that no longer matches the schema.
+                continue
             events.append(event)
             by_source[event.source or "unknown"] = by_source.get(event.source or "unknown", 0) + 1
             by_code[event.code or "unknown"] = by_code.get(event.code or "unknown", 0) + 1

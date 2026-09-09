@@ -293,6 +293,40 @@ class TestWebServices:
         assert items[0].candidate_count == 1
         assert items[0].manual_review_count == 1
 
+    def test_web_target_service_skips_corrupt_state_files(self, monkeypatch, tmp_path):
+        import vulnclaw.target_state.store as store_mod
+        import vulnclaw.web.services.target_service as target_service
+        from vulnclaw.agent.context import SessionState
+
+        monkeypatch.setattr(store_mod, "TARGETS_DIR", tmp_path)
+        monkeypatch.setattr(target_service, "TARGETS_DIR", tmp_path)
+        store_mod.save_target_state(
+            "https://example.com", SessionState(target="https://example.com"), command="scan"
+        )
+        corrupt_state = tmp_path / "corrupt" / "state.json"
+        corrupt_state.parent.mkdir()
+        corrupt_state.write_text("{not-json", encoding="utf-8")
+
+        items = target_service.list_targets()
+
+        assert [item.target for item in items] == ["https://example.com"]
+
+    def test_constraint_audit_skips_malformed_events(self, monkeypatch, tmp_path):
+        import vulnclaw.web.services.constraint_audit_service as audit_service
+
+        target_dir = tmp_path / "example"
+        target_dir.mkdir()
+        (target_dir / "state.json").write_text(
+            '{"target":"https://example.com","constraint_violation_events":[{"source":[]}]}',
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(audit_service, "TARGETS_DIR", tmp_path)
+        monkeypatch.setattr(audit_service, "ensure_dirs", lambda: None)
+
+        audit = audit_service.get_constraint_audit()
+
+        assert audit.total_events == 0
+
     def test_web_target_service_snapshots(self, monkeypatch, tmp_path):
         import vulnclaw.target_state.store as store_mod
         import vulnclaw.web.services.target_service as target_service

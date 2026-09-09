@@ -28,8 +28,15 @@ def list_targets(limit: int = 20) -> list[TargetView]:
     ensure_dirs()
     items: list[tuple[float, TargetView]] = []
     for state_path in TARGETS_DIR.glob("*/state.json"):
-        raw = json.loads(state_path.read_text(encoding="utf-8"))
-        items.append((_mtime(state_path), _build_target_view(raw)))
+        try:
+            raw = json.loads(state_path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                continue
+            items.append((_mtime(state_path), _build_target_view(raw)))
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
+            # A damaged state file must not make the entire target history
+            # unavailable. Individual-target APIs continue to surface errors.
+            continue
     items.sort(key=lambda item: item[0], reverse=True)
     return [view for _, view in items[:limit]]
 
