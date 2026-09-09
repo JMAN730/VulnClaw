@@ -14,9 +14,15 @@ from vulnclaw.traffic.models import ScopeMode, Target
 
 def _host_port(url: str) -> tuple[str, int | None, str]:
     """Return ``(host, port, path)`` for ``url`` (host lower-cased)."""
-    parts = urlsplit(url)
-    host = (parts.hostname or "").lower()
-    port = parts.port
+    try:
+        parts = urlsplit(url)
+        host = (parts.hostname or "").lower()
+        port = parts.port
+    except ValueError:
+        # urlsplit's hostname/port access raises for malformed IPv6 literals
+        # and invalid port numbers. Treat them as out of scope rather than
+        # allowing an invalid capture to break the proxy/browser pipeline.
+        return "", None, ""
     if port is None:
         if parts.scheme == "https":
             port = 443

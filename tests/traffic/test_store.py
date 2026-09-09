@@ -58,6 +58,15 @@ def test_in_scope_request_writes_one_line_and_blobs(tmp_path):
     assert json.loads(lines[0])["request_id"] == request_id
 
 
+def test_malformed_url_is_out_of_scope_without_raising(tmp_path):
+    capture = _capture(tmp_path)
+
+    request_id = capture.capture(_exchange("http://app.test:invalid-port/login"), source="proxy")
+
+    assert request_id is None
+    assert capture.store.entries() == []
+
+
 def test_request_id_stable_across_resume(tmp_path):
     capture = _capture(tmp_path)
     first = capture.capture(_exchange("http://app.test/a"), source="proxy")
