@@ -7,6 +7,8 @@ the real home directory via monkeypatch.
 
 from __future__ import annotations
 
+import pytest
+
 import vulnclaw.web.auth as auth
 
 
@@ -36,6 +38,20 @@ class TestTokenFile:
         token_file = _redirect_token_dir(monkeypatch, tmp_path)
         assert not token_file.exists()
         assert auth.verify_token("anything") is False
+
+    def test_token_write_failure_leaves_no_partial_token_file(self, monkeypatch, tmp_path):
+        token_file = _redirect_token_dir(monkeypatch, tmp_path)
+
+        def fail_replace(source, destination):
+            raise OSError("simulated replace failure")
+
+        monkeypatch.setattr(auth.os, "replace", fail_replace)
+
+        with pytest.raises(OSError, match="simulated replace failure"):
+            auth.generate_token()
+
+        assert not token_file.exists()
+        assert not list(token_file.parent.glob(".web-token-*"))
 
     def test_client_is_loopback_variants(self):
         assert auth._client_is_loopback("127.0.0.1")

@@ -18,6 +18,8 @@ import hmac
 import ipaddress
 import os
 import secrets
+import tempfile
+from contextlib import suppress
 from pathlib import Path
 
 try:
@@ -39,6 +41,8 @@ SESSION_COOKIE = "vulnclaw_session"
 def _token_path() -> Path:
     """Return the token file path, ensuring the parent directory exists."""
     TOKEN_DIR.mkdir(parents=True, exist_ok=True)
+    with suppress(OSError):
+        os.chmod(TOKEN_DIR, 0o700)
     return TOKEN_FILE
 
 
@@ -55,15 +59,29 @@ def generate_token() -> str:
             return existing
 
     token = secrets.token_urlsafe(32)
-    path.write_text(token, encoding="utf-8")
-    # Restrict file permissions on POSIX (best-effort on Windows).
+    temporary_path: Path | None = None
     try:
-        import os
-
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
-    return token
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=".web-token-",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            temporary.write(token)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        with suppress(OSError):
+            os.chmod(temporary_path, 0o600)
+        os.replace(temporary_path, path)
+        with suppress(OSError):
+            os.chmod(path, 0o600)
+        return token
+    finally:
+        if temporary_path is not None:
+            with suppress(FileNotFoundError, OSError):
+                temporary_path.unlink()
 
 
 def verify_token(token: str) -> bool:
