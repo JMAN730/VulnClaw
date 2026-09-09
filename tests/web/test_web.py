@@ -841,6 +841,40 @@ class TestWebServices:
         assert "constraint_violation" in saved.error
 
     @pytest.mark.asyncio
+    async def test_web_task_service_records_mcp_startup_failures(self, monkeypatch):
+        import vulnclaw.web.services.task_service as task_service
+        from vulnclaw.config.schema import VulnClawConfig
+        from vulnclaw.web.schemas import TaskCreateRequest
+        from vulnclaw.web.task_manager import WebTaskManager
+
+        monkeypatch.setattr(task_service, "load_config", VulnClawConfig)
+        stopped: list[bool] = []
+
+        class FailingLifecycle:
+            def __init__(self, _config):
+                pass
+
+            def start_enabled_servers(self):
+                raise RuntimeError("MCP bootstrap failed")
+
+            def stop_all(self):
+                stopped.append(True)
+
+        monkeypatch.setattr(task_service, "MCPLifecycleManager", FailingLifecycle)
+        manager = WebTaskManager()
+        request = TaskCreateRequest(command="recon", target="https://example.com")
+        record = manager.create_task(request)
+
+        await task_service._run_task(manager, record.task_id, request)
+
+        saved = manager.get_task(record.task_id)
+        assert saved is not None
+        assert saved.status == "failed"
+        assert saved.error == "MCP bootstrap failed"
+        assert record.task_id not in manager._running
+        assert stopped == [True]
+
+    @pytest.mark.asyncio
     async def test_web_task_service_blocks_run_when_allowed_actions_conflict(self, monkeypatch):
         import vulnclaw.web.services.task_service as task_service
         from vulnclaw.config.schema import VulnClawConfig

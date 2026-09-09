@@ -110,11 +110,11 @@ async def _run_task(manager: WebTaskManager, task_id: str, request: TaskCreateRe
         )
         return
 
-    mcp_manager = MCPLifecycleManager(config)
-    mcp_manager.start_enabled_servers()
-    agent = AgentCore(config, mcp_manager)
-
+    mcp_manager: MCPLifecycleManager | None = None
     try:
+        mcp_manager = MCPLifecycleManager(config)
+        mcp_manager.start_enabled_servers()
+        agent = AgentCore(config, mcp_manager)
 
         def before_restore(_restore_result) -> None:
             if request.resume:
@@ -169,7 +169,8 @@ async def _run_task(manager: WebTaskManager, task_id: str, request: TaskCreateRe
     except Exception as exc:
         manager.set_failed(task_id, str(exc))
     finally:
-        mcp_manager.stop_all()
+        if mcp_manager is not None:
+            mcp_manager.stop_all()
         manager.release_runtime_task(task_id)
 
 
