@@ -513,3 +513,23 @@ class TestSettingsLoad:
         settings_mod.save_config(config)
         reloaded = settings_mod.load_config()
         assert reloaded.llm.api_keys == ["x1", "x2"]
+
+    def test_save_config_failure_preserves_existing_config(self, monkeypatch, tmp_path):
+        import vulnclaw.config.settings as settings_mod
+        from vulnclaw.config.schema import VulnClawConfig
+
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text("llm:\n  model: preserved\n", encoding="utf-8")
+        monkeypatch.setattr(settings_mod, "CONFIG_FILE", config_path)
+        monkeypatch.setattr(settings_mod, "CONFIG_DIR", tmp_path)
+
+        def fail_dump(*_args, **_kwargs):
+            raise RuntimeError("simulated write failure")
+
+        monkeypatch.setattr(settings_mod.yaml, "dump", fail_dump)
+
+        with pytest.raises(RuntimeError, match="simulated write failure"):
+            settings_mod.save_config(VulnClawConfig())
+
+        assert config_path.read_text(encoding="utf-8") == "llm:\n  model: preserved\n"
+        assert list(tmp_path.glob(".config-*.yaml")) == []

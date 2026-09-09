@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import tempfile
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -80,7 +81,12 @@ DEFAULT_OPENAI_USER_AGENT = "Mozilla/5.0"
 
 def ensure_dirs() -> None:
     """Create VulnClaw config directories if they don't exist."""
-    for d in [CONFIG_DIR, SESSIONS_DIR, TARGETS_DIR, RUNS_DIR, KB_DIR, SKILLS_DIR]:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    # The configuration directory contains API keys and OAuth tokens. Restrict
+    # it on POSIX; Windows applies its own ACL model and may reject chmod.
+    with suppress(OSError):
+        os.chmod(CONFIG_DIR, 0o700)
+    for d in [SESSIONS_DIR, TARGETS_DIR, RUNS_DIR, KB_DIR, SKILLS_DIR]:
         d.mkdir(parents=True, exist_ok=True)
 
 
@@ -135,13 +141,34 @@ def load_config() -> VulnClawConfig:
 
 
 def save_config(config: VulnClawConfig) -> None:
-    """Save configuration to YAML file."""
+    """Atomically save configuration to YAML without widening secret access."""
     ensure_dirs()
     raw = config.model_dump(mode="json")
     # Remove default values to keep config clean
     _strip_defaults(raw)
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        yaml.dump(raw, f, default_flow_style=False, allow_unicode=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=CONFIG_FILE.parent,
+            prefix=".config-",
+            suffix=".yaml",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            yaml.dump(raw, temporary, default_flow_style=False, allow_unicode=True)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        with suppress(OSError):
+            os.chmod(temporary_path, 0o600)
+        os.replace(temporary_path, CONFIG_FILE)
+        with suppress(OSError):
+            os.chmod(CONFIG_FILE, 0o600)
+    finally:
+        if temporary_path is not None:
+            with suppress(FileNotFoundError, OSError):
+                temporary_path.unlink()
 
 
 def set_config_value(key: str, value: str) -> None:
