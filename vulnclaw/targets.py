@@ -182,13 +182,24 @@ def _canonicalize_url(raw: str) -> str:
     parsed = urlsplit(raw.strip())
     scheme = parsed.scheme.lower()
     hostname = (parsed.hostname or "").lower().rstrip(".")
-    netloc = hostname
-    if parsed.port:
-        default_port = (scheme == "http" and parsed.port == 80) or (
-            scheme == "https" and parsed.port == 443
+    if scheme not in {"http", "https"} or not hostname:
+        raise ValueError("URL target must include an http(s) scheme and hostname")
+    # ``urlsplit`` deliberately validates ports lazily; surface malformed user
+    # input as a stable validation error rather than leaking its parser exception.
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("URL target has an invalid port") from exc
+
+    # IPv6 literals require brackets in a URL authority. ``parsed.hostname``
+    # omits them, so restore them when rebuilding the canonical URL.
+    netloc = f"[{hostname}]" if ":" in hostname else hostname
+    if port is not None:
+        default_port = (scheme == "http" and port == 80) or (
+            scheme == "https" and port == 443
         )
         if not default_port:
-            netloc = f"{hostname}:{parsed.port}"
+            netloc = f"{netloc}:{port}"
     path = re.sub(r"/+", "/", parsed.path or "/").rstrip("/") or "/"
     return urlunsplit((scheme, netloc, path, "", ""))
 
