@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -597,6 +598,53 @@ class TestWebServices:
         with pytest.raises(ValidationError):
             TaskOptions(only_port=65536)
         assert TaskOptions(only_port=443).only_port == 443
+
+    @pytest.mark.parametrize(
+        ("request_kwargs", "options_kwargs"),
+        [
+            ({"snapshot_id": "snapshot\nforged"}, {}),
+            ({"resume_run_name": "resume\tforged"}, {}),
+            ({"runs_dir": "runs\nforged"}, {}),
+            ({"target_type": "web\rforged"}, {}),
+            ({}, {"allow_actions": ["scan\nexploit"]}),
+            ({}, {"block_actions": ["scan\texploit"]}),
+        ],
+    )
+    def test_web_task_request_rejects_control_characters_in_all_agent_inputs(
+        self, request_kwargs, options_kwargs
+    ):
+        from pydantic import ValidationError
+
+        from vulnclaw.web.schemas import TaskCreateRequest, TaskOptions
+
+        with pytest.raises(ValidationError, match="control characters"):
+            TaskCreateRequest(
+                command="recon",
+                target="https://example.com",
+                options=TaskOptions(**options_kwargs),
+                **request_kwargs,
+            )
+
+    @pytest.mark.asyncio
+    async def test_web_task_stop_emits_one_event_and_releases_runtime_task(self):
+        from vulnclaw.web.schemas import TaskCreateRequest
+        from vulnclaw.web.task_manager import WebTaskManager
+
+        manager = WebTaskManager()
+        record = manager.create_task(
+            TaskCreateRequest(command="recon", target="https://example.com")
+        )
+
+        async def wait_for_cancel() -> None:
+            await asyncio.Event().wait()
+
+        task = asyncio.create_task(wait_for_cancel())
+        manager.bind_runtime_task(record.task_id, task)
+
+        assert await manager.stop_task(record.task_id)
+        assert record.status == "stopped"
+        assert record.task_id not in manager._running
+        assert [event.event for event in manager._history[record.task_id]].count("task_stopped") == 1
 
     def test_web_task_manager_persists_and_restores_tasks(self, monkeypatch, tmp_path):
         import vulnclaw.web.task_manager as task_manager_mod

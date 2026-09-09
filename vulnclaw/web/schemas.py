@@ -90,10 +90,18 @@ class TaskOptions(BaseModel):
         default=None, max_length=20, description="Explicit block-list for task actions"
     )
 
-    @field_validator("cve", "cmd")
+    @field_validator("cve", "cmd", "only_host", "only_path", "blocked_path")
     @classmethod
     def validate_injection_fields(cls, value: str | None) -> str | None:
         return _reject_control_chars(value)
+
+    @field_validator("allow_actions", "block_actions")
+    @classmethod
+    def validate_action_lists(cls, value: list[str] | None) -> list[str] | None:
+        if value is not None:
+            for item in value:
+                _reject_control_chars(item)
+        return value
 
 
 class TaskCreateRequest(BaseModel):
@@ -112,10 +120,12 @@ class TaskCreateRequest(BaseModel):
     no_import: bool = False
     options: TaskOptions = Field(default_factory=TaskOptions)
 
-    @field_validator("target")
+    @field_validator(
+        "target", "snapshot_id", "run_name", "resume_run_name", "runs_dir", "target_type"
+    )
     @classmethod
-    def validate_target(cls, value: str) -> str:
-        return _reject_control_chars(value)  # type: ignore[return-value]
+    def validate_injection_fields(cls, value: str | None) -> str | None:
+        return _reject_control_chars(value)
 
     @field_validator("additional_targets")
     @classmethod

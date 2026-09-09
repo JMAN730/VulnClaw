@@ -52,6 +52,10 @@ def _validate_request_inputs(request: TaskCreateRequest) -> None:
         "only_path": request.options.only_path,
         "blocked_path": request.options.blocked_path,
         "run_name": request.run_name,
+        "snapshot_id": request.snapshot_id,
+        "resume_run_name": request.resume_run_name,
+        "runs_dir": request.runs_dir,
+        "target_type": request.target_type,
     }
     for name, value in string_fields.items():
         if isinstance(value, str) and _INJECTION_RE.search(value):
@@ -59,6 +63,17 @@ def _validate_request_inputs(request: TaskCreateRequest) -> None:
                 f"Field '{name}' contains control characters (newlines/tabs/etc.) — rejected to prevent prompt injection"
             )
     _parse_blocked_hosts(request.options.blocked_host)
+    for name, actions in {
+        "allow_actions": request.options.allow_actions,
+        "block_actions": request.options.block_actions,
+    }.items():
+        if actions:
+            for i, action in enumerate(actions):
+                if isinstance(action, str) and _INJECTION_RE.search(action):
+                    raise ValueError(
+                        f"Field '{name}[{i}]' contains control characters "
+                        "(newlines/tabs/etc.) — rejected to prevent prompt injection"
+                    )
     if request.additional_targets:
         for i, t in enumerate(request.additional_targets):
             if isinstance(t, str) and _INJECTION_RE.search(t):
@@ -155,6 +170,7 @@ async def _run_task(manager: WebTaskManager, task_id: str, request: TaskCreateRe
         manager.set_failed(task_id, str(exc))
     finally:
         mcp_manager.stop_all()
+        manager.release_runtime_task(task_id)
 
 
 async def _run_single_task(

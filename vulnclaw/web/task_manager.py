@@ -135,6 +135,10 @@ class WebTaskManager:
     def bind_runtime_task(self, task_id: str, task: asyncio.Task) -> None:
         self._running[task_id] = task
 
+    def release_runtime_task(self, task_id: str) -> None:
+        """Drop the completed runtime task without changing its persisted record."""
+        self._running.pop(task_id, None)
+
     async def stop_task(self, task_id: str) -> bool:
         task = self._running.get(task_id)
         if task is None:
@@ -142,7 +146,12 @@ class WebTaskManager:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task
-        self.set_stopped(task_id)
+        # _run_task records cancellation before completing. Retain this guard
+        # for callers that bind a task which exits without updating the record.
+        record = self._tasks.get(task_id)
+        if record is not None and record.status != "stopped":
+            self.set_stopped(task_id)
+        self.release_runtime_task(task_id)
         return True
 
     def _save_state(self) -> None:
