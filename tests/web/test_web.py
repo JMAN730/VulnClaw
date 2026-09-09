@@ -718,6 +718,28 @@ class TestWebServices:
         assert restored.summary.findings_count == 2
         assert list(restored_manager._history[record.task_id])[-1].event == "task_completed"
 
+    def test_web_task_state_save_failure_preserves_prior_state(self, monkeypatch, tmp_path):
+        import vulnclaw.web.task_manager as task_manager_mod
+        from vulnclaw.web.schemas import TaskCreateRequest
+
+        storage = tmp_path / "web_tasks.json"
+        monkeypatch.setattr(task_manager_mod, "WEB_TASKS_FILE", storage)
+        monkeypatch.setattr(task_manager_mod, "ensure_dirs", lambda: None)
+        manager = task_manager_mod.WebTaskManager()
+        record = manager.create_task(TaskCreateRequest(command="scan", target="https://example.com"))
+        original_contents = storage.read_text(encoding="utf-8")
+
+        def fail_replace(source, destination):
+            raise OSError("simulated replace failure")
+
+        monkeypatch.setattr(task_manager_mod.os, "replace", fail_replace)
+
+        with pytest.raises(OSError, match="simulated replace failure"):
+            manager.update_progress(record.task_id, phase="Recon")
+
+        assert storage.read_text(encoding="utf-8") == original_contents
+        assert not list(tmp_path.glob(".web-tasks-*.json"))
+
     def test_web_task_manager_skips_malformed_persisted_records(self, monkeypatch, tmp_path):
         import json
 

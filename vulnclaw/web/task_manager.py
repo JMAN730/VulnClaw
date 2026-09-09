@@ -5,8 +5,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
+import tempfile
 from collections import deque
 from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
 
 from vulnclaw.config.settings import WEB_TASKS_FILE, ensure_dirs
@@ -163,9 +166,26 @@ class WebTaskManager:
                 for task_id, history in self._history.items()
             },
         }
-        self._storage_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        self._storage_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self._storage_path.parent,
+                prefix=".web-tasks-",
+                suffix=".json",
+                delete=False,
+            ) as temporary:
+                temporary_path = Path(temporary.name)
+                json.dump(payload, temporary, ensure_ascii=False, indent=2)
+                temporary.flush()
+                os.fsync(temporary.fileno())
+            os.replace(temporary_path, self._storage_path)
+        finally:
+            if temporary_path is not None:
+                with contextlib.suppress(FileNotFoundError, OSError):
+                    temporary_path.unlink()
 
     def _load_state(self) -> None:
         ensure_dirs()
