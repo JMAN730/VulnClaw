@@ -20,10 +20,11 @@ def infer_port_from_url(url: str) -> int | None:
     """
     try:
         parsed = urlparse(url)
-    except Exception:
+        port = parsed.port
+    except (TypeError, ValueError):
         return None
-    if parsed.port:
-        return parsed.port
+    if port is not None:
+        return port
     if parsed.scheme == "https":
         return 443
     if parsed.scheme == "http":
