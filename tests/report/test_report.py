@@ -62,6 +62,9 @@ class TestReportGenerator:
         path = generate_report(session, output, report_format="html")
         assert path.suffix == ".html"
         assert path.exists()
+        content = path.read_text(encoding="utf-8")
+        assert "<script>alert(1)</script>" not in content
+        assert "&lt;script&gt;alert(1)&lt;/script&gt;" in content
 
     def test_report_contains_target(self, tmp_path):
         from vulnclaw.report.generator import generate_report

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
+from html import escape
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Optional
@@ -514,7 +515,7 @@ def generate_report(
     if report_format.lower() == "html":
         html_content = Template(
             """<!doctype html><html><head><meta charset="utf-8"><title>VulnClaw Report</title></head><body><pre>{{ content }}</pre></body></html>"""
-        ).render(content=report_content)
+        ).render(content=escape(report_content))
         output = output.with_suffix(".html") if output.suffix.lower() != ".html" else output
         output.write_text(html_content, encoding="utf-8")
     else:
