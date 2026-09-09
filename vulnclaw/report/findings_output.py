@@ -14,8 +14,7 @@ covering both verification paths (PoC execution in ``verifier.py`` and manual
 deduplicated with the same ``deduplicate_report_findings`` the Markdown/PDF report
 uses, so the three outputs never diverge.
 
-The SARIF emitter is stdlib-only (``json``) — no third-party SARIF library. See
-``docs/research/findings-sarif-mapping.md`` for the finding→SARIF mapping.
+The SARIF emitter is stdlib-only (``json``) — no third-party SARIF library.
 """
 
 from __future__ import annotations
