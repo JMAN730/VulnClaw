@@ -718,6 +718,48 @@ class TestWebServices:
         assert restored.summary.findings_count == 2
         assert list(restored_manager._history[record.task_id])[-1].event == "task_completed"
 
+    def test_web_task_manager_skips_malformed_persisted_records(self, monkeypatch, tmp_path):
+        import json
+
+        import vulnclaw.web.task_manager as task_manager_mod
+        from vulnclaw.web.schemas import TaskEvent, TaskRecord
+
+        storage = tmp_path / "web_tasks.json"
+        task_id = "task_valid"
+        valid_task = TaskRecord(
+            task_id=task_id,
+            command="recon",
+            target="https://example.com",
+            status="completed",
+        )
+        valid_event = TaskEvent(event="task_completed", task_id=task_id)
+        storage.write_text(
+            json.dumps(
+                {
+                    "tasks": [
+                        valid_task.model_dump(mode="json"),
+                        {"task_id": "task_broken", "status": "not-a-status"},
+                    ],
+                    "history": {
+                        task_id: [
+                            valid_event.model_dump(mode="json"),
+                            {"event": [], "task_id": task_id},
+                            {"event": "forged", "task_id": "task_other"},
+                        ],
+                        "task_broken": [{"event": "ignored", "task_id": "task_broken"}],
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(task_manager_mod, "WEB_TASKS_FILE", storage)
+        monkeypatch.setattr(task_manager_mod, "ensure_dirs", lambda: None)
+
+        manager = task_manager_mod.WebTaskManager()
+
+        assert [record.task_id for record in manager.list_tasks()] == [task_id]
+        assert [event.event for event in manager._history[task_id]] == ["task_completed"]
+
     @pytest.mark.asyncio
     async def test_web_task_service_restore_summary_flow(self, monkeypatch):
         import vulnclaw.web.services.task_service as task_service

@@ -176,12 +176,37 @@ class WebTaskManager:
             raw = json.loads(self._storage_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return
+        if not isinstance(raw, dict):
+            return
 
-        for item in raw.get("tasks", []):
-            record = TaskRecord(**item)
+        task_items = raw.get("tasks", [])
+        if not isinstance(task_items, list):
+            task_items = []
+        for item in task_items:
+            if not isinstance(item, dict):
+                continue
+            try:
+                record = TaskRecord(**item)
+            except (TypeError, ValueError):
+                continue
             self._tasks[record.task_id] = record
+            self._history[record.task_id] = deque(maxlen=500)
             self._queues[record.task_id] = asyncio.Queue()
 
-        for task_id, items in raw.get("history", {}).items():
-            self._history[task_id] = deque((TaskEvent(**item) for item in items), maxlen=500)
-            self._queues.setdefault(task_id, asyncio.Queue())
+        history_by_task = raw.get("history", {})
+        if not isinstance(history_by_task, dict):
+            return
+        for task_id, items in history_by_task.items():
+            if not isinstance(task_id, str) or task_id not in self._tasks or not isinstance(items, list):
+                continue
+            events: deque[TaskEvent] = deque(maxlen=500)
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                try:
+                    event = TaskEvent(**item)
+                except (TypeError, ValueError):
+                    continue
+                if event.task_id == task_id:
+                    events.append(event)
+            self._history[task_id] = events
